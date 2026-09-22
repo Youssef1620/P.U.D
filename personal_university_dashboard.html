@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P.U.D - لوحة التخطيط الجامعي الشخصية</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Tajawal -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#06b6d4',
+                            600: '#0891b2',
+                            700: '#0e7490',
+                            bg: '#0a0f1d',
+                            card: 'rgba(15, 23, 42, 0.75)',
+                            border: 'rgba(51, 65, 85, 0.6)'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Tajawal', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #070b14;
+            color: #f1f5f9;
+            background-image: 
+                radial-gradient(at 20% 20%, rgba(14, 165, 233, 0.08) 0px, transparent 50%),
+                radial-gradient(at 80% 80%, rgba(168, 85, 247, 0.08) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        /* Glassmorphism utility */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .glass-input {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            transition: all 0.2s ease;
+        }
+
+        .glass-input:focus {
+            background: rgba(30, 41, 59, 0.9);
+            border-color: #38bdf8;
+            outline: none;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(51, 65, 85, 0.8);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #38bdf8;
+        }
+
+        /* Smooth Transitions */
+        .tab-transition {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Celebration Confetti Canvas */
+        #confettiCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased text-slate-100 overflow-x-hidden selection:bg-cyan-500 selection:text-slate-900">
+
+    <canvas id="confettiCanvas"></canvas>
+
+    <header class="sticky top-0 z-30 glass-panel border-b border-slate-800/80 px-4 lg:px-8 py-3 transition-all">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+            
+            <!-- Right Side: User Greeting & Sidebar Toggle -->
+            <div class="flex items-center gap-3">
+                <button id="sidebarToggleBtn" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-cyan-400 transition-all border border-slate-700/60" title="تبديل القائمة الجانبية">
+                    <i class="fa-solid fa-bars text-lg"></i>
+                </button>
+
+                <div class="flex items-center gap-2">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-slate-950 shadow-md shadow-cyan-500/20">
+                        <i class="fa-solid fa-graduation-cap text-lg"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-base font-bold text-slate-100 leading-tight">
+                                أهلاً بك، <span id="displayUserName" class="text-cyan-400 font-extrabold">يا بطل</span> 👋
+                            </h1>
+                            <button id="editNameBtn" class="text-xs text-slate-400 hover:text-cyan-400 transition-colors" title="تعديل الاسم">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                        </div>
+                        <p class="text-xs text-slate-400">لوحة التخطيط الجامعي | P.U.D</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center: Interactive Study Timer / Stopwatch Widget -->
+            <div class="flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-2xl shadow-inner">
+                <!-- Mode Switcher Buttons -->
+                <div class="flex bg-slate-950 p-1 rounded-xl text-xs font-medium">
+                    <button id="modePomoBtn" class="px-2.5 py-1 rounded-lg bg-cyan-500 text-slate-950 font-bold transition-all">بوومودورو (25د)</button>
+                    <button id="modeStopwatchBtn" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-slate-200 transition-all">ستوب ووتش</button>
+                </div>
+
+                <!-- Timer Display -->
+                <div class="text-lg font-mono font-bold tracking-wider text-cyan-400 min-w-[70px] text-center" id="timerDisplay">
+                    25:00
+                </div>
+
+                <!-- Action Controls -->
+                <div class="flex items-center gap-1">
+                    <button id="startTimerBtn" class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 flex items-center justify-center transition-all" title="تشغيل/إيقاف مؤقت">
+                        <i class="fa-solid fa-play text-xs"></i>
+                    </button>
+                    <button id="resetTimerBtn" class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:bg-rose-500/20 hover:text-rose-400 flex items-center justify-center transition-all" title="إعادة ضبط">
+                        <i class="fa-solid fa-rotate-left text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Left Side: Date Display -->
+            <div class="hidden md:flex items-center gap-2 text-xs text-slate-400 bg-slate-800/40 px-3 py-2 rounded-xl border border-slate-800">
+                <i class="fa-regular fa-calendar-check text-cyan-400"></i>
+                <span id="currentDateText">جاري تحميل التاريخ...</span>
+            </div>
+
+        </div>
+    </header>
+
+    <div class="flex-1 max-w-7xl w-full mx-auto flex flex-col md:flex-row gap-6 p-4 md:p-6 lg:p-8">
+
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar" class="w-full md:w-64 flex-shrink-0 transition-all duration-300 space-y-2">
+            <div class="glass-panel rounded-2xl p-3 border border-slate-800">
+                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">أقسام اللوحة</p>
+                <nav class="space-y-1" id="navContainer">
+                    <button data-tab="tab-daily" class="nav-btn active w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all bg-gradient-to-r from-cyan-500/20 to-transparent text-cyan-400 border-r-4 border-cyan-400">
+                        <i class="fa-solid fa-list-check text-base"></i>
+                        <span>المهام اليومية</span>
+                    </button>
+
+                    <button data-tab="tab-weekly" class="nav-btn w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
+                        <i class="fa-solid fa-calendar-week text-base"></i>
+                        <span>خطة الأسبوع</span>
+                    </button>
+
+                    <button data-tab="tab-monthly" class="nav-btn w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
+                        <i class="fa-regular fa-calendar-days text-base"></i>
+                        <span>خطة الشهر والامتحانات</span>
+                    </button>
+
+                    <button data-tab="tab-notes" class="nav-btn w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
+                        <i class="fa-solid fa-note-sticky text-base"></i>
+                        <span>الملاحظات السريعة</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Quick Motivation Card in Sidebar -->
+            <div class="glass-panel rounded-2xl p-4 border border-slate-800 hidden md:block text-center space-y-2">
+                <div class="w-10 h-10 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center mx-auto text-lg">
+                    <i class="fa-solid fa-rocket"></i>
+                </div>
+                <p class="text-xs font-bold text-slate-200">"الاستمرارية هي سر التميز"</p>
+                <p class="text-[11px] text-slate-400 leading-relaxed">خطوة صغيرة كل يوم تقربك من هدفك الجامعي النهائي.</p>
+            </div>
+        </aside>
+
+        <main class="flex-1 min-w-0">
+
+            <!-- ================= SECTION 1: DAILY TASKS ================= -->
+            <section id="tab-daily" class="tab-content space-y-6">
+                <!-- Header Stats Card -->
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-cyan-400"></i>
+                            المهام اليومية (Daily To-Do List)
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">نظم محاضراتك وتاسكاتك اليومية بذكاء</p>
+                    </div>
+
+                    <!-- Progress Indicator -->
+                    <div class="flex items-center gap-4 bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-800">
+                        <div class="text-right">
+                            <p class="text-[10px] text-slate-400 uppercase font-bold">نسبة الإنجاز</p>
+                            <p id="taskProgressText" class="text-sm font-bold text-cyan-400">0 / 0 (0%)</p>
+                        </div>
+                        <div class="w-12 h-12 relative flex items-center justify-center">
+                            <svg class="w-12 h-12 transform -rotate-90">
+                                <circle cx="24" cy="24" r="18" stroke="currentColor" stroke-width="4" class="text-slate-800" fill="transparent"/>
+                                <circle id="progressCircle" cx="24" cy="24" r="18" stroke="currentColor" stroke-width="4" class="text-cyan-400 transition-all duration-500" stroke-dasharray="113.09" stroke-dashoffset="113.09" fill="transparent"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Task Input Form -->
+                <div class="glass-panel rounded-2xl p-4 border border-slate-800">
+                    <form id="addTaskForm" class="flex flex-col sm:flex-row items-center gap-3">
+                        <input type="text" id="taskTitleInput" placeholder="أضف مهمة جديدة (مثلاً: مذاكرة السكشن الأول كيمياء)..." class="w-full glass-input px-4 py-3 rounded-xl text-sm" required>
+                        
+                        <select id="taskPrioritySelect" class="w-full sm:w-40 glass-input px-3 py-3 rounded-xl text-sm bg-slate-900">
+                            <option value="عالي">أولوية عالية 🔥</option>
+                            <option value="متوسط" selected>أولوية متوسطة ⚡</option>
+                            <option value="عادي">أولوية عادية ☕</option>
+                        </select>
+
+                        <button type="submit" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-cyan-500/20 whitespace-nowrap">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>إضافة</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Tasks List Area -->
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <h3 class="text-sm font-bold text-slate-300">قائمة المهام اليومية</h3>
+                        <button id="clearCompletedTasksBtn" class="text-xs text-slate-400 hover:text-rose-400 transition-colors">
+                            مسح المهام المكتملة
+                        </button>
+                    </div>
+
+                    <div id="dailyTasksList" class="space-y-2">
+                        <!-- Tasks dynamically injected via JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= SECTION 2: WEEKLY PLANNER ================= -->
+            <section id="tab-weekly" class="tab-content space-y-6 hidden">
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800">
+                    <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-calendar-week text-indigo-400"></i>
+                        خطة الأسبوع والجدول الدراسي (Weekly Planner)
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">وزّع موادك ومحاضراتك على أيام الأسبوع لتقليل الضغط</p>
+                </div>
+
+                <!-- 7 Days Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="weeklyDaysContainer">
+                    <!-- Days loaded via JS -->
+                </div>
+            </section>
+
+            <!-- ================= SECTION 3: MONTHLY PLANNER ================= -->
+            <section id="tab-monthly" class="tab-content space-y-6 hidden">
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800">
+                    <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+                        <i class="fa-regular fa-calendar-days text-purple-400"></i>
+                        خطة الشهر ومواعيد الامتحانات (Monthly Goals)
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">سجّل مواعيد امتحاناتك، تسليم المشاريع، وأهدافك الكبيرة</p>
+                </div>
+
+                <!-- Add Monthly Goal/Deadline -->
+                <div class="glass-panel rounded-2xl p-4 border border-slate-800">
+                    <form id="addMonthlyForm" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <input type="text" id="monthlyTitleInput" placeholder="عنوان الحدث (مثلاً: ميدتيرم الفيزياء)..." class="md:col-span-2 glass-input px-4 py-2.5 rounded-xl text-sm" required>
+                        <input type="date" id="monthlyDateInput" class="glass-input px-3 py-2.5 rounded-xl text-sm bg-slate-900" required>
+                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm flex items-center justify-center gap-2 transition-all">
+                            <i class="fa-solid fa-calendar-plus"></i>
+                            <span>إضافة موعد</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Monthly Deadlines List -->
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800">
+                    <h3 class="text-sm font-bold text-slate-300 border-b border-slate-800 pb-3 mb-4">الأهداف والمواعيد المخططة</h3>
+                    <div id="monthlyList" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <!-- Dynamically generated -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= SECTION 4: QUICK NOTES ================= -->
+            <section id="tab-notes" class="tab-content space-y-6 hidden">
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800 flex items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+                            <i class="fa-solid fa-note-sticky text-amber-400"></i>
+                            الملاحظات السريعة (Quick Notes)
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">اكتب أفكارك وروابطك المهمة هنا وملاحظات المحاضرات</p>
+                    </div>
+
+                    <button id="openNewNoteModalBtn" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-2 transition-all">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>ملاحظة جديدة</span>
+                    </button>
+                </div>
+
+                <!-- Scrollable Container for Notes -->
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800 max-h-[600px] overflow-y-auto">
+                    <div id="notesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Sticky Notes render here -->
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- ================= MODALS & OVERLAYS ================= -->
+
+    <!-- 1. Confirmation Modal for Task Completion -->
+    <div id="confirmTaskModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel rounded-2xl p-6 border border-slate-700 max-w-sm w-full space-y-4 text-center transform transition-all scale-100">
+            <div class="w-12 h-12 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-circle-question"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-100">تأكيد إتمام المهمة</h3>
+            <p class="text-xs text-slate-300 leading-relaxed" id="confirmTaskText">هل أنت متأكد من إتمام هذه المهمة؟</p>
+            
+            <div class="flex items-center gap-3 pt-2">
+                <button id="confirmYesBtn" class="flex-1 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm transition-all">
+                    نعم، أتممتها 👍
+                </button>
+                <button id="confirmNoBtn" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm transition-all">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Celebration Modal (When All Daily Tasks Complete!) -->
+    <div id="celebrationModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel rounded-3xl p-8 border border-cyan-500/30 max-w-md w-full space-y-5 text-center shadow-2xl shadow-cyan-500/20 relative">
+            <div class="w-20 h-20 rounded-full bg-gradient-to-tr from-cyan-400 to-indigo-500 flex items-center justify-center mx-auto text-3xl text-slate-950 shadow-lg shadow-cyan-500/30 animate-bounce">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+
+            <h2 class="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400">
+                عاش يا بطل! أسطورة حقيقية 🚀🔥
+            </h2>
+
+            <p class="text-sm text-slate-200 leading-relaxed">
+                لقد أنجزت جميع مهامك اليومية بنجاح بنسبة 100%! خذ قسطاً من الراحة واستمتع ببرهة تميزك.
+            </p>
+
+            <div class="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 text-xs text-cyan-300 italic">
+                "إن النجاح ليس صدفة، بل هو ثمرة التخطيط والمثابرة اليومية!"
+            </div>
+
+            <button id="closeCelebrationBtn" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-bold text-sm shadow-lg shadow-cyan-500/20 transition-all">
+                استمرار في الإنجاز ⚡
+            </button>
+        </div>
+    </div>
+
+    <!-- 3. Name Edit Modal -->
+    <div id="editNameModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel rounded-2xl p-6 border border-slate-700 max-w-sm w-full space-y-4">
+            <h3 class="text-base font-bold text-slate-100">تعديل اسمك في اللوحة</h3>
+            <input type="text" id="userNameInput" placeholder="أدخل اسمك هنا..." class="w-full glass-input px-4 py-2.5 rounded-xl text-sm">
+            <div class="flex items-center justify-end gap-2">
+                <button id="saveNameBtn" class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs">حفظ</button>
+                <button id="cancelNameBtn" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Add/Edit Note Modal -->
+    <div id="noteModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel rounded-2xl p-6 border border-slate-700 max-w-md w-full space-y-4">
+            <h3 class="text-base font-bold text-slate-100" id="noteModalTitle">إضافة ملاحظة جديدة</h3>
+            <input type="text" id="noteTitleInput" placeholder="عنوان الملاحظة..." class="w-full glass-input px-4 py-2.5 rounded-xl text-sm" required>
+            <textarea id="noteBodyInput" rows="4" placeholder="اكتب تفاصيل الملاحظة هنا..." class="w-full glass-input px-4 py-2.5 rounded-xl text-sm resize-none" required></textarea>
+            
+            <!-- Note Color Selection -->
+            <div>
+                <label class="text-xs text-slate-400 block mb-2">اختر لون الملاحظة:</label>
+                <div class="flex items-center gap-3" id="noteColorPicker">
+                    <button data-color="cyan" class="w-7 h-7 rounded-full bg-cyan-500/30 border-2 border-cyan-400 focus:scale-110 transition-all active"></button>
+                    <button data-color="purple" class="w-7 h-7 rounded-full bg-purple-500/30 border-2 border-purple-400 focus:scale-110 transition-all"></button>
+                    <button data-color="amber" class="w-7 h-7 rounded-full bg-amber-500/30 border-2 border-amber-400 focus:scale-110 transition-all"></button>
+                    <button data-color="emerald" class="w-7 h-7 rounded-full bg-emerald-500/30 border-2 border-emerald-400 focus:scale-110 transition-all"></button>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-2">
+                <button id="saveNoteBtn" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs">حفظ الملاحظة</button>
+                <button id="cancelNoteBtn" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        /* ==========================================================================
+           P.U.D APPLICATION STATE MANAGEMENT & LOCAL STORAGE HELPERS
+           ========================================================================== */
+        const AppState = {
+            userName: localStorage.getItem('pud_user_name') || 'يا بطل',
+            dailyTasks: JSON.parse(localStorage.getItem('pud_daily_tasks')) || [
+                { id: 1, title: 'حضور محاضرة الرياضيات 1', priority: 'عالي', completed: false },
+                { id: 2, title: 'تسليم شيت الفيزياء بالسكشن', priority: 'متوسط', completed: false }
+            ],
+            weeklyPlanner: JSON.parse(localStorage.getItem('pud_weekly_planner')) || {
+                'السبت': ['محاضرة كيمياء (8:00 ص)'],
+                'الأحد': ['سكشن فيزياء (10:00 ص)'],
+                'الإثنين': [],
+                'الثلاثاء': ['محاضرة رياضة (12:00 م)'],
+                'الأربعاء': [],
+                'الخميس': ['مراجعة أسبوعية (6:00 م)'],
+                'الجمعة': ['راحة واستجمام ☕']
+            },
+            monthlyGoals: JSON.parse(localStorage.getItem('pud_monthly_goals')) || [
+                { id: 1, title: 'امتحان الميدتيرم الفيزياء', date: '2026-11-15' }
+            ],
+            quickNotes: JSON.parse(localStorage.getItem('pud_quick_notes')) || [
+                { id: 1, title: 'رابط التسجيل في الكورسات', body: 'موقع الكلية الرسمية -> الخدمات الإلكترونية', color: 'cyan' }
+            ],
+            selectedTaskToComplete: null,
+            activeNoteColor: 'cyan'
+        };
+
+        function saveStateToStorage() {
+            localStorage.setItem('pud_user_name', AppState.userName);
+            localStorage.setItem('pud_daily_tasks', JSON.stringify(AppState.dailyTasks));
+            localStorage.setItem('pud_weekly_planner', JSON.stringify(AppState.weeklyPlanner));
+            localStorage.setItem('pud_monthly_goals', JSON.stringify(AppState.monthlyGoals));
+            localStorage.setItem('pud_quick_notes', JSON.stringify(AppState.quickNotes));
+        }
+
+        /* ==========================================================================
+           WEB AUDIO API SYNTH (Gentle Timer Audio Chime & Success Sound)
+           ========================================================================== */
+        const AudioSynth = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            playBeep() {
+                this.init();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, this.ctx.currentTime); // D5
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.5);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.5);
+            },
+            playCelebration() {
+                this.init();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + (idx * 0.12));
+                    gain.gain.setValueAtTime(0.15, this.ctx.currentTime + (idx * 0.12));
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + (idx * 0.12) + 0.4);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + (idx * 0.12));
+                    osc.stop(this.ctx.currentTime + (idx * 0.12) + 0.4);
+                });
+            }
+        };
+
+        /* ==========================================================================
+           TIMER / STOPWATCH MODULE
+           ========================================================================== */
+        const TimerModule = {
+            mode: 'pomodoro', // 'pomodoro' | 'stopwatch'
+            secondsRemaining: 25 * 60,
+            stopwatchSeconds: 0,
+            interval: null,
+            isRunning: false,
+
+            init() {
+                this.updateDisplay();
+                
+                document.getElementById('modePomoBtn').addEventListener('click', () => this.setMode('pomodoro'));
+                document.getElementById('modeStopwatchBtn').addEventListener('click', () => this.setMode('stopwatch'));
+                document.getElementById('startTimerBtn').addEventListener('click', () => this.toggleTimer());
+                document.getElementById('resetTimerBtn').addEventListener('click', () => this.resetTimer());
+            },
+
+            setMode(newMode) {
+                if (this.mode === newMode) return;
+                this.pauseTimer();
+                this.mode = newMode;
+
+                const pomoBtn = document.getElementById('modePomoBtn');
+                const swBtn = document.getElementById('modeStopwatchBtn');
+
+                if (newMode === 'pomodoro') {
+                    pomoBtn.className = 'px-2.5 py-1 rounded-lg bg-cyan-500 text-slate-950 font-bold transition-all';
+                    swBtn.className = 'px-2.5 py-1 rounded-lg text-slate-400 hover:text-slate-200 transition-all';
+                    this.secondsRemaining = 25 * 60;
+                } else {
+                    swBtn.className = 'px-2.5 py-1 rounded-lg bg-cyan-500 text-slate-950 font-bold transition-all';
+                    pomoBtn.className = 'px-2.5 py-1 rounded-lg text-slate-400 hover:text-slate-200 transition-all';
+                    this.stopwatchSeconds = 0;
+                }
+                this.updateDisplay();
+            },
+
+            toggleTimer() {
+                if (this.isRunning) {
+                    this.pauseTimer();
+                } else {
+                    this.startTimer();
+                }
+            },
+
+            startTimer() {
+                this.isRunning = true;
+                const startBtn = document.getElementById('startTimerBtn');
+                startBtn.innerHTML = '<i class="fa-solid fa-pause text-xs"></i>';
+                startBtn.className = 'w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-slate-950 flex items-center justify-center transition-all';
+
+                this.interval = setInterval(() => {
+                    if (this.mode === 'pomodoro') {
+                        if (this.secondsRemaining > 0) {
+                            this.secondsRemaining--;
+                            this.updateDisplay();
+                        } else {
+                            this.pauseTimer();
+                            AudioSynth.playBeep();
+                            alertModal("انتهت جلسة البومودورو 25 دقيقة! خذ استراحة قصيرة ☕");
+                        }
+                    } else {
+                        this.stopwatchSeconds++;
+                        this.updateDisplay();
+                    }
+                }, 1000);
+            },
+
+            pauseTimer() {
+                this.isRunning = false;
+                clearInterval(this.interval);
+                const startBtn = document.getElementById('startTimerBtn');
+                startBtn.innerHTML = '<i class="fa-solid fa-play text-xs"></i>';
+                startBtn.className = 'w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 flex items-center justify-center transition-all';
+            },
+
+            resetTimer() {
+                this.pauseTimer();
+                if (this.mode === 'pomodoro') {
+                    this.secondsRemaining = 25 * 60;
+                } else {
+                    this.stopwatchSeconds = 0;
+                }
+                this.updateDisplay();
+            },
+
+            updateDisplay() {
+                const totalSecs = this.mode === 'pomodoro' ? this.secondsRemaining : this.stopwatchSeconds;
+                const mins = Math.floor(totalSecs / 60);
+                const secs = totalSecs % 60;
+                document.getElementById('timerDisplay').textContent = 
+                    `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+        };
+
+        /* ==========================================================================
+           TAB NAVIGATION & SIDEBAR TOGGLE MODULE
+           ========================================================================== */
+        function initNavigation() {
+            const navButtons = document.querySelectorAll('.nav-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            navButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetTabId = btn.getAttribute('data-tab');
+
+                    navButtons.forEach(b => {
+                        b.classList.remove('active', 'bg-gradient-to-r', 'from-cyan-500/20', 'to-transparent', 'text-cyan-400', 'border-r-4', 'border-cyan-400', 'font-semibold');
+                        b.classList.add('text-slate-400', 'font-medium');
+                    });
+
+                    btn.classList.add('active', 'bg-gradient-to-r', 'from-cyan-500/20', 'to-transparent', 'text-cyan-400', 'border-r-4', 'border-cyan-400', 'font-semibold');
+                    btn.classList.remove('text-slate-400', 'font-medium');
+
+                    tabContents.forEach(content => {
+                        if (content.id === targetTabId) {
+                            content.classList.remove('hidden');
+                        } else {
+                            content.classList.add('hidden');
+                        }
+                    });
+                });
+            });
+
+            // Sidebar Toggle
+            const sidebar = document.getElementById('sidebar');
+            const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+
+            sidebarToggleBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('hidden');
+            });
+        }
+
+        /* ==========================================================================
+           SECTION 1: DAILY TASKS MODULE
+           ========================================================================== */
+        function initDailyTasks() {
+            const taskForm = document.getElementById('addTaskForm');
+            const taskTitleInput = document.getElementById('taskTitleInput');
+            const taskPrioritySelect = document.getElementById('taskPrioritySelect');
+            const clearCompletedBtn = document.getElementById('clearCompletedTasksBtn');
+
+            taskForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const title = taskTitleInput.value.trim();
+                if (!title) return;
+
+                const newTask = {
+                    id: Date.now(),
+                    title: title,
+                    priority: taskPrioritySelect.value,
+                    completed: false
+                };
+
+                AppState.dailyTasks.push(newTask);
+                saveStateToStorage();
+                renderDailyTasks();
+                taskTitleInput.value = '';
+            });
+
+            clearCompletedBtn.addEventListener('click', () => {
+                AppState.dailyTasks = AppState.dailyTasks.filter(t => !t.completed);
+                saveStateToStorage();
+                renderDailyTasks();
+            });
+
+            // Confirmation Modal Event Handlers
+            document.getElementById('confirmYesBtn').addEventListener('click', () => {
+                if (AppState.selectedTaskToComplete) {
+                    const task = AppState.dailyTasks.find(t => t.id === AppState.selectedTaskToComplete);
+                    if (task) {
+                        task.completed = true;
+                        saveStateToStorage();
+                        renderDailyTasks();
+                        checkAllTasksCompleted();
+                    }
+                }
+                closeModal('confirmTaskModal');
+            });
+
+            document.getElementById('confirmNoBtn').addEventListener('click', () => {
+                AppState.selectedTaskToComplete = null;
+                closeModal('confirmTaskModal');
+                renderDailyTasks(); // Reset checkbox visually
+            });
+
+            document.getElementById('closeCelebrationBtn').addEventListener('click', () => {
+                closeModal('celebrationModal');
+            });
+
+            renderDailyTasks();
+        }
+
+        function renderDailyTasks() {
+            const container = document.getElementById('dailyTasksList');
+            container.innerHTML = '';
+
+            if (AppState.dailyTasks.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-slate-400 space-y-2">
+                        <i class="fa-solid fa-list-check text-2xl text-slate-500"></i>
+                        <p class="text-xs">لا يوجد مهام حالية. أضف مهمتك الأولى بالأعلى!</p>
+                    </div>
+                `;
+                updateTaskProgress(0, 0);
+                return;
+            }
+
+            let completedCount = 0;
+
+            AppState.dailyTasks.forEach(task => {
+                if (task.completed) completedCount++;
+
+                const taskEl = document.createElement('div');
+                taskEl.className = `flex items-center justify-between p-3.5 rounded-xl border transition-all ${
+                    task.completed 
+                    ? 'bg-slate-900/40 border-slate-800/50 opacity-60' 
+                    : 'bg-slate-800/40 border-slate-700/60 hover:border-slate-600'
+                }`;
+
+                // Priority Badge Color
+                let priorityBadge = '';
+                if (task.priority === 'عالي') {
+                    priorityBadge = '<span class="text-[10px] px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-400 font-bold border border-rose-500/30">عالي 🔥</span>';
+                } else if (task.priority === 'متوسط') {
+                    priorityBadge = '<span class="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30">متوسط ⚡</span>';
+                } else {
+                    priorityBadge = '<span class="text-[10px] px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-400 font-bold border border-cyan-500/30">عادي ☕</span>';
+                }
+
+                taskEl.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" ${task.completed ? 'checked disabled' : ''} class="w-4 h-4 accent-cyan-400 rounded cursor-pointer task-checkbox" data-id="${task.id}">
+                        <span class="text-sm text-slate-200 ${task.completed ? 'line-through text-slate-400' : ''}">${escapeHTML(task.title)}</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        ${priorityBadge}
+                        <button class="delete-task-btn text-xs text-slate-400 hover:text-rose-400 transition-colors p-1" data-id="${task.id}" title="حذف المهمة">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                `;
+
+                container.appendChild(taskEl);
+            });
+
+            // Add Event Listeners to Checkboxes
+            document.querySelectorAll('.task-checkbox').forEach(cb => {
+                cb.addEventListener('change', (e) => {
+                    const taskId = parseInt(e.target.getAttribute('data-id'));
+                    AppState.selectedTaskToComplete = taskId;
+                    
+                    const task = AppState.dailyTasks.find(t => t.id === taskId);
+                    document.getElementById('confirmTaskText').textContent = `هل أنت متأكد من إتمام المهمة: "${task.title}"؟`;
+                    openModal('confirmTaskModal');
+                });
+            });
+
+            // Add Event Listeners to Delete Buttons
+            document.querySelectorAll('.delete-task-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const taskId = parseInt(btn.getAttribute('data-id'));
+                    AppState.dailyTasks = AppState.dailyTasks.filter(t => t.id !== taskId);
+                    saveStateToStorage();
+                    renderDailyTasks();
+                });
+            });
+
+            updateTaskProgress(completedCount, AppState.dailyTasks.length);
+        }
+
+        function updateTaskProgress(completed, total) {
+            const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
+            document.getElementById('taskProgressText').textContent = `${completed} / ${total} (${percentage}%)`;
+
+            const circle = document.getElementById('progressCircle');
+            const circumference = 113.09; // 2 * PI * r (r=18)
+            const offset = circumference - (percentage / 100) * circumference;
+            circle.style.strokeDashoffset = offset;
+        }
+
+        function checkAllTasksCompleted() {
+            if (AppState.dailyTasks.length > 0 && AppState.dailyTasks.every(t => t.completed)) {
+                AudioSynth.playCelebration();
+                triggerConfetti();
+                openModal('celebrationModal');
+            }
+        }
+
+        /* ==========================================================================
+           SECTION 2: WEEKLY PLANNER MODULE
+           ========================================================================== */
+        function initWeeklyPlanner() {
+            renderWeeklyPlanner();
+        }
+
+        function renderWeeklyPlanner() {
+            const container = document.getElementById('weeklyDaysContainer');
+            container.innerHTML = '';
+
+            const days = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+
+            days.forEach(day => {
+                const items = AppState.weeklyPlanner[day] || [];
+                const dayCard = document.createElement('div');
+                dayCard.className = 'glass-panel rounded-2xl p-4 border border-slate-800 flex flex-col justify-between space-y-3';
+
+                let itemsHTML = items.map((item, idx) => `
+                    <div class="flex items-center justify-between text-xs bg-slate-900/60 p-2 rounded-lg border border-slate-800 text-slate-200">
+                        <span>${escapeHTML(item)}</span>
+                        <button class="text-slate-400 hover:text-rose-400 transition-colors remove-weekly-item" data-day="${day}" data-idx="${idx}">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                `).join('');
+
+                if (items.length === 0) {
+                    itemsHTML = `<p class="text-[11px] text-slate-400 italic text-center py-2">لا توجد محاضرات أو أهداف لهذا اليوم</p>`;
+                }
+
+                dayCard.innerHTML = `
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <h4 class="text-sm font-bold text-cyan-400">${day}</h4>
+                            <span class="text-[10px] text-slate-400 font-bold bg-slate-800 px-2 py-0.5 rounded-md">${items.length} عنصر</span>
+                        </div>
+                        <div class="space-y-1.5">${itemsHTML}</div>
+                    </div>
+                    
+                    <button class="add-weekly-btn w-full py-1.5 rounded-lg bg-slate-800/80 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-400 text-xs font-bold transition-all flex items-center justify-center gap-1 mt-2" data-day="${day}">
+                        <i class="fa-solid fa-plus text-[10px]"></i>
+                        <span>إضافة بند</span>
+                    </button>
+                `;
+
+                container.appendChild(dayCard);
+            });
+
+            // Add Event Listeners for adding items to days
+            document.querySelectorAll('.add-weekly-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const day = btn.getAttribute('data-day');
+                    const text = prompt(`إضافة بند جديد ليوم (${day}):`);
+                    if (text && text.trim()) {
+                        AppState.weeklyPlanner[day].push(text.trim());
+                        saveStateToStorage();
+                        renderWeeklyPlanner();
+                    }
+                });
+            });
+
+            // Remove Item Handlers
+            document.querySelectorAll('.remove-weekly-item').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const day = btn.getAttribute('data-day');
+                    const idx = parseInt(btn.getAttribute('data-idx'));
+                    AppState.weeklyPlanner[day].splice(idx, 1);
+                    saveStateToStorage();
+                    renderWeeklyPlanner();
+                });
+            });
+        }
+
+        /* ==========================================================================
+           SECTION 3: MONTHLY PLANNER MODULE
+           ========================================================================== */
+        function initMonthlyPlanner() {
+            const form = document.getElementById('addMonthlyForm');
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const title = document.getElementById('monthlyTitleInput').value.trim();
+                const date = document.getElementById('monthlyDateInput').value;
+
+                if (!title || !date) return;
+
+                AppState.monthlyGoals.push({
+                    id: Date.now(),
+                    title: title,
+                    date: date
+                });
+
+                saveStateToStorage();
+                renderMonthlyPlanner();
+                document.getElementById('monthlyTitleInput').value = '';
+                document.getElementById('monthlyDateInput').value = '';
+            });
+
+            renderMonthlyPlanner();
+        }
+
+        function renderMonthlyPlanner() {
+            const container = document.getElementById('monthlyList');
+            container.innerHTML = '';
+
+            if (AppState.monthlyGoals.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 col-span-2 text-center py-4">لا توجد مواعيد أو امتحانات مضافة للشهر.</p>`;
+                return;
+            }
+
+            AppState.monthlyGoals.forEach(goal => {
+                const card = document.createElement('div');
+                card.className = 'flex items-center justify-between p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 text-xs';
+                
+                card.innerHTML = `
+                    <div class="space-y-1">
+                        <p class="font-bold text-slate-200 text-sm">${escapeHTML(goal.title)}</p>
+                        <p class="text-purple-400 font-mono"><i class="fa-regular fa-clock ml-1"></i> ${goal.date}</p>
+                    </div>
+                    <button class="delete-monthly-btn text-slate-400 hover:text-rose-400 transition-colors p-2" data-id="${goal.id}">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                `;
+
+                container.appendChild(card);
+            });
+
+            document.querySelectorAll('.delete-monthly-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = parseInt(btn.getAttribute('data-id'));
+                    AppState.monthlyGoals = AppState.monthlyGoals.filter(g => g.id !== id);
+                    saveStateToStorage();
+                    renderMonthlyPlanner();
+                });
+            });
+        }
+
+        /* ==========================================================================
+           SECTION 4: QUICK NOTES MODULE
+           ========================================================================== */
+        function initQuickNotes() {
+            const openModalBtn = document.getElementById('openNewNoteModalBtn');
+            const saveNoteBtn = document.getElementById('saveNoteBtn');
+            const cancelNoteBtn = document.getElementById('cancelNoteBtn');
+
+            openModalBtn.addEventListener('click', () => {
+                document.getElementById('noteTitleInput').value = '';
+                document.getElementById('noteBodyInput').value = '';
+                openModal('noteModal');
+            });
+
+            cancelNoteBtn.addEventListener('click', () => closeModal('noteModal'));
+
+            // Color Picker logic
+            const colorBtns = document.querySelectorAll('#noteColorPicker button');
+            colorBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    colorBtns.forEach(b => b.classList.remove('ring-2', 'ring-white'));
+                    btn.classList.add('ring-2', 'ring-white');
+                    AppState.activeNoteColor = btn.getAttribute('data-color');
+                });
+            });
+
+            saveNoteBtn.addEventListener('click', () => {
+                const title = document.getElementById('noteTitleInput').value.trim();
+                const body = document.getElementById('noteBodyInput').value.trim();
+
+                if (!title || !body) return;
+
+                AppState.quickNotes.push({
+                    id: Date.now(),
+                    title: title,
+                    body: body,
+                    color: AppState.activeNoteColor
+                });
+
+                saveStateToStorage();
+                renderQuickNotes();
+                closeModal('noteModal');
+            });
+
+            renderQuickNotes();
+        }
+
+        function renderQuickNotes() {
+            const container = document.getElementById('notesGrid');
+            container.innerHTML = '';
+
+            if (AppState.quickNotes.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 col-span-3 text-center py-6">لا توجد ملاحظات سريعة. أنشئ أُولاك الآن!</p>`;
+                return;
+            }
+
+            const colorClasses = {
+                cyan: 'from-cyan-500/10 to-transparent border-cyan-500/30 text-cyan-300',
+                purple: 'from-purple-500/10 to-transparent border-purple-500/30 text-purple-300',
+                amber: 'from-amber-500/10 to-transparent border-amber-500/30 text-amber-300',
+                emerald: 'from-emerald-500/10 to-transparent border-emerald-500/30 text-emerald-300'
+            };
+
+            AppState.quickNotes.forEach(note => {
+                const card = document.createElement('div');
+                const colorStyle = colorClasses[note.color] || colorClasses.cyan;
+
+                card.className = `glass-panel rounded-2xl p-4 border bg-gradient-to-br ${colorStyle} flex flex-col justify-between space-y-3 relative group`;
+                
+                card.innerHTML = `
+                    <div class="space-y-2">
+                        <h4 class="font-bold text-sm text-slate-100 border-b border-slate-800/80 pb-2">${escapeHTML(note.title)}</h4>
+                        <p class="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">${escapeHTML(note.body)}</p>
+                    </div>
+
+                    <div class="flex items-center justify-end pt-2">
+                        <button class="delete-note-btn text-xs text-slate-400 hover:text-rose-400 transition-colors p-1" data-id="${note.id}">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+
+            document.querySelectorAll('.delete-note-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = parseInt(btn.getAttribute('data-id'));
+                    AppState.quickNotes = AppState.quickNotes.filter(n => n.id !== id);
+                    saveStateToStorage();
+                    renderQuickNotes();
+                });
+            });
+        }
+
+        /* ==========================================================================
+           USER NAME & GENERAL MODAL HELPERS
+           ========================================================================== */
+        function initNameEditor() {
+            const displayEl = document.getElementById('displayUserName');
+            const editBtn = document.getElementById('editNameBtn');
+            const modal = document.getElementById('editNameModal');
+            const input = document.getElementById('userNameInput');
+            const saveBtn = document.getElementById('saveNameBtn');
+            const cancelBtn = document.getElementById('cancelNameBtn');
+
+            displayEl.textContent = AppState.userName;
+
+            editBtn.addEventListener('click', () => {
+                input.value = AppState.userName;
+                openModal('editNameModal');
+            });
+
+            cancelBtn.addEventListener('click', () => closeModal('editNameModal'));
+
+            saveBtn.addEventListener('click', () => {
+                const newName = input.value.trim();
+                if (newName) {
+                    AppState.userName = newName;
+                    displayEl.textContent = newName;
+                    saveStateToStorage();
+                }
+                closeModal('editNameModal');
+            });
+        }
+
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function alertModal(msg) {
+            alert(msg); // standard visual alert fallback if needed
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        function setCurrentDateText() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('currentDateText').textContent = now.toLocaleDateString('ar-EG', options);
+        }
+
+        /* ==========================================================================
+           CELEBRATION CONFETTI CANVAS ANIMATION
+           ========================================================================== */
+        function triggerConfetti() {
+            const canvas = document.getElementById('confettiCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particles = [];
+            const colors = ['#06b6d4', '#38bdf8', '#a855f7', '#34d399', '#f43f5e', '#fbbf24'];
+
+            for (let i = 0; i < 120; i++) {
+                particles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.7) * 12,
+                    size: Math.random() * 8 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    life: 100
+                });
+            }
+
+            function animateConfetti() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let alive = false;
+
+                particles.forEach(p => {
+                    if (p.life > 0) {
+                        alive = true;
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.vy += 0.2; // gravity
+                        p.life--;
+
+                        ctx.fillStyle = p.color;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+
+                if (alive) {
+                    requestAnimationFrame(animateConfetti);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+
+            animateConfetti();
+        }
+
+        /* ==========================================================================
+           INITIALIZATION ON PAGE LOAD
+           ========================================================================== */
+        window.onload = function() {
+            setCurrentDateText();
+            TimerModule.init();
+            initNavigation();
+            initNameEditor();
+            initDailyTasks();
+            initWeeklyPlanner();
+            initMonthlyPlanner();
+            initQuickNotes();
+        };
+    </script>
+</body>
+</html>
