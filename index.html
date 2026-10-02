@@ -98,6 +98,11 @@
             pointer-events: none;
             z-index: 100;
         }
+        @media (max-width: 1280px){
+            .sub-ai{
+                display: none;
+            }
+        }
 
         @keyframes pulse-red {
             0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7); }
@@ -480,7 +485,7 @@
                         <input type="text" id="chatTextInput" placeholder="اكتب سؤالك أو اطلب إضافة مهام..." class="flex-1 glass-input px-4 py-2.5 rounded-xl text-sm" autocomplete="off">
 
                         <button type="submit" id="sendChatBtn" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-cyan-500/20">
-                            <span>إرسال</span>
+                            <span class="sub-ai">إرسال</span>
                             <i class="fa-solid fa-paper-plane text-xs"></i>
                         </button>
                     </form>
