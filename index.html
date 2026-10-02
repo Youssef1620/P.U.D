@@ -52,7 +52,6 @@
             background-attachment: fixed;
         }
 
-        /* Glassmorphism utility */
         .glass-panel {
             background: rgba(15, 23, 42, 0.75);
             backdrop-filter: blur(16px);
@@ -75,7 +74,6 @@
             box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
         }
 
-        /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -91,12 +89,6 @@
             background: #38bdf8;
         }
 
-        /* Smooth Transitions */
-        .tab-transition {
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* Celebration Confetti Canvas */
         #confettiCanvas {
             position: fixed;
             top: 0;
@@ -105,6 +97,18 @@
             height: 100vh;
             pointer-events: none;
             z-index: 100;
+        }
+
+        @keyframes pulse-red {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(244, 63, 94, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+        }
+        .recording-pulse {
+            animation: pulse-red 1.5s infinite;
+            background-color: rgba(244, 63, 94, 0.2) !important;
+            color: #f43f5e !important;
+            border-color: #f43f5e !important;
         }
     </style>
 </head>
@@ -115,7 +119,6 @@
     <header class="sticky top-0 z-30 glass-panel border-b border-slate-800/80 px-4 lg:px-8 py-3 transition-all">
         <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
             
-            <!-- Right Side: User Greeting & Sidebar Toggle -->
             <div class="flex items-center gap-3">
                 <button id="sidebarToggleBtn" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-cyan-400 transition-all border border-slate-700/60" title="تبديل القائمة الجانبية">
                     <i class="fa-solid fa-bars text-lg"></i>
@@ -139,20 +142,16 @@
                 </div>
             </div>
 
-            <!-- Center: Interactive Study Timer / Stopwatch Widget -->
             <div class="flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-2xl shadow-inner">
-                <!-- Mode Switcher Buttons -->
                 <div class="flex bg-slate-950 p-1 rounded-xl text-xs font-medium">
                     <button id="modePomoBtn" class="px-2.5 py-1 rounded-lg bg-cyan-500 text-slate-950 font-bold transition-all">بوومودورو (25د)</button>
                     <button id="modeStopwatchBtn" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-slate-200 transition-all">ستوب ووتش</button>
                 </div>
 
-                <!-- Timer Display -->
                 <div class="text-lg font-mono font-bold tracking-wider text-cyan-400 min-w-[70px] text-center" id="timerDisplay">
                     25:00
                 </div>
 
-                <!-- Action Controls -->
                 <div class="flex items-center gap-1">
                     <button id="startTimerBtn" class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 flex items-center justify-center transition-all" title="تشغيل/إيقاف مؤقت">
                         <i class="fa-solid fa-play text-xs"></i>
@@ -163,10 +162,27 @@
                 </div>
             </div>
 
-            <!-- Left Side: Date Display -->
-            <div class="hidden md:flex items-center gap-2 text-xs text-slate-400 bg-slate-800/40 px-3 py-2 rounded-xl border border-slate-800">
-                <i class="fa-regular fa-calendar-check text-cyan-400"></i>
-                <span id="currentDateText">جاري تحميل التاريخ...</span>
+            <div class="flex items-center justify-center w-full lg:w-auto gap-2 mt-2 lg:mt-0">
+                <button id="exportBackupBtn" class="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-2 rounded-xl border border-amber-500/30 transition-all font-bold" title="تصدير نسخة احتياطية للبيانات">
+                    <i class="fa-solid fa-download"></i>
+                    <span class="hidden xl:inline">تصدير النسخة</span>
+                </button>
+
+                <input type="file" id="importBackupInput" accept=".json" class="hidden">
+                <button id="importBackupBtn" class="flex items-center gap-1.5 text-xs text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 px-3 py-2 rounded-xl border border-purple-500/30 transition-all font-bold" title="استعادة نسخة احتياطية">
+                    <i class="fa-solid fa-upload"></i>
+                    <span class="hidden xl:inline">استعادة البيانات</span>
+                </button>
+
+                <button id="openApiKeyModalBtn" class="flex items-center gap-1.5 text-xs text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 px-3 py-2 rounded-xl border border-cyan-500/30 transition-all font-bold" title="إعدادات مفتاح Gemini API">
+                    <i class="fa-solid fa-key"></i>
+                    <span class="hidden sm:inline">إعدادات الـ AI والمفتاح</span>
+                </button>
+
+                <div class="hidden md:flex items-center gap-2 text-xs text-slate-400 bg-slate-800/40 px-3 py-2 rounded-xl border border-slate-800">
+                    <i class="fa-regular fa-calendar-check text-cyan-400"></i>
+                    <span id="currentDateText">جاري تحميل التاريخ...</span>
+                </div>
             </div>
 
         </div>
@@ -174,7 +190,6 @@
 
     <div class="flex-1 max-w-7xl w-full mx-auto flex flex-col md:flex-row gap-6 p-4 md:p-6 lg:p-8">
 
-        <!-- Sidebar Navigation -->
         <aside id="sidebar" class="w-full md:w-64 flex-shrink-0 transition-all duration-300 space-y-2">
             <div class="glass-panel rounded-2xl p-3 border border-slate-800">
                 <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">أقسام اللوحة</p>
@@ -198,10 +213,20 @@
                         <i class="fa-solid fa-note-sticky text-base"></i>
                         <span>الملاحظات السريعة</span>
                     </button>
+
+                    <button data-tab="tab-saved-files" class="nav-btn w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
+                        <i class="fa-solid fa-box-archive text-base text-emerald-400"></i>
+                        <span>الملفات المحفوظة</span>
+                    </button>
+
+                    <button data-tab="tab-ai-chat" class="nav-btn w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all relative group">
+                        <i class="fa-solid fa-robot text-base text-cyan-400 group-hover:rotate-12 transition-transform"></i>
+                        <span>التحدث مع مساعدك الذكي</span>
+                        <span class="mr-auto text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30">Gemini</span>
+                    </button>
                 </nav>
             </div>
 
-            <!-- Quick Motivation Card in Sidebar -->
             <div class="glass-panel rounded-2xl p-4 border border-slate-800 hidden md:block text-center space-y-2">
                 <div class="w-10 h-10 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center mx-auto text-lg">
                     <i class="fa-solid fa-rocket"></i>
@@ -213,9 +238,7 @@
 
         <main class="flex-1 min-w-0">
 
-            <!-- ================= SECTION 1: DAILY TASKS ================= -->
             <section id="tab-daily" class="tab-content space-y-6">
-                <!-- Header Stats Card -->
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
@@ -225,7 +248,6 @@
                         <p class="text-xs text-slate-400 mt-1">نظم محاضراتك وتاسكاتك اليومية بذكاء</p>
                     </div>
 
-                    <!-- Progress Indicator -->
                     <div class="flex items-center gap-4 bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-800">
                         <div class="text-right">
                             <p class="text-[10px] text-slate-400 uppercase font-bold">نسبة الإنجاز</p>
@@ -240,7 +262,6 @@
                     </div>
                 </div>
 
-                <!-- Task Input Form -->
                 <div class="glass-panel rounded-2xl p-4 border border-slate-800">
                     <form id="addTaskForm" class="flex flex-col sm:flex-row items-center gap-3">
                         <input type="text" id="taskTitleInput" placeholder="أضف مهمة جديدة (مثلاً: مذاكرة السكشن الأول كيمياء)..." class="w-full glass-input px-4 py-3 rounded-xl text-sm" required>
@@ -258,7 +279,6 @@
                     </form>
                 </div>
 
-                <!-- Tasks List Area -->
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-3">
                     <div class="flex items-center justify-between border-b border-slate-800 pb-3">
                         <h3 class="text-sm font-bold text-slate-300">قائمة المهام اليومية</h3>
@@ -267,13 +287,10 @@
                         </button>
                     </div>
 
-                    <div id="dailyTasksList" class="space-y-2">
-                        <!-- Tasks dynamically injected via JS -->
-                    </div>
+                    <div id="dailyTasksList" class="space-y-2"></div>
                 </div>
             </section>
 
-            <!-- ================= SECTION 2: WEEKLY PLANNER ================= -->
             <section id="tab-weekly" class="tab-content space-y-6 hidden">
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800">
                     <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
@@ -283,13 +300,9 @@
                     <p class="text-xs text-slate-400 mt-1">وزّع موادك ومحاضراتك على أيام الأسبوع لتقليل الضغط</p>
                 </div>
 
-                <!-- 7 Days Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="weeklyDaysContainer">
-                    <!-- Days loaded via JS -->
-                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="weeklyDaysContainer"></div>
             </section>
 
-            <!-- ================= SECTION 3: MONTHLY PLANNER ================= -->
             <section id="tab-monthly" class="tab-content space-y-6 hidden">
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800">
                     <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
@@ -299,7 +312,6 @@
                     <p class="text-xs text-slate-400 mt-1">سجّل مواعيد امتحاناتك، تسليم المشاريع، وأهدافك الكبيرة</p>
                 </div>
 
-                <!-- Add Monthly Goal/Deadline -->
                 <div class="glass-panel rounded-2xl p-4 border border-slate-800">
                     <form id="addMonthlyForm" class="grid grid-cols-1 md:grid-cols-4 gap-3">
                         <input type="text" id="monthlyTitleInput" placeholder="عنوان الحدث (مثلاً: ميدتيرم الفيزياء)..." class="md:col-span-2 glass-input px-4 py-2.5 rounded-xl text-sm" required>
@@ -311,16 +323,12 @@
                     </form>
                 </div>
 
-                <!-- Monthly Deadlines List -->
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800">
                     <h3 class="text-sm font-bold text-slate-300 border-b border-slate-800 pb-3 mb-4">الأهداف والمواعيد المخططة</h3>
-                    <div id="monthlyList" class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <!-- Dynamically generated -->
-                    </div>
+                    <div id="monthlyList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
                 </div>
             </section>
 
-            <!-- ================= SECTION 4: QUICK NOTES ================= -->
             <section id="tab-notes" class="tab-content space-y-6 hidden">
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800 flex items-center justify-between gap-4">
                     <div>
@@ -337,22 +345,185 @@
                     </button>
                 </div>
 
-                <!-- Scrollable Container for Notes -->
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800 max-h-[600px] overflow-y-auto">
-                    <div id="notesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <!-- Sticky Notes render here -->
+                    <div id="notesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                </div>
+            </section>
+
+            <section id="tab-saved-files" class="tab-content space-y-6 hidden">
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+                            <i class="fa-solid fa-box-archive text-emerald-400"></i>
+                            الملفات المحفوظة
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">احفظ معلوماتك باسم تختاره، وسيتمكن Gemini من الرجوع إليها عندما تسأله عنها.</p>
                     </div>
+                    <span id="savedFilesCount" class="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-xs font-bold">0 ملفات</span>
+                </div>
+
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-4">
+                    <h3 class="text-sm font-bold text-slate-200">إضافة ملف محفوظ</h3>
+                    <form id="savedFileForm" class="space-y-3">
+                        <input type="text" id="savedFileTitleInput" placeholder="اسم اختياري (مثلاً: محاضرة الكيمياء) — أو سيُستخدم اسم الملف المرفوع" class="w-full glass-input px-4 py-2.5 rounded-xl text-sm" maxlength="120">
+                        <textarea id="savedFileContentInput" rows="4" placeholder="اكتب معلومة تريد حفظها، أو اترك الحقل فارغاً إذا كنت سترفع ملفاً..." class="w-full glass-input px-4 py-3 rounded-xl text-sm resize-y"></textarea>
+                        <input type="file" id="savedFileAttachmentInput" class="hidden" multiple>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <label for="savedFileAttachmentInput" class="cursor-pointer px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-all flex items-center gap-2">
+                                <i class="fa-solid fa-paperclip text-emerald-400"></i>
+                                <span>اختيار ملف أو أكثر</span>
+                            </label>
+                            <span id="savedFileAttachmentNames" class="text-[11px] text-slate-400">PDF، صور، أو أنواع ملفات أخرى</span>
+                        </div>
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <p class="text-[11px] text-slate-500">تُحفظ المرفقات على هذا المتصفح. عند سؤال Gemini عن مرفق، يُرسل إليه لتحليله.</p>
+                            <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center gap-2 transition-all">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                                <span>حفظ الملف</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                        <h3 class="text-sm font-bold text-slate-200">المحفوظات</h3>
+                        <input type="search" id="savedFilesSearchInput" placeholder="ابحث في الملفات المحفوظة..." class="w-full sm:w-64 glass-input px-3 py-2 rounded-xl text-xs">
+                    </div>
+                    <div id="savedFilesList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+            </section>
+
+            <section id="tab-ai-chat" class="tab-content space-y-4 hidden">
+                <div class="glass-panel rounded-2xl p-4 border border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-400 to-indigo-500 flex items-center justify-center text-slate-950 font-bold shadow-lg shadow-cyan-500/20">
+                            <i class="fa-solid fa-brain text-xl"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-base font-bold text-slate-100 flex items-center gap-2">
+                                مساعدك الذكي لتنظيم الدراسة (P.U.D AI)
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            </h2>
+                            <p class="text-xs text-slate-400">يقرأ جدولك ومهامك وملاحظاتك ويستطيع التعديل عليها وإدارتها ذكياً</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <div class="relative flex-1 sm:w-48">
+                            <input type="text" id="chatSearchInput" placeholder="بحث في المحادثة..." class="w-full glass-input pr-8 pl-3 py-1.5 rounded-xl text-xs">
+                            <i class="fa-solid fa-magnifying-glass absolute right-2.5 top-2.5 text-slate-400 text-xs"></i>
+                        </div>
+
+                        <button id="newAiChatBtn" class="px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-xs font-bold border border-cyan-500/30 transition-all flex items-center gap-1.5" title="بدء محادثة جديدة">
+                            <i class="fa-solid fa-plus"></i>
+                            <span class="hidden lg:inline">محادثة جديدة</span>
+                        </button>
+
+                        <button id="clearChatBtn" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-500/20 hover:text-rose-400 text-slate-300 text-xs font-medium border border-slate-700/60 transition-all flex items-center gap-1.5" title="مسح المحادثة الحالية">
+                            <i class="fa-solid fa-trash-arrow-up"></i>
+                            <span class="hidden lg:inline">مسح السجل</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+                    <span class="text-slate-400 text-[11px] font-bold shrink-0">مقترحات سريعة:</span>
+                    <button class="quick-prompt-btn px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 border border-slate-700/60 shrink-0 transition-all">
+                        📋 حلل مهامي واقترح جدولاً لليوم
+                    </button>
+                    <button class="quick-prompt-btn px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 border border-slate-700/60 shrink-0 transition-all">
+                        ⚡ أضف 3 مهام مراجعة بأولوية عالية
+                    </button>
+                    <button class="quick-prompt-btn px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 border border-slate-700/60 shrink-0 transition-all">
+                        ⏱ شغل مؤقت البومودورو للمذاكرة
+                    </button>
+                    <button class="quick-prompt-btn px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 border border-slate-700/60 shrink-0 transition-all">
+                        💡 اعطني نصيحة لتركيز المذاكرة
+                    </button>
+                </div>
+
+                <div class="glass-panel rounded-2xl p-3 border border-slate-800">
+                    <div class="flex items-center justify-between gap-2 mb-2 px-1">
+                        <h3 class="text-xs font-bold text-slate-300 flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left text-cyan-400"></i>
+                            سجل محادثات AI
+                        </h3>
+                        <span id="aiConversationCount" class="text-[10px] text-slate-500"></span>
+                    </div>
+                    <div id="aiConversationList" class="flex items-stretch gap-2 overflow-x-auto pb-1"></div>
+                </div>
+
+                <div class="glass-panel rounded-2xl p-4 border border-slate-800 h-[480px] flex flex-col justify-between">
+                    <div id="chatMessagesContainer" class="flex-1 overflow-y-auto space-y-4 pr-1"></div>
+
+                    <div id="imagePreviewContainer" class="hidden pt-2 border-t border-slate-800/80 flex items-center gap-2">
+                        <div class="relative w-14 h-14 rounded-lg overflow-hidden border border-cyan-500/40">
+                            <img id="imagePreview" src="" alt="المرفق" class="w-full h-full object-cover">
+                            <button id="removeImageBtn" class="absolute top-0.5 right-0.5 w-4 h-4 bg-rose-500 text-white rounded-full flex items-center justify-center text-[9px]">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <p class="text-[11px] text-slate-400">سيتم تحليل الصورة المرفقة بواسطة Gemini...</p>
+                    </div>
+
+                    <form id="chatForm" class="pt-3 border-t border-slate-800 flex items-center gap-2">
+                        <input type="file" id="chatImageInput" accept="image/*" class="hidden">
+                        <button type="button" id="triggerImageBtn" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-cyan-400 transition-all border border-slate-700/60" title="إرفاق صورة">
+                            <i class="fa-solid fa-paperclip text-sm"></i>
+                        </button>
+
+                        <button type="button" id="voiceRecordBtn" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-cyan-400 transition-all border border-slate-700/60" title="التحدث بالصوت">
+                            <i class="fa-solid fa-microphone text-sm"></i>
+                        </button>
+
+                        <input type="text" id="chatTextInput" placeholder="اكتب سؤالك أو اطلب إضافة مهام..." class="flex-1 glass-input px-4 py-2.5 rounded-xl text-sm" autocomplete="off">
+
+                        <button type="submit" id="sendChatBtn" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-cyan-500/20">
+                            <span>إرسال</span>
+                            <i class="fa-solid fa-paper-plane text-xs"></i>
+                        </button>
+                    </form>
                 </div>
             </section>
 
         </main>
     </div>
 
-    <!-- ================= MODALS & OVERLAYS ================= -->
+    <!-- MODALS -->
+    <div id="apiKeyModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel rounded-2xl p-6 border border-slate-700 max-w-md w-full space-y-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-key"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-slate-100">إعدادات الذكاء الاصطناعي (Gemini)</h3>
+                    <p class="text-xs text-slate-400">ادخل مفتاحك الخاص للبدء في استخدام المساعد</p>
+                </div>
+            </div>
 
-    <!-- 1. Confirmation Modal for Task Completion -->
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs text-slate-300 block mb-1">مفتاح API الخاص بك:</label>
+                    <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full glass-input px-4 py-2.5 rounded-xl text-sm font-mono">
+                </div>
+            </div>
+            
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+                احصل على مفتاح مجاني في ثوانٍ من 
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-cyan-400 underline font-bold">Google AI Studio</a>.
+            </p>
+
+            <div class="flex items-center justify-end gap-2 pt-2">
+                <button id="saveApiKeyBtn" class="px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs">حفظ الإعدادات</button>
+                <button id="closeApiKeyBtn" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
     <div id="confirmTaskModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="glass-panel rounded-2xl p-6 border border-slate-700 max-w-sm w-full space-y-4 text-center transform transition-all scale-100">
+        <div class="glass-panel rounded-2xl p-6 border border-slate-700 max-w-sm w-full space-y-4 text-center">
             <div class="w-12 h-12 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center mx-auto text-xl">
                 <i class="fa-solid fa-circle-question"></i>
             </div>
@@ -360,61 +531,40 @@
             <p class="text-xs text-slate-300 leading-relaxed" id="confirmTaskText">هل أنت متأكد من إتمام هذه المهمة؟</p>
             
             <div class="flex items-center gap-3 pt-2">
-                <button id="confirmYesBtn" class="flex-1 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm transition-all">
-                    نعم، أتممتها 👍
-                </button>
-                <button id="confirmNoBtn" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm transition-all">
-                    إلغاء
-                </button>
+                <button id="confirmYesBtn" class="flex-1 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm transition-all">نعم، أتممتها 👍</button>
+                <button id="confirmNoBtn" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm transition-all">إلغاء</button>
             </div>
         </div>
     </div>
 
-    <!-- 2. Celebration Modal (When All Daily Tasks Complete!) -->
     <div id="celebrationModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
         <div class="glass-panel rounded-3xl p-8 border border-cyan-500/30 max-w-md w-full space-y-5 text-center shadow-2xl shadow-cyan-500/20 relative">
             <div class="w-20 h-20 rounded-full bg-gradient-to-tr from-cyan-400 to-indigo-500 flex items-center justify-center mx-auto text-3xl text-slate-950 shadow-lg shadow-cyan-500/30 animate-bounce">
                 <i class="fa-solid fa-trophy"></i>
             </div>
-
-            <h2 class="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400">
-                عاش يا بطل! أسطورة حقيقية 🚀🔥
-            </h2>
-
-            <p class="text-sm text-slate-200 leading-relaxed">
-                لقد أنجزت جميع مهامك اليومية بنجاح بنسبة 100%! خذ قسطاً من الراحة واستمتع ببرهة تميزك.
-            </p>
-
-            <div class="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 text-xs text-cyan-300 italic">
-                "إن النجاح ليس صدفة، بل هو ثمرة التخطيط والمثابرة اليومية!"
-            </div>
-
-            <button id="closeCelebrationBtn" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-bold text-sm shadow-lg shadow-cyan-500/20 transition-all">
-                استمرار في الإنجاز ⚡
-            </button>
+            <h2 class="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400">عاش يا بطل! أسطورة حقيقية 🚀🔥</h2>
+            <p class="text-sm text-slate-200 leading-relaxed">لقد أنجزت جميع مهامك اليومية بنجاح بنسبة 100%!</p>
+            <button id="closeCelebrationBtn" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-bold text-sm">استمرار في الإنجاز ⚡</button>
         </div>
     </div>
 
-    <!-- 3. Name Edit Modal -->
     <div id="editNameModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="glass-panel rounded-2xl p-6 border border-slate-700 max-w-sm w-full space-y-4">
             <h3 class="text-base font-bold text-slate-100">تعديل اسمك في اللوحة</h3>
             <input type="text" id="userNameInput" placeholder="أدخل اسمك هنا..." class="w-full glass-input px-4 py-2.5 rounded-xl text-sm">
             <div class="flex items-center justify-end gap-2">
-                <button id="saveNameBtn" class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs">حفظ</button>
-                <button id="cancelNameBtn" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs">إلغاء</button>
+                <button id="saveNameBtn" class="px-4 py-2 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs">حفظ</button>
+                <button id="cancelNameBtn" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs">إلغاء</button>
             </div>
         </div>
     </div>
 
-    <!-- 4. Add/Edit Note Modal -->
     <div id="noteModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="glass-panel rounded-2xl p-6 border border-slate-700 max-w-md w-full space-y-4">
             <h3 class="text-base font-bold text-slate-100" id="noteModalTitle">إضافة ملاحظة جديدة</h3>
             <input type="text" id="noteTitleInput" placeholder="عنوان الملاحظة..." class="w-full glass-input px-4 py-2.5 rounded-xl text-sm" required>
             <textarea id="noteBodyInput" rows="4" placeholder="اكتب تفاصيل الملاحظة هنا..." class="w-full glass-input px-4 py-2.5 rounded-xl text-sm resize-none" required></textarea>
             
-            <!-- Note Color Selection -->
             <div>
                 <label class="text-xs text-slate-400 block mb-2">اختر لون الملاحظة:</label>
                 <div class="flex items-center gap-3" id="noteColorPicker">
@@ -426,19 +576,21 @@
             </div>
 
             <div class="flex items-center justify-end gap-2 pt-2">
-                <button id="saveNoteBtn" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs">حفظ الملاحظة</button>
-                <button id="cancelNoteBtn" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs">إلغاء</button>
+                <button id="saveNoteBtn" class="px-5 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs">حفظ الملاحظة</button>
+                <button id="cancelNoteBtn" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs">إلغاء</button>
             </div>
         </div>
     </div>
 
 
     <script>
-        /* ==========================================================================
-           P.U.D APPLICATION STATE MANAGEMENT & LOCAL STORAGE HELPERS
-           ========================================================================== */
+        if (localStorage.getItem('pud_gemini_model')) {
+            localStorage.removeItem('pud_gemini_model');
+        }
+
         const AppState = {
             userName: localStorage.getItem('pud_user_name') || 'يا بطل',
+            geminiApiKey: localStorage.getItem('pud_gemini_api_key') || '',
             dailyTasks: JSON.parse(localStorage.getItem('pud_daily_tasks')) || [
                 { id: 1, title: 'حضور محاضرة الرياضيات 1', priority: 'عالي', completed: false },
                 { id: 2, title: 'تسليم شيت الفيزياء بالسكشن', priority: 'متوسط', completed: false }
@@ -458,27 +610,281 @@
             quickNotes: JSON.parse(localStorage.getItem('pud_quick_notes')) || [
                 { id: 1, title: 'رابط التسجيل في الكورسات', body: 'موقع الكلية الرسمية -> الخدمات الإلكترونية', color: 'cyan' }
             ],
+            savedFiles: JSON.parse(localStorage.getItem('pud_saved_files')) || [],
+            chatHistory: JSON.parse(localStorage.getItem('pud_chat_history')) || [
+                {
+                    sender: 'ai',
+                    text: 'أهلاً بك! أنا مساعدك الذكي لتنظيم الدراسة والمذاكرة. أستطيع قراءة جدولك واقتراح خطط يومية، بل وإضافة المهام والملاحظات إلى لوحتك تلقائياً بنفسي. كيف يمكنني مساعدتك اليوم؟ 🚀'
+                }
+            ],
+            aiConversations: JSON.parse(localStorage.getItem('pud_ai_conversations')) || [],
+            activeAiConversationId: localStorage.getItem('pud_active_ai_conversation') || '',
             selectedTaskToComplete: null,
-            activeNoteColor: 'cyan'
+            activeNoteColor: 'cyan',
+            attachedImageData: null,
+            pendingSavedFileIds: []
         };
+
+        AppState.aiConversations = Array.isArray(AppState.aiConversations)
+            ? AppState.aiConversations.filter(conversation => conversation && conversation.id)
+            : [];
+        if (AppState.aiConversations.length === 0) {
+            const firstUserMessage = AppState.chatHistory.find(message => message.sender === 'user' && message.text);
+            const migratedConversation = {
+                id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                title: firstUserMessage ? firstUserMessage.text.slice(0, 36) : 'محادثة جديدة',
+                messages: AppState.chatHistory,
+                updatedAt: new Date().toISOString()
+            };
+            AppState.aiConversations = [migratedConversation];
+            AppState.activeAiConversationId = migratedConversation.id;
+        } else {
+            const activeConversation = AppState.aiConversations.find(conversation => String(conversation.id) === String(AppState.activeAiConversationId))
+                || AppState.aiConversations[0];
+            activeConversation.messages = Array.isArray(activeConversation.messages) ? activeConversation.messages : AppState.chatHistory;
+            AppState.activeAiConversationId = activeConversation.id;
+            AppState.chatHistory = activeConversation.messages;
+        }
+
+        function openSavedAttachmentDatabase() {
+            return new Promise((resolve, reject) => {
+                if (!window.indexedDB) {
+                    reject(new Error('تخزين المرفقات غير مدعوم في هذا المتصفح.'));
+                    return;
+                }
+                const request = indexedDB.open('PUDSavedAttachments', 1);
+                request.onupgradeneeded = () => {
+                    if (!request.result.objectStoreNames.contains('attachments')) {
+                        request.result.createObjectStore('attachments');
+                    }
+                };
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error || new Error('تعذر فتح مساحة تخزين المرفقات.'));
+            });
+        }
+
+        async function saveSavedAttachment(id, file) {
+            const db = await openSavedAttachmentDatabase();
+            await new Promise((resolve, reject) => {
+                const transaction = db.transaction('attachments', 'readwrite');
+                transaction.objectStore('attachments').put(file, String(id));
+                transaction.oncomplete = resolve;
+                transaction.onerror = () => reject(transaction.error || new Error('تعذر حفظ المرفق.'));
+                transaction.onabort = () => reject(transaction.error || new Error('تم إلغاء حفظ المرفق.'));
+            }).finally(() => db.close());
+        }
+
+        async function getSavedAttachment(id) {
+            const db = await openSavedAttachmentDatabase();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction('attachments', 'readonly');
+                const request = transaction.objectStore('attachments').get(String(id));
+                request.onsuccess = () => {
+                    const result = request.result || null;
+                    db.close();
+                    resolve(result);
+                };
+                request.onerror = () => {
+                    db.close();
+                    reject(request.error || new Error('تعذر قراءة المرفق المحفوظ.'));
+                };
+            });
+        }
+
+        async function deleteSavedAttachment(id) {
+            const db = await openSavedAttachmentDatabase();
+            await new Promise((resolve, reject) => {
+                const transaction = db.transaction('attachments', 'readwrite');
+                transaction.objectStore('attachments').delete(String(id));
+                transaction.oncomplete = resolve;
+                transaction.onerror = () => reject(transaction.error || new Error('تعذر حذف المرفق.'));
+                transaction.onabort = () => reject(transaction.error || new Error('تم إلغاء حذف المرفق.'));
+            }).finally(() => db.close());
+        }
+
+        async function downloadSavedAttachment(savedFile) {
+            try {
+                const blob = await getSavedAttachment(savedFile.id);
+                if (!blob) {
+                    alert('لم يتم العثور على نسخة المرفق في مساحة التخزين بهذا المتصفح.');
+                    return;
+                }
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = savedFile.attachment?.name || savedFile.title || 'saved-file';
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch (error) {
+                alert(`تعذر تنزيل المرفق: ${error.message}`);
+            }
+        }
+
+        async function savedAttachmentToBase64(blob) {
+            const bytes = new Uint8Array(await blob.arrayBuffer());
+            let binary = '';
+            const chunkSize = 0x8000;
+            for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+                binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+            }
+            return btoa(binary);
+        }
+
+        async function savedAttachmentToDataUrl(blob) {
+            const mimeType = blob.type || 'application/octet-stream';
+            return `data:${mimeType};base64,${await savedAttachmentToBase64(blob)}`;
+        }
+
+        function savedAttachmentFromDataUrl(dataUrl) {
+            const [header, encoded = ''] = String(dataUrl).split(',');
+            const mimeType = (header.match(/^data:([^;]+)/) || [])[1] || 'application/octet-stream';
+            const binary = atob(encoded);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            return new Blob([bytes], { type: mimeType });
+        }
+
+        function savedAttachmentsForPrompt(userPrompt, pendingIds = []) {
+            const entries = AppState.savedFiles.filter(entry => entry.attachment);
+            const selectedIds = new Set(pendingIds.map(String));
+            if (selectedIds.size) return entries.filter(entry => selectedIds.has(String(entry.id)));
+
+            const query = String(userPrompt || '').toLocaleLowerCase('ar');
+            const asksForAll = /(كل|جميع)/.test(query) && /(الملف|ملفات|محفوظ|مرفق)/.test(query);
+            if (asksForAll) return entries;
+
+            return entries.filter(entry => {
+                const title = String(entry.title || '').toLocaleLowerCase('ar');
+                const name = String(entry.attachment.name || '').toLocaleLowerCase('ar');
+                return (title.length > 1 && query.includes(title)) || (name.length > 1 && query.includes(name));
+            });
+        }
 
         function saveStateToStorage() {
             localStorage.setItem('pud_user_name', AppState.userName);
+            localStorage.setItem('pud_gemini_api_key', AppState.geminiApiKey);
             localStorage.setItem('pud_daily_tasks', JSON.stringify(AppState.dailyTasks));
             localStorage.setItem('pud_weekly_planner', JSON.stringify(AppState.weeklyPlanner));
             localStorage.setItem('pud_monthly_goals', JSON.stringify(AppState.monthlyGoals));
             localStorage.setItem('pud_quick_notes', JSON.stringify(AppState.quickNotes));
+            localStorage.setItem('pud_saved_files', JSON.stringify(AppState.savedFiles));
+            localStorage.setItem('pud_chat_history', JSON.stringify(AppState.chatHistory));
+            localStorage.setItem('pud_ai_conversations', JSON.stringify(AppState.aiConversations));
+            localStorage.setItem('pud_active_ai_conversation', String(AppState.activeAiConversationId || ''));
         }
 
-        /* ==========================================================================
-           WEB AUDIO API SYNTH (Gentle Timer Audio Chime & Success Sound)
-           ========================================================================== */
+        function initBackupSystem() {
+            const exportBtn = document.getElementById('exportBackupBtn');
+            const importBtn = document.getElementById('importBackupBtn');
+            const importInput = document.getElementById('importBackupInput');
+
+            exportBtn.addEventListener('click', async () => {
+                try {
+                    const savedFilesForBackup = await Promise.all(AppState.savedFiles.map(async entry => {
+                        if (!entry.attachment) return entry;
+                        const binary = await getSavedAttachment(entry.id);
+                        return binary
+                            ? { ...entry, attachmentBackupData: await savedAttachmentToDataUrl(binary) }
+                            : entry;
+                    }));
+                    const backupData = {
+                        pud_user_name: AppState.userName,
+                        pud_gemini_api_key: AppState.geminiApiKey,
+                        pud_daily_tasks: AppState.dailyTasks,
+                        pud_weekly_planner: AppState.weeklyPlanner,
+                        pud_monthly_goals: AppState.monthlyGoals,
+                        pud_quick_notes: AppState.quickNotes,
+                        pud_saved_files: savedFilesForBackup,
+                        pud_chat_history: AppState.chatHistory,
+                        pud_ai_conversations: AppState.aiConversations,
+                        pud_active_ai_conversation: AppState.activeAiConversationId,
+                        backup_date: new Date().toISOString()
+                    };
+
+                    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `PUD_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } catch (error) {
+                    alert(`تعذر تصدير النسخة الاحتياطية: ${error.message}`);
+                }
+            });
+
+            importBtn.addEventListener('click', () => importInput.click());
+
+            importInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const importedData = JSON.parse(event.target.result);
+                        if (importedData.pud_daily_tasks) {
+                            if (importedData.pud_user_name) AppState.userName = importedData.pud_user_name;
+                            if (importedData.pud_gemini_api_key) AppState.geminiApiKey = importedData.pud_gemini_api_key;
+                            if (importedData.pud_daily_tasks) AppState.dailyTasks = importedData.pud_daily_tasks;
+                            if (importedData.pud_weekly_planner) AppState.weeklyPlanner = importedData.pud_weekly_planner;
+                            if (importedData.pud_monthly_goals) AppState.monthlyGoals = importedData.pud_monthly_goals;
+                            if (importedData.pud_quick_notes) AppState.quickNotes = importedData.pud_quick_notes;
+                            if (Array.isArray(importedData.pud_saved_files)) {
+                                const restoredSavedFiles = [];
+                                for (const entry of importedData.pud_saved_files) {
+                                    const { attachmentBackupData, ...savedEntry } = entry;
+                                    if (attachmentBackupData && savedEntry.attachment) {
+                                        await saveSavedAttachment(savedEntry.id, savedAttachmentFromDataUrl(attachmentBackupData));
+                                    }
+                                    restoredSavedFiles.push(savedEntry);
+                                }
+                                AppState.savedFiles = restoredSavedFiles;
+                            }
+                            AppState.pendingSavedFileIds = [];
+                            if (Array.isArray(importedData.pud_ai_conversations) && importedData.pud_ai_conversations.length) {
+                                AppState.aiConversations = importedData.pud_ai_conversations;
+                                AppState.activeAiConversationId = importedData.pud_active_ai_conversation || AppState.aiConversations[0].id;
+                                const importedActive = AppState.aiConversations.find(conversation => String(conversation.id) === String(AppState.activeAiConversationId))
+                                    || AppState.aiConversations[0];
+                                AppState.activeAiConversationId = importedActive.id;
+                                AppState.chatHistory = Array.isArray(importedActive.messages)
+                                    ? importedActive.messages
+                                    : (importedData.pud_chat_history || []);
+                            } else if (importedData.pud_chat_history) {
+                                AppState.chatHistory = importedData.pud_chat_history;
+                                const activeConversation = AppState.aiConversations.find(conversation => String(conversation.id) === String(AppState.activeAiConversationId));
+                                if (activeConversation) activeConversation.messages = AppState.chatHistory;
+                            }
+
+                            saveStateToStorage();
+                            document.getElementById('displayUserName').textContent = AppState.userName;
+                            renderDailyTasks();
+                            renderWeeklyPlanner();
+                            renderMonthlyPlanner();
+                            renderQuickNotes();
+                            renderSavedFiles();
+                            renderAiConversationList();
+                            renderChatMessages();
+                            alert("تم استعادة النسخة الاحتياطية بنجاح! 🚀");
+                        }
+                    } catch (err) {
+                        alert(`فشل استعادة الملف: ${err.message || 'النسخة الاحتياطية غير صالحة.'}`);
+                    }
+                };
+                reader.readAsText(file);
+                importInput.value = '';
+            });
+        }
+
         const AudioSynth = {
             ctx: null,
             init() {
-                if (!this.ctx) {
-                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                }
+                if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
             },
             playBeep() {
                 this.init();
@@ -486,7 +892,7 @@
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(587.33, this.ctx.currentTime); // D5
+                osc.frequency.setValueAtTime(587.33, this.ctx.currentTime);
                 gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.5);
                 osc.connect(gain);
@@ -497,7 +903,7 @@
             playCelebration() {
                 this.init();
                 if (this.ctx.state === 'suspended') this.ctx.resume();
-                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                const notes = [523.25, 659.25, 783.99, 1046.50];
                 notes.forEach((freq, idx) => {
                     const osc = this.ctx.createOscillator();
                     const gain = this.ctx.createGain();
@@ -513,11 +919,8 @@
             }
         };
 
-        /* ==========================================================================
-           TIMER / STOPWATCH MODULE
-           ========================================================================== */
         const TimerModule = {
-            mode: 'pomodoro', // 'pomodoro' | 'stopwatch'
+            mode: 'pomodoro',
             secondsRemaining: 25 * 60,
             stopwatchSeconds: 0,
             interval: null,
@@ -525,7 +928,6 @@
 
             init() {
                 this.updateDisplay();
-                
                 document.getElementById('modePomoBtn').addEventListener('click', () => this.setMode('pomodoro'));
                 document.getElementById('modeStopwatchBtn').addEventListener('click', () => this.setMode('stopwatch'));
                 document.getElementById('startTimerBtn').addEventListener('click', () => this.toggleTimer());
@@ -536,7 +938,6 @@
                 if (this.mode === newMode) return;
                 this.pauseTimer();
                 this.mode = newMode;
-
                 const pomoBtn = document.getElementById('modePomoBtn');
                 const swBtn = document.getElementById('modeStopwatchBtn');
 
@@ -553,11 +954,8 @@
             },
 
             toggleTimer() {
-                if (this.isRunning) {
-                    this.pauseTimer();
-                } else {
-                    this.startTimer();
-                }
+                if (this.isRunning) this.pauseTimer();
+                else this.startTimer();
             },
 
             startTimer() {
@@ -593,11 +991,8 @@
 
             resetTimer() {
                 this.pauseTimer();
-                if (this.mode === 'pomodoro') {
-                    this.secondsRemaining = 25 * 60;
-                } else {
-                    this.stopwatchSeconds = 0;
-                }
+                if (this.mode === 'pomodoro') this.secondsRemaining = 25 * 60;
+                else this.stopwatchSeconds = 0;
                 this.updateDisplay();
             },
 
@@ -610,9 +1005,6 @@
             }
         };
 
-        /* ==========================================================================
-           TAB NAVIGATION & SIDEBAR TOGGLE MODULE
-           ========================================================================== */
         function initNavigation() {
             const navButtons = document.querySelectorAll('.nav-btn');
             const tabContents = document.querySelectorAll('.tab-content');
@@ -620,68 +1012,53 @@
             navButtons.forEach(btn => {
                 btn.addEventListener('click', () => {
                     const targetTabId = btn.getAttribute('data-tab');
-
                     navButtons.forEach(b => {
                         b.classList.remove('active', 'bg-gradient-to-r', 'from-cyan-500/20', 'to-transparent', 'text-cyan-400', 'border-r-4', 'border-cyan-400', 'font-semibold');
                         b.classList.add('text-slate-400', 'font-medium');
                     });
-
                     btn.classList.add('active', 'bg-gradient-to-r', 'from-cyan-500/20', 'to-transparent', 'text-cyan-400', 'border-r-4', 'border-cyan-400', 'font-semibold');
                     btn.classList.remove('text-slate-400', 'font-medium');
 
                     tabContents.forEach(content => {
-                        if (content.id === targetTabId) {
-                            content.classList.remove('hidden');
-                        } else {
-                            content.classList.add('hidden');
-                        }
+                        if (content.id === targetTabId) content.classList.remove('hidden');
+                        else content.classList.add('hidden');
                     });
                 });
             });
 
-            // Sidebar Toggle
-            const sidebar = document.getElementById('sidebar');
-            const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
-
-            sidebarToggleBtn.addEventListener('click', () => {
-                sidebar.classList.toggle('hidden');
+            document.getElementById('sidebarToggleBtn').addEventListener('click', () => {
+                document.getElementById('sidebar').classList.toggle('hidden');
             });
         }
 
-        /* ==========================================================================
-           SECTION 1: DAILY TASKS MODULE
-           ========================================================================== */
         function initDailyTasks() {
             const taskForm = document.getElementById('addTaskForm');
             const taskTitleInput = document.getElementById('taskTitleInput');
             const taskPrioritySelect = document.getElementById('taskPrioritySelect');
-            const clearCompletedBtn = document.getElementById('clearCompletedTasksBtn');
 
             taskForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 const title = taskTitleInput.value.trim();
                 if (!title) return;
 
-                const newTask = {
+                AppState.dailyTasks.push({
                     id: Date.now(),
                     title: title,
                     priority: taskPrioritySelect.value,
                     completed: false
-                };
+                });
 
-                AppState.dailyTasks.push(newTask);
                 saveStateToStorage();
                 renderDailyTasks();
                 taskTitleInput.value = '';
             });
 
-            clearCompletedBtn.addEventListener('click', () => {
+            document.getElementById('clearCompletedTasksBtn').addEventListener('click', () => {
                 AppState.dailyTasks = AppState.dailyTasks.filter(t => !t.completed);
                 saveStateToStorage();
                 renderDailyTasks();
             });
 
-            // Confirmation Modal Event Handlers
             document.getElementById('confirmYesBtn').addEventListener('click', () => {
                 if (AppState.selectedTaskToComplete) {
                     const task = AppState.dailyTasks.find(t => t.id === AppState.selectedTaskToComplete);
@@ -698,13 +1075,10 @@
             document.getElementById('confirmNoBtn').addEventListener('click', () => {
                 AppState.selectedTaskToComplete = null;
                 closeModal('confirmTaskModal');
-                renderDailyTasks(); // Reset checkbox visually
+                renderDailyTasks();
             });
 
-            document.getElementById('closeCelebrationBtn').addEventListener('click', () => {
-                closeModal('celebrationModal');
-            });
-
+            document.getElementById('closeCelebrationBtn').addEventListener('click', () => closeModal('celebrationModal'));
             renderDailyTasks();
         }
 
@@ -713,37 +1087,19 @@
             container.innerHTML = '';
 
             if (AppState.dailyTasks.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center py-8 text-slate-400 space-y-2">
-                        <i class="fa-solid fa-list-check text-2xl text-slate-500"></i>
-                        <p class="text-xs">لا يوجد مهام حالية. أضف مهمتك الأولى بالأعلى!</p>
-                    </div>
-                `;
+                container.innerHTML = `<div class="text-center py-8 text-slate-400 space-y-2"><i class="fa-solid fa-list-check text-2xl text-slate-500"></i><p class="text-xs">لا يوجد مهام حالية.</p></div>`;
                 updateTaskProgress(0, 0);
                 return;
             }
 
             let completedCount = 0;
-
             AppState.dailyTasks.forEach(task => {
                 if (task.completed) completedCount++;
 
                 const taskEl = document.createElement('div');
-                taskEl.className = `flex items-center justify-between p-3.5 rounded-xl border transition-all ${
-                    task.completed 
-                    ? 'bg-slate-900/40 border-slate-800/50 opacity-60' 
-                    : 'bg-slate-800/40 border-slate-700/60 hover:border-slate-600'
-                }`;
+                taskEl.className = `flex items-center justify-between p-3.5 rounded-xl border transition-all ${task.completed ? 'bg-slate-900/40 border-slate-800/50 opacity-60' : 'bg-slate-800/40 border-slate-700/60'}`;
 
-                // Priority Badge Color
-                let priorityBadge = '';
-                if (task.priority === 'عالي') {
-                    priorityBadge = '<span class="text-[10px] px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-400 font-bold border border-rose-500/30">عالي 🔥</span>';
-                } else if (task.priority === 'متوسط') {
-                    priorityBadge = '<span class="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30">متوسط ⚡</span>';
-                } else {
-                    priorityBadge = '<span class="text-[10px] px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-400 font-bold border border-cyan-500/30">عادي ☕</span>';
-                }
+                let priorityBadge = task.priority === 'عالي' ? '<span class="text-[10px] px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-400 font-bold border border-rose-500/30">عالي 🔥</span>' : task.priority === 'متوسط' ? '<span class="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30">متوسط ⚡</span>' : '<span class="text-[10px] px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-400 font-bold border border-cyan-500/30">عادي ☕</span>';
 
                 taskEl.innerHTML = `
                     <div class="flex items-center gap-3">
@@ -752,32 +1108,24 @@
                     </div>
                     <div class="flex items-center gap-3">
                         ${priorityBadge}
-                        <button class="delete-task-btn text-xs text-slate-400 hover:text-rose-400 transition-colors p-1" data-id="${task.id}" title="حذف المهمة">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
+                        <button class="delete-task-btn text-xs text-slate-400 hover:text-rose-400 transition-colors p-1" data-id="${task.id}"><i class="fa-solid fa-trash-can"></i></button>
                     </div>
                 `;
-
                 container.appendChild(taskEl);
             });
 
-            // Add Event Listeners to Checkboxes
             document.querySelectorAll('.task-checkbox').forEach(cb => {
                 cb.addEventListener('change', (e) => {
-                    const taskId = parseInt(e.target.getAttribute('data-id'));
-                    AppState.selectedTaskToComplete = taskId;
-                    
-                    const task = AppState.dailyTasks.find(t => t.id === taskId);
+                    AppState.selectedTaskToComplete = parseInt(e.target.getAttribute('data-id'));
+                    const task = AppState.dailyTasks.find(t => t.id === AppState.selectedTaskToComplete);
                     document.getElementById('confirmTaskText').textContent = `هل أنت متأكد من إتمام المهمة: "${task.title}"؟`;
                     openModal('confirmTaskModal');
                 });
             });
 
-            // Add Event Listeners to Delete Buttons
             document.querySelectorAll('.delete-task-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
-                    const taskId = parseInt(btn.getAttribute('data-id'));
-                    AppState.dailyTasks = AppState.dailyTasks.filter(t => t.id !== taskId);
+                    AppState.dailyTasks = AppState.dailyTasks.filter(t => t.id !== parseInt(btn.getAttribute('data-id')));
                     saveStateToStorage();
                     renderDailyTasks();
                 });
@@ -789,11 +1137,8 @@
         function updateTaskProgress(completed, total) {
             const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
             document.getElementById('taskProgressText').textContent = `${completed} / ${total} (${percentage}%)`;
-
             const circle = document.getElementById('progressCircle');
-            const circumference = 113.09; // 2 * PI * r (r=18)
-            const offset = circumference - (percentage / 100) * circumference;
-            circle.style.strokeDashoffset = offset;
+            circle.style.strokeDashoffset = 113.09 - (percentage / 100) * 113.09;
         }
 
         function checkAllTasksCompleted() {
@@ -804,9 +1149,6 @@
             }
         }
 
-        /* ==========================================================================
-           SECTION 2: WEEKLY PLANNER MODULE
-           ========================================================================== */
         function initWeeklyPlanner() {
             renderWeeklyPlanner();
         }
@@ -814,7 +1156,6 @@
         function renderWeeklyPlanner() {
             const container = document.getElementById('weeklyDaysContainer');
             container.innerHTML = '';
-
             const days = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
 
             days.forEach(day => {
@@ -825,15 +1166,11 @@
                 let itemsHTML = items.map((item, idx) => `
                     <div class="flex items-center justify-between text-xs bg-slate-900/60 p-2 rounded-lg border border-slate-800 text-slate-200">
                         <span>${escapeHTML(item)}</span>
-                        <button class="text-slate-400 hover:text-rose-400 transition-colors remove-weekly-item" data-day="${day}" data-idx="${idx}">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
+                        <button class="text-slate-400 hover:text-rose-400 transition-colors remove-weekly-item" data-day="${day}" data-idx="${idx}"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                 `).join('');
 
-                if (items.length === 0) {
-                    itemsHTML = `<p class="text-[11px] text-slate-400 italic text-center py-2">لا توجد محاضرات أو أهداف لهذا اليوم</p>`;
-                }
+                if (items.length === 0) itemsHTML = `<p class="text-[11px] text-slate-400 italic text-center py-2">لا توجد محاضرات</p>`;
 
                 dayCard.innerHTML = `
                     <div class="space-y-2">
@@ -843,17 +1180,13 @@
                         </div>
                         <div class="space-y-1.5">${itemsHTML}</div>
                     </div>
-                    
                     <button class="add-weekly-btn w-full py-1.5 rounded-lg bg-slate-800/80 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-400 text-xs font-bold transition-all flex items-center justify-center gap-1 mt-2" data-day="${day}">
-                        <i class="fa-solid fa-plus text-[10px]"></i>
-                        <span>إضافة بند</span>
+                        <i class="fa-solid fa-plus text-[10px]"></i><span>إضافة بند</span>
                     </button>
                 `;
-
                 container.appendChild(dayCard);
             });
 
-            // Add Event Listeners for adding items to days
             document.querySelectorAll('.add-weekly-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const day = btn.getAttribute('data-day');
@@ -866,98 +1199,66 @@
                 });
             });
 
-            // Remove Item Handlers
             document.querySelectorAll('.remove-weekly-item').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    const day = btn.getAttribute('data-day');
-                    const idx = parseInt(btn.getAttribute('data-idx'));
-                    AppState.weeklyPlanner[day].splice(idx, 1);
+                    AppState.weeklyPlanner[btn.getAttribute('data-day')].splice(parseInt(btn.getAttribute('data-idx')), 1);
                     saveStateToStorage();
                     renderWeeklyPlanner();
                 });
             });
         }
 
-        /* ==========================================================================
-           SECTION 3: MONTHLY PLANNER MODULE
-           ========================================================================== */
         function initMonthlyPlanner() {
-            const form = document.getElementById('addMonthlyForm');
-            form.addEventListener('submit', (e) => {
+            document.getElementById('addMonthlyForm').addEventListener('submit', (e) => {
                 e.preventDefault();
                 const title = document.getElementById('monthlyTitleInput').value.trim();
                 const date = document.getElementById('monthlyDateInput').value;
-
                 if (!title || !date) return;
 
-                AppState.monthlyGoals.push({
-                    id: Date.now(),
-                    title: title,
-                    date: date
-                });
-
+                AppState.monthlyGoals.push({ id: Date.now(), title, date });
                 saveStateToStorage();
                 renderMonthlyPlanner();
                 document.getElementById('monthlyTitleInput').value = '';
                 document.getElementById('monthlyDateInput').value = '';
             });
-
             renderMonthlyPlanner();
         }
 
         function renderMonthlyPlanner() {
             const container = document.getElementById('monthlyList');
             container.innerHTML = '';
-
             if (AppState.monthlyGoals.length === 0) {
-                container.innerHTML = `<p class="text-xs text-slate-400 col-span-2 text-center py-4">لا توجد مواعيد أو امتحانات مضافة للشهر.</p>`;
+                container.innerHTML = `<p class="text-xs text-slate-400 col-span-2 text-center py-4">لا توجد مواعيد مضافة.</p>`;
                 return;
             }
 
             AppState.monthlyGoals.forEach(goal => {
                 const card = document.createElement('div');
                 card.className = 'flex items-center justify-between p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 text-xs';
-                
                 card.innerHTML = `
-                    <div class="space-y-1">
-                        <p class="font-bold text-slate-200 text-sm">${escapeHTML(goal.title)}</p>
-                        <p class="text-purple-400 font-mono"><i class="fa-regular fa-clock ml-1"></i> ${goal.date}</p>
-                    </div>
-                    <button class="delete-monthly-btn text-slate-400 hover:text-rose-400 transition-colors p-2" data-id="${goal.id}">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
+                    <div class="space-y-1"><p class="font-bold text-slate-200 text-sm">${escapeHTML(goal.title)}</p><p class="text-purple-400 font-mono"><i class="fa-regular fa-clock ml-1"></i> ${goal.date}</p></div>
+                    <button class="delete-monthly-btn text-slate-400 hover:text-rose-400 p-2" data-id="${goal.id}"><i class="fa-solid fa-trash-can"></i></button>
                 `;
-
                 container.appendChild(card);
             });
 
             document.querySelectorAll('.delete-monthly-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    const id = parseInt(btn.getAttribute('data-id'));
-                    AppState.monthlyGoals = AppState.monthlyGoals.filter(g => g.id !== id);
+                    AppState.monthlyGoals = AppState.monthlyGoals.filter(g => g.id !== parseInt(btn.getAttribute('data-id')));
                     saveStateToStorage();
                     renderMonthlyPlanner();
                 });
             });
         }
 
-        /* ==========================================================================
-           SECTION 4: QUICK NOTES MODULE
-           ========================================================================== */
         function initQuickNotes() {
-            const openModalBtn = document.getElementById('openNewNoteModalBtn');
-            const saveNoteBtn = document.getElementById('saveNoteBtn');
-            const cancelNoteBtn = document.getElementById('cancelNoteBtn');
-
-            openModalBtn.addEventListener('click', () => {
+            document.getElementById('openNewNoteModalBtn').addEventListener('click', () => {
                 document.getElementById('noteTitleInput').value = '';
                 document.getElementById('noteBodyInput').value = '';
                 openModal('noteModal');
             });
+            document.getElementById('cancelNoteBtn').addEventListener('click', () => closeModal('noteModal'));
 
-            cancelNoteBtn.addEventListener('click', () => closeModal('noteModal'));
-
-            // Color Picker logic
             const colorBtns = document.querySelectorAll('#noteColorPicker button');
             colorBtns.forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -967,33 +1268,24 @@
                 });
             });
 
-            saveNoteBtn.addEventListener('click', () => {
+            document.getElementById('saveNoteBtn').addEventListener('click', () => {
                 const title = document.getElementById('noteTitleInput').value.trim();
                 const body = document.getElementById('noteBodyInput').value.trim();
-
                 if (!title || !body) return;
 
-                AppState.quickNotes.push({
-                    id: Date.now(),
-                    title: title,
-                    body: body,
-                    color: AppState.activeNoteColor
-                });
-
+                AppState.quickNotes.push({ id: Date.now(), title, body, color: AppState.activeNoteColor });
                 saveStateToStorage();
                 renderQuickNotes();
                 closeModal('noteModal');
             });
-
             renderQuickNotes();
         }
 
         function renderQuickNotes() {
             const container = document.getElementById('notesGrid');
             container.innerHTML = '';
-
             if (AppState.quickNotes.length === 0) {
-                container.innerHTML = `<p class="text-xs text-slate-400 col-span-3 text-center py-6">لا توجد ملاحظات سريعة. أنشئ أُولاك الآن!</p>`;
+                container.innerHTML = `<p class="text-xs text-slate-400 col-span-3 text-center py-6">لا توجد ملاحظات.</p>`;
                 return;
             }
 
@@ -1006,156 +1298,784 @@
 
             AppState.quickNotes.forEach(note => {
                 const card = document.createElement('div');
-                const colorStyle = colorClasses[note.color] || colorClasses.cyan;
-
-                card.className = `glass-panel rounded-2xl p-4 border bg-gradient-to-br ${colorStyle} flex flex-col justify-between space-y-3 relative group`;
-                
+                card.className = `glass-panel rounded-2xl p-4 border bg-gradient-to-br ${colorClasses[note.color] || colorClasses.cyan} flex flex-col justify-between space-y-3`;
                 card.innerHTML = `
-                    <div class="space-y-2">
-                        <h4 class="font-bold text-sm text-slate-100 border-b border-slate-800/80 pb-2">${escapeHTML(note.title)}</h4>
-                        <p class="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">${escapeHTML(note.body)}</p>
-                    </div>
-
-                    <div class="flex items-center justify-end pt-2">
-                        <button class="delete-note-btn text-xs text-slate-400 hover:text-rose-400 transition-colors p-1" data-id="${note.id}">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                    </div>
+                    <div class="space-y-2"><h4 class="font-bold text-sm text-slate-100 border-b border-slate-800/80 pb-2">${escapeHTML(note.title)}</h4><p class="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">${escapeHTML(note.body)}</p></div>
+                    <div class="flex items-center justify-end pt-2"><button class="delete-note-btn text-xs text-slate-400 hover:text-rose-400 p-1" data-id="${note.id}"><i class="fa-solid fa-trash-can"></i></button></div>
                 `;
-
                 container.appendChild(card);
             });
 
             document.querySelectorAll('.delete-note-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    const id = parseInt(btn.getAttribute('data-id'));
-                    AppState.quickNotes = AppState.quickNotes.filter(n => n.id !== id);
+                    AppState.quickNotes = AppState.quickNotes.filter(n => n.id !== parseInt(btn.getAttribute('data-id')));
                     saveStateToStorage();
                     renderQuickNotes();
                 });
             });
         }
 
-        /* ==========================================================================
-           USER NAME & GENERAL MODAL HELPERS
-           ========================================================================== */
-        function initNameEditor() {
-            const displayEl = document.getElementById('displayUserName');
-            const editBtn = document.getElementById('editNameBtn');
-            const modal = document.getElementById('editNameModal');
-            const input = document.getElementById('userNameInput');
-            const saveBtn = document.getElementById('saveNameBtn');
-            const cancelBtn = document.getElementById('cancelNameBtn');
+        function initSavedFilesModule() {
+            const form = document.getElementById('savedFileForm');
+            const titleInput = document.getElementById('savedFileTitleInput');
+            const contentInput = document.getElementById('savedFileContentInput');
+            const searchInput = document.getElementById('savedFilesSearchInput');
+            const attachmentInput = document.getElementById('savedFileAttachmentInput');
+            const attachmentNames = document.getElementById('savedFileAttachmentNames');
 
-            displayEl.textContent = AppState.userName;
-
-            editBtn.addEventListener('click', () => {
-                input.value = AppState.userName;
-                openModal('editNameModal');
+            attachmentInput.addEventListener('change', () => {
+                const selectedFiles = Array.from(attachmentInput.files || []);
+                attachmentNames.textContent = selectedFiles.length
+                    ? selectedFiles.map(file => file.name).join('، ')
+                    : 'PDF، صور، أو أنواع ملفات أخرى';
             });
 
-            cancelBtn.addEventListener('click', () => closeModal('editNameModal'));
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const title = titleInput.value.trim();
+                const content = contentInput.value.trim();
+                const selectedFiles = Array.from(attachmentInput.files || []);
+                if (!selectedFiles.length && (!title || !content)) {
+                    alert('اكتب اسمًا ومحتوى، أو اختر ملفًا واحدًا على الأقل للحفظ.');
+                    return;
+                }
 
-            saveBtn.addEventListener('click', () => {
-                const newName = input.value.trim();
+                if (selectedFiles.length) {
+                    for (const file of selectedFiles) {
+                        const id = `saved-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                        try {
+                            await saveSavedAttachment(id, file);
+                        } catch (error) {
+                            alert(`تعذر حفظ المرفق «${file.name}»: ${error.message}`);
+                            break;
+                        }
+                        const savedTitle = title
+                            ? (selectedFiles.length === 1 ? title : `${title} - ${file.name}`)
+                            : file.name;
+                        AppState.savedFiles.unshift({
+                            id,
+                            title: savedTitle,
+                            content,
+                            attachment: { name: file.name, type: file.type || 'application/octet-stream', size: file.size },
+                            createdAt: new Date().toISOString()
+                        });
+                    }
+                } else {
+                    AppState.savedFiles.unshift({
+                        id: `saved-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                        title,
+                        content,
+                        createdAt: new Date().toISOString()
+                    });
+                }
+                saveStateToStorage();
+                form.reset();
+                attachmentNames.textContent = 'PDF، صور، أو أنواع ملفات أخرى';
+                renderSavedFiles(searchInput.value);
+            });
+
+            searchInput.addEventListener('input', () => renderSavedFiles(searchInput.value));
+            renderSavedFiles();
+        }
+
+        function renderSavedFiles(searchTerm = '') {
+            const container = document.getElementById('savedFilesList');
+            if (!container) return;
+
+            const files = Array.isArray(AppState.savedFiles) ? AppState.savedFiles : [];
+            const term = searchTerm.trim().toLocaleLowerCase('ar');
+            const filteredFiles = files.filter(file =>
+                `${file.title || ''} ${file.content || ''} ${file.attachment?.name || ''}`.toLocaleLowerCase('ar').includes(term)
+            );
+
+            document.getElementById('savedFilesCount').textContent = `${files.length} ملفات`;
+            container.innerHTML = '';
+
+            if (filteredFiles.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 col-span-2 text-center py-8">${term ? 'لا توجد نتائج مطابقة للبحث.' : 'لا توجد ملفات محفوظة بعد. أضف أول ملف من النموذج أعلاه.'}</p>`;
+                return;
+            }
+
+            filteredFiles.forEach(file => {
+                const card = document.createElement('article');
+                const date = file.createdAt ? new Date(file.createdAt) : null;
+                const dateLabel = date && !Number.isNaN(date.getTime())
+                    ? date.toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })
+                    : '';
+                card.className = 'glass-panel rounded-2xl p-4 border border-emerald-500/20 flex flex-col gap-3';
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <h4 class="font-bold text-sm text-slate-100 break-words">${escapeHTML(String(file.title || 'ملف بدون اسم'))}</h4>
+                            ${dateLabel ? `<p class="text-[10px] text-slate-500 mt-1">${escapeHTML(dateLabel)}</p>` : ''}
+                        </div>
+                        <i class="fa-solid fa-file-lines text-emerald-400 mt-1"></i>
+                    </div>
+                    ${file.attachment ? `<div class="flex items-center gap-2 rounded-xl bg-slate-900/60 border border-slate-700/70 p-2.5 min-w-0"><i class="fa-solid ${String(file.attachment.type || '').startsWith('image/') ? 'fa-image' : 'fa-paperclip'} text-emerald-400"></i><div class="min-w-0 flex-1"><p class="text-xs text-slate-200 truncate">${escapeHTML(String(file.attachment.name || 'مرفق'))}</p><p class="text-[10px] text-slate-500">${(Number(file.attachment.size || 0) / (1024 * 1024)).toFixed(2)} MB · ${escapeHTML(String(file.attachment.type || 'نوع غير معروف'))}</p></div><button type="button" class="saved-file-download-btn text-slate-400 hover:text-cyan-300 p-1" data-id="${escapeHTML(String(file.id))}" title="تنزيل الملف"><i class="fa-solid fa-download"></i></button></div>` : ''}
+                    ${file.content ? `<p class="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-words max-h-48 overflow-y-auto">${escapeHTML(String(file.content))}</p>` : ''}
+                    <div class="flex items-center justify-between gap-2 border-t border-slate-800 pt-3">
+                        <button type="button" class="saved-file-ask-btn text-xs text-cyan-300 hover:text-cyan-200 font-bold flex items-center gap-1.5" data-id="${escapeHTML(String(file.id))}">
+                            <i class="fa-solid fa-robot"></i><span>اسأل AI عن هذا الملف</span>
+                        </button>
+                        <button type="button" class="saved-file-delete-btn text-xs text-slate-400 hover:text-rose-400 p-1" data-id="${escapeHTML(String(file.id))}" title="حذف الملف">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            container.querySelectorAll('.saved-file-ask-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const file = files.find(item => String(item.id) === button.dataset.id);
+                    if (!file) return;
+                    AppState.pendingSavedFileIds = [file.id];
+                    document.querySelector('[data-tab="tab-ai-chat"]').click();
+                    const chatInput = document.getElementById('chatTextInput');
+                    chatInput.value = `استخدم الملف المحفوظ «${file.title}» للإجابة عن سؤالي: `;
+                    chatInput.focus();
+                });
+            });
+
+            container.querySelectorAll('.saved-file-download-btn').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const file = files.find(item => String(item.id) === button.dataset.id);
+                    if (file) await downloadSavedAttachment(file);
+                });
+            });
+
+            container.querySelectorAll('.saved-file-delete-btn').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const file = files.find(item => String(item.id) === button.dataset.id);
+                    if (!file || !confirm(`هل تريد حذف الملف المحفوظ «${file.title}»؟`)) return;
+                    if (file.attachment) {
+                        try {
+                            await deleteSavedAttachment(file.id);
+                        } catch (error) {
+                            alert(`تعذر حذف المرفق: ${error.message}`);
+                            return;
+                        }
+                    }
+                    AppState.savedFiles = files.filter(item => String(item.id) !== button.dataset.id);
+                    saveStateToStorage();
+                    renderSavedFiles(searchTerm);
+                });
+            });
+        }
+
+        function createNewAiConversation() {
+            const conversation = {
+                id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                title: 'محادثة جديدة',
+                messages: [{ sender: 'ai', text: 'مرحباً! كيف يمكنني مساعدتك اليوم؟ 🚀' }],
+                updatedAt: new Date().toISOString()
+            };
+            AppState.aiConversations.unshift(conversation);
+            AppState.activeAiConversationId = conversation.id;
+            AppState.chatHistory = conversation.messages;
+            saveStateToStorage();
+            renderChatMessages();
+            renderAiConversationList();
+            document.getElementById('chatTextInput').focus();
+        }
+
+        function syncActiveAiConversation() {
+            let conversation = AppState.aiConversations.find(item => String(item.id) === String(AppState.activeAiConversationId));
+            if (!conversation) {
+                conversation = {
+                    id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    title: 'محادثة جديدة',
+                    messages: [],
+                    updatedAt: new Date().toISOString()
+                };
+                AppState.aiConversations.unshift(conversation);
+                AppState.activeAiConversationId = conversation.id;
+            }
+
+            conversation.messages = AppState.chatHistory;
+            conversation.updatedAt = new Date().toISOString();
+            const firstUserMessage = conversation.messages.find(message => message.sender === 'user' && message.text);
+            if (firstUserMessage && (!conversation.title || conversation.title === 'محادثة جديدة' || conversation.title === 'محادثة سابقة')) {
+                const cleanTitle = String(firstUserMessage.text).replace(/\s+/g, ' ').trim();
+                conversation.title = cleanTitle.length > 38 ? `${cleanTitle.slice(0, 38)}…` : cleanTitle;
+            }
+            saveStateToStorage();
+            renderAiConversationList();
+            return conversation;
+        }
+
+        function appendMessageToAiConversation(conversationId, message) {
+            const conversation = AppState.aiConversations.find(item => String(item.id) === String(conversationId));
+            if (!conversation) return;
+            if (!Array.isArray(conversation.messages)) conversation.messages = [];
+            conversation.messages.push(message);
+            conversation.updatedAt = new Date().toISOString();
+            if (String(AppState.activeAiConversationId) === String(conversationId)) {
+                AppState.chatHistory = conversation.messages;
+                renderChatMessages();
+            }
+            saveStateToStorage();
+            renderAiConversationList();
+        }
+
+        function renderAiConversationList() {
+            const container = document.getElementById('aiConversationList');
+            const count = document.getElementById('aiConversationCount');
+            if (!container || !count) return;
+
+            const conversations = Array.isArray(AppState.aiConversations) ? AppState.aiConversations : [];
+            count.textContent = `${conversations.length} محفوظة`;
+            container.innerHTML = '';
+
+            if (conversations.length === 0) {
+                container.innerHTML = `<p class="text-[11px] text-slate-500 px-2 py-2">لا توجد محادثات سابقة.</p>`;
+                return;
+            }
+
+            [...conversations]
+                .sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime())
+                .forEach(conversation => {
+                    const isActive = String(conversation.id) === String(AppState.activeAiConversationId);
+                    const lastUserMessage = [...(Array.isArray(conversation.messages) ? conversation.messages : [])]
+                        .reverse()
+                        .find(message => message.sender === 'user' && message.text);
+                    const preview = lastUserMessage ? String(lastUserMessage.text).replace(/\s+/g, ' ').trim() : 'ابدأ بكتابة رسالتك';
+                    const date = conversation.updatedAt ? new Date(conversation.updatedAt) : null;
+                    const dateLabel = date && !Number.isNaN(date.getTime())
+                        ? date.toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' })
+                        : '';
+                    const item = document.createElement('div');
+                    item.className = `flex-none w-56 rounded-xl border ${isActive ? 'border-cyan-400/60 bg-cyan-500/10' : 'border-slate-700/70 bg-slate-900/40'} flex items-stretch overflow-hidden`;
+                    item.innerHTML = `
+                        <button type="button" class="ai-conversation-select min-w-0 flex-1 text-right px-3 py-2 hover:bg-slate-800/60 transition-colors" data-id="${escapeHTML(String(conversation.id))}" title="${escapeHTML(String(conversation.title || 'محادثة بدون اسم'))}">
+                            <span class="block text-xs font-bold text-slate-200 truncate">${escapeHTML(String(conversation.title || 'محادثة بدون اسم'))}</span>
+                            <span class="block text-[10px] text-slate-500 truncate mt-1">${escapeHTML(preview)}${dateLabel ? ` · ${escapeHTML(dateLabel)}` : ''}</span>
+                        </button>
+                        <button type="button" class="ai-conversation-delete px-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors" data-id="${escapeHTML(String(conversation.id))}" title="حذف المحادثة">
+                            <i class="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                    `;
+                    container.appendChild(item);
+                });
+
+            container.querySelectorAll('.ai-conversation-select').forEach(button => {
+                button.addEventListener('click', () => {
+                    const conversation = conversations.find(item => String(item.id) === button.dataset.id);
+                    if (!conversation) return;
+                    AppState.activeAiConversationId = conversation.id;
+                    AppState.chatHistory = Array.isArray(conversation.messages) ? conversation.messages : [];
+                    document.getElementById('chatSearchInput').value = '';
+                    saveStateToStorage();
+                    renderChatMessages();
+                    renderAiConversationList();
+                });
+            });
+
+            container.querySelectorAll('.ai-conversation-delete').forEach(button => {
+                button.addEventListener('click', () => {
+                    const conversation = conversations.find(item => String(item.id) === button.dataset.id);
+                    if (!conversation || !confirm(`هل تريد حذف المحادثة «${conversation.title}»؟`)) return;
+                    AppState.aiConversations = AppState.aiConversations.filter(item => String(item.id) !== button.dataset.id);
+
+                    if (String(AppState.activeAiConversationId) === button.dataset.id) {
+                        const nextConversation = AppState.aiConversations[0];
+                        if (nextConversation) {
+                            AppState.activeAiConversationId = nextConversation.id;
+                            AppState.chatHistory = Array.isArray(nextConversation.messages) ? nextConversation.messages : [];
+                            renderChatMessages();
+                        } else {
+                            createNewAiConversation();
+                            return;
+                        }
+                    }
+
+                    saveStateToStorage();
+                    renderAiConversationList();
+                });
+            });
+        }
+
+        function initAiChatModule() {
+            const chatForm = document.getElementById('chatForm');
+            const chatInput = document.getElementById('chatTextInput');
+            const chatImageInput = document.getElementById('chatImageInput');
+            const triggerImageBtn = document.getElementById('triggerImageBtn');
+            const voiceBtn = document.getElementById('voiceRecordBtn');
+
+            triggerImageBtn.addEventListener('click', () => chatImageInput.click());
+            chatImageInput.addEventListener('change', handleImageSelection);
+            document.getElementById('removeImageBtn').addEventListener('click', clearAttachedImage);
+
+            document.querySelectorAll('.quick-prompt-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    chatInput.value = btn.textContent.trim().replace(/^[\u200B-\u200D\uFEFF]/, '');
+                    chatForm.dispatchEvent(new Event('submit'));
+                });
+            });
+
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const recognition = new SpeechRecognition();
+                recognition.lang = 'ar-EG';
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.maxAlternatives = 1;
+
+                let isRecording = false;
+                let voiceBaseText = '';
+                let voiceFinalText = '';
+                let silenceTimer = null;
+                let restartTimer = null;
+
+                const updateVoiceButton = () => {
+                    voiceBtn.classList.toggle('recording-pulse', isRecording);
+                    voiceBtn.title = isRecording
+                        ? 'التسجيل مستمر — اضغط لإيقافه (أو سيتوقف بعد 10 ثوانٍ من الصمت)'
+                        : 'بدء التحدث بالصوت';
+                    voiceBtn.setAttribute('aria-label', voiceBtn.title);
+                    voiceBtn.innerHTML = `<i class="fa-solid ${isRecording ? 'fa-microphone-slash' : 'fa-microphone'} text-sm"></i>`;
+                };
+
+                const armSilenceTimer = () => {
+                    clearTimeout(silenceTimer);
+                    silenceTimer = setTimeout(() => {
+                        if (isRecording) stopVoiceRecording();
+                    }, 10000);
+                };
+
+                const stopVoiceRecording = () => {
+                    isRecording = false;
+                    clearTimeout(silenceTimer);
+                    clearTimeout(restartTimer);
+                    updateVoiceButton();
+                    try { recognition.stop(); } catch (err) {}
+                };
+
+                voiceBtn.addEventListener('click', () => {
+                    if (isRecording) {
+                        stopVoiceRecording();
+                        return;
+                    }
+
+                    voiceBaseText = chatInput.value.trim();
+                    voiceFinalText = '';
+                    isRecording = true;
+                    updateVoiceButton();
+                    armSilenceTimer();
+                    try {
+                        recognition.start();
+                    } catch (err) {
+                        isRecording = false;
+                        clearTimeout(silenceTimer);
+                        updateVoiceButton();
+                    }
+                });
+                recognition.onstart = updateVoiceButton;
+                recognition.onend = () => {
+                    if (!isRecording) {
+                        updateVoiceButton();
+                        return;
+                    }
+                    // بعض المتصفحات تنهي جلسة التعرف عند وقفة قصيرة؛ أعد تشغيلها
+                    // تلقائياً مع إبقاء التسجيل فعالاً حتى الضغط على الزر أو 10 ثوانٍ صمت.
+                    clearTimeout(restartTimer);
+                    restartTimer = setTimeout(() => {
+                        if (isRecording) {
+                            try { recognition.start(); } catch (err) {}
+                        }
+                    }, 250);
+                };
+                recognition.onresult = (e) => {
+                    let interimText = '';
+                    let receivedSpeech = false;
+                    for (let i = e.resultIndex; i < e.results.length; i++) {
+                        const segment = e.results[i][0].transcript.trim();
+                        if (!segment) continue;
+                        receivedSpeech = true;
+                        if (e.results[i].isFinal) voiceFinalText += `${segment} `;
+                        else interimText += `${segment} `;
+                    }
+
+                    const recognizedText = `${voiceFinalText}${interimText}`.trim();
+                    chatInput.value = [voiceBaseText, recognizedText].filter(Boolean).join(' ');
+                    if (receivedSpeech) armSilenceTimer();
+                };
+                recognition.onerror = (e) => {
+                    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+                        stopVoiceRecording();
+                        alert('اسمح للمتصفح باستخدام الميكروفون، ثم جرّب مرة أخرى.');
+                    }
+                };
+            } else {
+                voiceBtn.addEventListener('click', () => {
+                    alert('التعرف على الصوت غير مدعوم في هذا المتصفح. جرّب Chrome أو Edge.');
+                });
+            }
+
+            chatForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const text = chatInput.value.trim();
+                if (!text && !AppState.attachedImageData) return;
+
+                const submittedConversationId = AppState.activeAiConversationId;
+                const selectedSavedFiles = savedAttachmentsForPrompt(text, AppState.pendingSavedFileIds);
+                AppState.pendingSavedFileIds = [];
+                AppState.chatHistory.push({ sender: 'user', text, image: AppState.attachedImageData?.previewUrl });
+                renderChatMessages();
+                syncActiveAiConversation();
+                chatInput.value = '';
+                const imagePayload = AppState.attachedImageData;
+                clearAttachedImage();
+
+                showAiTypingIndicator();
+
+                try {
+                    const aiReply = await callGeminiApi(text, imagePayload, selectedSavedFiles);
+                    removeAiTypingIndicator();
+                    const processedText = handleAiActionExecution(aiReply);
+                    appendMessageToAiConversation(submittedConversationId, { sender: 'ai', text: processedText });
+                } catch (err) {
+                    removeAiTypingIndicator();
+                    appendMessageToAiConversation(submittedConversationId, { sender: 'ai', text: `⚠️ ${err.message}` });
+                }
+            });
+
+            document.getElementById('newAiChatBtn').addEventListener('click', createNewAiConversation);
+
+            document.getElementById('clearChatBtn').addEventListener('click', () => {
+                if (confirm("هل تريد مسح سجل المحادثة؟")) {
+                    AppState.chatHistory = [{ sender: 'ai', text: 'مرحباً! كيف يمكنني مساعدتك اليوم؟ 🚀' }];
+                    const activeConversation = AppState.aiConversations.find(item => String(item.id) === String(AppState.activeAiConversationId));
+                    if (activeConversation) {
+                        activeConversation.title = 'محادثة جديدة';
+                        activeConversation.messages = AppState.chatHistory;
+                        activeConversation.updatedAt = new Date().toISOString();
+                    }
+                    saveStateToStorage();
+                    renderChatMessages();
+                    renderAiConversationList();
+                }
+            });
+
+            document.getElementById('chatSearchInput').addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                document.querySelectorAll('.chat-bubble-wrapper').forEach(m => {
+                    m.style.display = m.textContent.toLowerCase().includes(term) ? 'flex' : 'none';
+                });
+            });
+
+            renderChatMessages();
+            renderAiConversationList();
+        }
+
+        function handleImageSelection(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                AppState.attachedImageData = { mimeType: file.type, base64: event.target.result.split(',')[1], previewUrl: event.target.result };
+                document.getElementById('imagePreview').src = event.target.result;
+                document.getElementById('imagePreviewContainer').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearAttachedImage() {
+            AppState.attachedImageData = null;
+            document.getElementById('chatImageInput').value = '';
+            document.getElementById('imagePreviewContainer').classList.add('hidden');
+        }
+
+        function renderChatMessages() {
+            const container = document.getElementById('chatMessagesContainer');
+            container.innerHTML = '';
+            AppState.chatHistory.forEach(msg => {
+                const wrapper = document.createElement('div');
+                wrapper.className = `chat-bubble-wrapper flex items-start gap-2.5 ${msg.sender === 'user' ? 'flex-row-reverse' : ''}`;
+                const avatar = msg.sender === 'user' ? `<div class="w-8 h-8 rounded-xl bg-cyan-500 text-slate-950 font-bold flex items-center justify-center shrink-0 text-xs"><i class="fa-solid fa-user"></i></div>` : `<div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 to-indigo-500 text-slate-950 font-bold flex items-center justify-center shrink-0 text-xs"><i class="fa-solid fa-robot"></i></div>`;
+                const imgHTML = msg.image ? `<img src="${msg.image}" class="w-32 h-32 object-cover rounded-xl mb-2 border border-slate-700">` : '';
+                const bubbleClass = msg.sender === 'user' ? 'bg-cyan-500/25 border-cyan-500/40 text-slate-100 rounded-2xl rounded-tr-none' : 'bg-slate-800/80 border-slate-700/80 text-slate-200 rounded-2xl rounded-tl-none';
+
+                wrapper.innerHTML = `${avatar}<div class="max-w-[80%] p-3.5 border ${bubbleClass} text-xs leading-relaxed space-y-1">${imgHTML}<div class="whitespace-pre-wrap">${escapeHTML(msg.text)}</div></div>`;
+                container.appendChild(wrapper);
+            });
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function showAiTypingIndicator() {
+            const container = document.getElementById('chatMessagesContainer');
+            const wrapper = document.createElement('div');
+            wrapper.id = 'aiTypingIndicator';
+            wrapper.className = 'flex items-start gap-2.5';
+            wrapper.innerHTML = `<div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 to-indigo-500 text-slate-950 font-bold flex items-center justify-center shrink-0 text-xs"><i class="fa-solid fa-robot"></i></div><div class="p-3.5 bg-slate-800/80 border border-slate-700/80 rounded-2xl rounded-tl-none text-xs text-cyan-400 flex items-center gap-2"><i class="fa-solid fa-circle-notch animate-spin"></i><span>جاري المعالجة...</span></div>`;
+            container.appendChild(wrapper);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function removeAiTypingIndicator() {
+            const el = document.getElementById('aiTypingIndicator');
+            if (el) el.remove();
+        }
+
+        // ===== Gemini API (auto-selects a working model) =====
+        const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+        // Order: auto-updating alias first, then explicit fallbacks
+        const GEMINI_MODEL_CANDIDATES = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite'];
+
+        async function geminiGenerate(model, apiKey, body) {
+            return fetch(`${GEMINI_BASE}/models/${model}:generateContent`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+                body: JSON.stringify(body)
+            });
+        }
+
+        // Asks Google which models this key can actually use
+        async function discoverGeminiModels(apiKey) {
+            try {
+                const res = await fetch(`${GEMINI_BASE}/models?pageSize=200`, { headers: { 'x-goog-api-key': apiKey } });
+                if (!res.ok) return [];
+                const data = await res.json();
+                return (data.models || [])
+                    .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+                    .map(m => m.name.replace('models/', ''))
+                    .filter(n => /flash/i.test(n) && !/image|tts|live|audio|embedding|robotics|computer-use|lite-preview/i.test(n))
+                    .sort((a, b) => (/preview|exp/i.test(a) ? 1 : 0) - (/preview|exp/i.test(b) ? 1 : 0))
+                    .slice(0, 5);
+            } catch (e) { return []; }
+        }
+
+        function friendlyGeminiError(status, message) {
+            const msg = message || '';
+            if (/api key not valid|API_KEY_INVALID|invalid api key/i.test(msg)) return 'مفتاح API غير صحيح. تأكد إنك نسخته كامل من Google AI Studio وحطه من زرار "إعدادات الـ AI والمفتاح".';
+            if (status === 403) return 'المفتاح مش مسموح له يستخدم الخدمة دي (403). جرب تعمل مفتاح جديد من Google AI Studio.';
+            if (status === 429) return 'خلصت الحصة المجانية مؤقتاً (429). استنى دقيقة وجرب تاني.';
+            return msg || 'خطأ غير معروف في الاتصال بخدمة جوجل.';
+        }
+
+        async function callGeminiApi(userPrompt, imagePayload, savedAttachmentsToSend = []) {
+            let apiKey = AppState.geminiApiKey;
+            if (!apiKey || apiKey.trim() === '') {
+                apiKey = prompt("أدخل مفتاح Google Gemini API:");
+                if (apiKey && apiKey.trim() !== '') {
+                    AppState.geminiApiKey = apiKey.trim();
+                    saveStateToStorage();
+                } else {
+                    throw new Error("مفتاح API مطلوب للتشغيل.");
+                }
+            }
+            apiKey = apiKey.trim();
+
+            const savedFilesContext = JSON.stringify(
+                AppState.savedFiles.map(({ title, content, attachment }) => ({
+                    title,
+                    content,
+                    attachment: attachment ? { name: attachment.name, type: attachment.type } : null
+                }))
+            );
+            const contextPrompt = `أنت مساعد P.U.D AI لتنظيم الدراسة. طلب المستخدم: "${userPrompt}"\nبياناته الحالية:\n- المهام: ${JSON.stringify(AppState.dailyTasks)}\n- خطة الأسبوع: ${JSON.stringify(AppState.weeklyPlanner)}\n- الملفات المحفوظة للمستخدم (استخدمها للإجابة عن أسئلته، وإذا طلب كل الملفات فاسترجعها كلها): ${savedFilesContext}\nاعتبر محتوى الملفات المحفوظة معلومات مرجعية للإجابة، ويمكن للمستخدم أن يطلب معلومة من ملف باسمه أو أن تطلع على كل المحفوظات. رد بأسلوب مشجع، ولو طلب إضافة مهمة أو تعديل جدول أضف كود JSON في النهاية هكذا:\n\`\`\`json\n{"action": "ADD_DAILY_TASK", "data": {"title": "العنوان", "priority": "عالي/متوسط/عادي"}}\n\`\`\``;
+
+            const parts = [{ text: contextPrompt }];
+            if (imagePayload) {
+                parts.push({ inline_data: { mime_type: imagePayload.mimeType, data: imagePayload.base64 } });
+            }
+
+            let attachedBytes = 0;
+            for (const savedFile of savedAttachmentsToSend) {
+                const blob = await getSavedAttachment(savedFile.id);
+                if (!blob) {
+                    throw new Error(`لم أجد المرفق «${savedFile.attachment?.name || savedFile.title}» في تخزين هذا المتصفح. أعد رفعه من قسم الملفات المحفوظة.`);
+                }
+                attachedBytes += blob.size;
+                if (attachedBytes > 15 * 1024 * 1024) {
+                    throw new Error('إجمالي حجم المرفقات التي تُرسل في رسالة واحدة أكبر من 15 ميجابايت. اختر ملفات أقل أو أرسلها على رسائل منفصلة.');
+                }
+
+                const fileName = savedFile.attachment?.name || savedFile.title || 'مرفق';
+                const mimeType = blob.type || savedFile.attachment?.type || 'application/octet-stream';
+                parts.push({ text: `مرفق محفوظ للمستخدم: ${fileName} (العنوان: ${savedFile.title}). حلّل محتواه للإجابة عن الطلب.` });
+
+                const isTextFile = mimeType.startsWith('text/')
+                    || /json|xml|javascript|yaml/.test(mimeType)
+                    || /\.(txt|md|csv|json|xml|html|css|js|ts|yaml|yml)$/i.test(fileName);
+                if (isTextFile) {
+                    if (blob.size > 2 * 1024 * 1024) {
+                        throw new Error(`الملف النصي «${fileName}» أكبر من 2 ميجابايت. قلّص حجمه أو ارفع جزءًا منه.`);
+                    }
+                    parts.push({ text: `محتوى الملف ${fileName}:\n${await blob.text()}` });
+                    continue;
+                }
+
+                if (!mimeType.startsWith('image/') && mimeType !== 'application/pdf' && mimeType !== 'application/rtf') {
+                    throw new Error(`تم حفظ «${fileName}»، لكن Gemini قد لا يستطيع قراءة هذا النوع (${mimeType}). جرّب رفعه بصيغة PDF أو صورة أو ملف نصي.`);
+                }
+                parts.push({
+                    inline_data: {
+                        mime_type: mimeType,
+                        data: await savedAttachmentToBase64(blob)
+                    }
+                });
+            }
+            const body = { contents: [{ parts }] };
+
+            const tried = new Set();
+            const cached = localStorage.getItem('pud_gemini_working_model');
+            let queue = [...(cached ? [cached] : []), ...GEMINI_MODEL_CANDIDATES];
+            let discovered = false;
+            let lastError = 'تعذر الوصول لأي نموذج Gemini متاح.';
+
+            while (queue.length) {
+                const model = queue.shift();
+                if (tried.has(model)) continue;
+                tried.add(model);
+
+                let res;
+                try {
+                    res = await geminiGenerate(model, apiKey, body);
+                } catch (netErr) {
+                    throw new Error('مشكلة في الاتصال بالإنترنت أو الشبكة بتمنع الوصول لجوجل.');
+                }
+
+                if (res.ok) {
+                    const data = await res.json();
+                    const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
+                    if (text) {
+                        localStorage.setItem('pud_gemini_working_model', model);
+                        return text;
+                    }
+                    lastError = 'استجابة فارغة من النموذج (ممكن اتحجبت بسبب فلتر الأمان).';
+                    continue;
+                }
+
+                let errMsg = '';
+                try { errMsg = (await res.json()).error?.message || ''; } catch (e) {}
+
+                // Model missing / retired / overloaded -> try the next one
+                if (res.status === 404 || res.status === 503 || /not found|not supported/i.test(errMsg)) {
+                    localStorage.removeItem('pud_gemini_working_model');
+                    lastError = errMsg;
+                    if (!queue.length && !discovered) {
+                        discovered = true;
+                        queue = await discoverGeminiModels(apiKey);
+                    }
+                    continue;
+                }
+
+                // Key / quota / other problems -> stop and explain
+                throw new Error(friendlyGeminiError(res.status, errMsg));
+            }
+            throw new Error(friendlyGeminiError(0, lastError));
+        }
+
+        function handleAiActionExecution(fullText) {
+            const jsonRegex = /```json\s*([\s\S]*?)\s*```/g;
+            let match;
+            let cleanText = fullText;
+
+            while ((match = jsonRegex.exec(fullText)) !== null) {
+                try {
+                    const actionObj = JSON.parse(match[1]);
+                    if (actionObj.action === 'ADD_DAILY_TASK') {
+                        AppState.dailyTasks.push({ id: Date.now(), title: actionObj.data.title, priority: actionObj.data.priority || 'متوسط', completed: false });
+                        saveStateToStorage();
+                        renderDailyTasks();
+                    } else if (actionObj.action === 'ADD_WEEKLY_ITEM') {
+                        if (AppState.weeklyPlanner[actionObj.data.day]) {
+                            AppState.weeklyPlanner[actionObj.data.day].push(actionObj.data.title);
+                            saveStateToStorage();
+                            renderWeeklyPlanner();
+                        }
+                    }
+                    cleanText = cleanText.replace(match[0], '').trim();
+                } catch (e) {}
+            }
+            return cleanText;
+        }
+
+        function initNameEditor() {
+            document.getElementById('displayUserName').textContent = AppState.userName;
+            document.getElementById('editNameBtn').addEventListener('click', () => {
+                document.getElementById('userNameInput').value = AppState.userName;
+                openModal('editNameModal');
+            });
+            document.getElementById('cancelNameBtn').addEventListener('click', () => closeModal('editNameModal'));
+            document.getElementById('saveNameBtn').addEventListener('click', () => {
+                const newName = document.getElementById('userNameInput').value.trim();
                 if (newName) {
                     AppState.userName = newName;
-                    displayEl.textContent = newName;
+                    document.getElementById('displayUserName').textContent = newName;
                     saveStateToStorage();
                 }
                 closeModal('editNameModal');
             });
         }
 
-        function openModal(modalId) {
-            document.getElementById(modalId).classList.remove('hidden');
+        function initApiKeyModal() {
+            document.getElementById('openApiKeyModalBtn').addEventListener('click', () => {
+                document.getElementById('apiKeyInput').value = AppState.geminiApiKey;
+                openModal('apiKeyModal');
+            });
+            document.getElementById('closeApiKeyBtn').addEventListener('click', () => closeModal('apiKeyModal'));
+            document.getElementById('saveApiKeyBtn').addEventListener('click', () => {
+                const val = document.getElementById('apiKeyInput').value.trim();
+                if (val) {
+                    AppState.geminiApiKey = val;
+                    saveStateToStorage();
+                    closeModal('apiKeyModal');
+                    alert("تم حفظ مفتاح API وتفعيله بنجاح!");
+                } else {
+                    alert("أدخل مفتاحاً صحيحاً.");
+                }
+            });
         }
 
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.add('hidden');
-        }
-
-        function alertModal(msg) {
-            alert(msg); // standard visual alert fallback if needed
-        }
-
-        function escapeHTML(str) {
-            return str.replace(/[&<>'"]/g, 
-                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-            );
-        }
-
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        function alertModal(msg) { alert(msg); }
+        function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
         function setCurrentDateText() {
-            const now = new Date();
-            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            document.getElementById('currentDateText').textContent = now.toLocaleDateString('ar-EG', options);
+            document.getElementById('currentDateText').textContent = new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         }
 
-        /* ==========================================================================
-           CELEBRATION CONFETTI CANVAS ANIMATION
-           ========================================================================== */
         function triggerConfetti() {
             const canvas = document.getElementById('confettiCanvas');
             const ctx = canvas.getContext('2d');
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-
             const particles = [];
-            const colors = ['#06b6d4', '#38bdf8', '#a855f7', '#34d399', '#f43f5e', '#fbbf24'];
-
-            for (let i = 0; i < 120; i++) {
-                particles.push({
-                    x: canvas.width / 2,
-                    y: canvas.height / 2,
-                    vx: (Math.random() - 0.5) * 12,
-                    vy: (Math.random() - 0.7) * 12,
-                    size: Math.random() * 8 + 4,
-                    color: colors[Math.floor(Math.random() * colors.length)],
-                    life: 100
-                });
+            const colors = ['#06b6d4', '#38bdf8', '#a855f7', '#34d399', '#f43f5e'];
+            for (let i = 0; i < 100; i++) {
+                particles.push({ x: canvas.width / 2, y: canvas.height / 2, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.7) * 10, size: Math.random() * 6 + 3, color: colors[Math.floor(Math.random() * colors.length)], life: 80 });
             }
-
-            function animateConfetti() {
+            function animate() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 let alive = false;
-
                 particles.forEach(p => {
                     if (p.life > 0) {
                         alive = true;
-                        p.x += p.vx;
-                        p.y += p.vy;
-                        p.vy += 0.2; // gravity
-                        p.life--;
-
-                        ctx.fillStyle = p.color;
-                        ctx.beginPath();
-                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                        ctx.fill();
+                        p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life--;
+                        ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
                     }
                 });
-
-                if (alive) {
-                    requestAnimationFrame(animateConfetti);
-                } else {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                }
+                if (alive) requestAnimationFrame(animate);
+                else ctx.clearRect(0, 0, canvas.width, canvas.height);
             }
-
-            animateConfetti();
+            animate();
         }
 
-        /* ==========================================================================
-           INITIALIZATION ON PAGE LOAD
-           ========================================================================== */
         window.onload = function() {
             setCurrentDateText();
             TimerModule.init();
             initNavigation();
             initNameEditor();
+            initApiKeyModal();
+            initBackupSystem();
             initDailyTasks();
             initWeeklyPlanner();
             initMonthlyPlanner();
             initQuickNotes();
+            initSavedFilesModule();
+            initAiChatModule();
         };
     </script>
 </body>
