@@ -204,6 +204,16 @@
                         <span>المهام اليومية</span>
                     </button>
 
+                    <button data-tab="tab-courses" class="nav-btn w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
+                        <i class="fa-solid fa-book-open text-base"></i>
+                        <span>المواد والدروس</span>
+                    </button>
+
+                    <button data-tab="tab-history" class="nav-btn w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
+                        <i class="fa-solid fa-chart-line text-base"></i>
+                        <span>سجل الإنجاز</span>
+                    </button>
+
                     <button data-tab="tab-weekly" class="nav-btn w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
                         <i class="fa-solid fa-calendar-week text-base"></i>
                         <span>خطة الأسبوع</span>
@@ -244,6 +254,25 @@
         <main class="flex-1 min-w-0">
 
             <section id="tab-daily" class="tab-content space-y-6">
+                <div class="grid grid-cols-2 xl:grid-cols-4 gap-3" id="dailyStudyStats">
+                    <div class="glass-panel rounded-2xl p-4 border border-slate-800">
+                        <p class="text-[10px] text-slate-400 font-bold">المواد المسجلة</p>
+                        <p id="dashboardCourseCount" class="text-xl font-extrabold text-cyan-300 mt-1">0</p>
+                    </div>
+                    <div class="glass-panel rounded-2xl p-4 border border-slate-800">
+                        <p class="text-[10px] text-slate-400 font-bold">إجمالي Course Lectures</p>
+                        <p id="dashboardLectureCount" class="text-xl font-extrabold text-indigo-300 mt-1">0</p>
+                    </div>
+                    <div class="glass-panel rounded-2xl p-4 border border-slate-800">
+                        <p class="text-[10px] text-slate-400 font-bold">الدروس التي ذاكرتها</p>
+                        <p id="dashboardStudiedCount" class="text-xl font-extrabold text-emerald-300 mt-1">0</p>
+                    </div>
+                    <div class="glass-panel rounded-2xl p-4 border border-slate-800">
+                        <p class="text-[10px] text-slate-400 font-bold">التقدم في الدروس</p>
+                        <p id="dashboardStudyProgress" class="text-xl font-extrabold text-amber-300 mt-1">0%</p>
+                    </div>
+                </div>
+
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
@@ -294,6 +323,55 @@
 
                     <div id="dailyTasksList" class="space-y-2"></div>
                 </div>
+            </section>
+
+            <section id="tab-courses" class="tab-content space-y-6 hidden">
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800">
+                    <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-book-open text-cyan-400"></i>
+                        المواد والدروس
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">أضف كل مادة، ثم سجّل محاضراتها وحدد الدروس التي ذاكرتها لمتابعة التقدم.</p>
+                </div>
+
+                <div class="glass-panel rounded-2xl p-4 border border-slate-800">
+                    <form id="addCourseForm" class="flex flex-col sm:flex-row items-center gap-3">
+                        <input type="text" id="courseTitleInput" placeholder="اسم المادة (مثلاً: الكيمياء العضوية)" class="w-full glass-input px-4 py-3 rounded-xl text-sm" maxlength="100" required>
+                        <button type="submit" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 transition-all whitespace-nowrap">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>إضافة مادة</span>
+                        </button>
+                    </form>
+                </div>
+
+                <div id="coursesList" class="grid grid-cols-1 xl:grid-cols-2 gap-4"></div>
+            </section>
+
+            <section id="tab-history" class="tab-content space-y-6 hidden">
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800">
+                    <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-emerald-400"></i>
+                        سجل الإنجاز
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">تظهر هنا الأيام التي أنجزت فيها مهمة أو ذاكرت درسًا فقط؛ الأيام بلا نشاط تُترك فارغة.</p>
+                </div>
+
+                <div class="glass-panel rounded-2xl p-4 border border-slate-800">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-200">التقدم الدراسي</h3>
+                            <p class="text-[11px] text-slate-500 mt-1">رتّب السجل حسب السنة والشهر، ثم راجع الأسبوع واليوم.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <select id="historyYearSelect" aria-label="السنة" class="glass-input px-3 py-2 rounded-xl text-sm bg-slate-900"></select>
+                            <select id="historyMonthSelect" aria-label="الشهر" class="glass-input px-3 py-2 rounded-xl text-sm bg-slate-900">
+                                <option value="all">كل الشهور</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="studyHistoryList" class="space-y-4"></div>
             </section>
 
             <section id="tab-weekly" class="tab-content space-y-6 hidden">
@@ -600,6 +678,8 @@
                 { id: 1, title: 'حضور محاضرة الرياضيات 1', priority: 'عالي', completed: false },
                 { id: 2, title: 'تسليم شيت الفيزياء بالسكشن', priority: 'متوسط', completed: false }
             ],
+            studyCourses: JSON.parse(localStorage.getItem('pud_study_courses')) || [],
+            studyHistory: JSON.parse(localStorage.getItem('pud_study_history')) || [],
             weeklyPlanner: JSON.parse(localStorage.getItem('pud_weekly_planner')) || {
                 'السبت': ['محاضرة كيمياء (8:00 ص)'],
                 'الأحد': ['سكشن فيزياء (10:00 ص)'],
@@ -629,6 +709,14 @@
             attachedImageData: null,
             pendingSavedFileIds: []
         };
+
+        AppState.studyCourses = Array.isArray(AppState.studyCourses)
+            ? AppState.studyCourses.map(course => ({ ...course, lectures: Array.isArray(course.lectures) ? course.lectures : [] }))
+            : [];
+        AppState.studyHistory = Array.isArray(AppState.studyHistory)
+            ? AppState.studyHistory.filter(day => day && /^\d{4}-\d{2}-\d{2}$/.test(String(day.date || '')))
+                .map(day => ({ ...day, tasks: Array.isArray(day.tasks) ? day.tasks : [], lectures: Array.isArray(day.lectures) ? day.lectures : [] }))
+            : [];
 
         AppState.aiConversations = Array.isArray(AppState.aiConversations)
             ? AppState.aiConversations.filter(conversation => conversation && conversation.id)
@@ -771,6 +859,8 @@
             localStorage.setItem('pud_user_name', AppState.userName);
             localStorage.setItem('pud_gemini_api_key', AppState.geminiApiKey);
             localStorage.setItem('pud_daily_tasks', JSON.stringify(AppState.dailyTasks));
+            localStorage.setItem('pud_study_courses', JSON.stringify(AppState.studyCourses));
+            localStorage.setItem('pud_study_history', JSON.stringify(AppState.studyHistory));
             localStorage.setItem('pud_weekly_planner', JSON.stringify(AppState.weeklyPlanner));
             localStorage.setItem('pud_monthly_goals', JSON.stringify(AppState.monthlyGoals));
             localStorage.setItem('pud_quick_notes', JSON.stringify(AppState.quickNotes));
@@ -798,6 +888,8 @@
                         pud_user_name: AppState.userName,
                         pud_gemini_api_key: AppState.geminiApiKey,
                         pud_daily_tasks: AppState.dailyTasks,
+                        pud_study_courses: AppState.studyCourses,
+                        pud_study_history: AppState.studyHistory,
                         pud_weekly_planner: AppState.weeklyPlanner,
                         pud_monthly_goals: AppState.monthlyGoals,
                         pud_quick_notes: AppState.quickNotes,
@@ -836,6 +928,14 @@
                             if (importedData.pud_user_name) AppState.userName = importedData.pud_user_name;
                             if (importedData.pud_gemini_api_key) AppState.geminiApiKey = importedData.pud_gemini_api_key;
                             if (importedData.pud_daily_tasks) AppState.dailyTasks = importedData.pud_daily_tasks;
+                            if (Array.isArray(importedData.pud_study_courses)) {
+                                AppState.studyCourses = importedData.pud_study_courses.map(course => ({ ...course, lectures: Array.isArray(course.lectures) ? course.lectures : [] }));
+                            }
+                            if (Array.isArray(importedData.pud_study_history)) {
+                                AppState.studyHistory = importedData.pud_study_history
+                                    .filter(day => day && /^\d{4}-\d{2}-\d{2}$/.test(String(day.date || '')))
+                                    .map(day => ({ ...day, tasks: Array.isArray(day.tasks) ? day.tasks : [], lectures: Array.isArray(day.lectures) ? day.lectures : [] }));
+                            }
                             if (importedData.pud_weekly_planner) AppState.weeklyPlanner = importedData.pud_weekly_planner;
                             if (importedData.pud_monthly_goals) AppState.monthlyGoals = importedData.pud_monthly_goals;
                             if (importedData.pud_quick_notes) AppState.quickNotes = importedData.pud_quick_notes;
@@ -869,6 +969,9 @@
                             saveStateToStorage();
                             document.getElementById('displayUserName').textContent = AppState.userName;
                             renderDailyTasks();
+                            renderCourses();
+                            renderStudyHistory();
+                            updateStudyDashboardStats();
                             renderWeeklyPlanner();
                             renderMonthlyPlanner();
                             renderQuickNotes();
@@ -1069,8 +1172,10 @@
                     const task = AppState.dailyTasks.find(t => t.id === AppState.selectedTaskToComplete);
                     if (task) {
                         task.completed = true;
+                        recordStudyActivity('task', task);
                         saveStateToStorage();
                         renderDailyTasks();
+                        renderStudyHistory();
                         checkAllTasksCompleted();
                     }
                 }
@@ -1152,6 +1257,271 @@
                 triggerConfetti();
                 openModal('celebrationModal');
             }
+        }
+
+        function createLocalDateKey(date = new Date()) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function createStudyId() {
+            return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        }
+
+        function recordStudyActivity(type, item) {
+            const date = createLocalDateKey();
+            let dayRecord = AppState.studyHistory.find(day => day.date === date);
+            if (!dayRecord) {
+                dayRecord = { date, tasks: [], lectures: [] };
+                AppState.studyHistory.push(dayRecord);
+            }
+
+            if (type === 'task') {
+                if (!dayRecord.tasks.some(task => String(task.id) === String(item.id))) {
+                    dayRecord.tasks.push({ id: item.id, title: item.title });
+                }
+            } else if (type === 'lecture') {
+                const key = `${item.courseId}:${item.id}`;
+                if (!dayRecord.lectures.some(lecture => `${lecture.courseId}:${lecture.id}` === key)) {
+                    dayRecord.lectures.push({
+                        id: item.id,
+                        courseId: item.courseId,
+                        courseTitle: item.courseTitle,
+                        title: item.title
+                    });
+                }
+            }
+            saveStateToStorage();
+        }
+
+        function initStudyModules() {
+            document.getElementById('addCourseForm').addEventListener('submit', event => {
+                event.preventDefault();
+                const input = document.getElementById('courseTitleInput');
+                const title = input.value.trim();
+                if (!title) return;
+                AppState.studyCourses.push({ id: createStudyId(), title, lectures: [] });
+                saveStateToStorage();
+                renderCourses();
+                updateStudyDashboardStats();
+                input.value = '';
+                input.focus();
+            });
+
+            document.getElementById('coursesList').addEventListener('submit', event => {
+                const form = event.target.closest('.add-lecture-form');
+                if (!form) return;
+                event.preventDefault();
+                const course = AppState.studyCourses.find(item => String(item.id) === form.dataset.courseId);
+                const input = form.querySelector('.lecture-title-input');
+                const title = input.value.trim();
+                if (!course || !title) return;
+                course.lectures.push({ id: createStudyId(), title, studied: false });
+                saveStateToStorage();
+                renderCourses();
+                updateStudyDashboardStats();
+            });
+
+            document.getElementById('coursesList').addEventListener('change', event => {
+                const checkbox = event.target.closest('.lecture-studied-checkbox');
+                if (!checkbox) return;
+                const course = AppState.studyCourses.find(item => String(item.id) === checkbox.dataset.courseId);
+                const lecture = course?.lectures.find(item => String(item.id) === checkbox.dataset.lectureId);
+                if (!course || !lecture) return;
+                lecture.studied = checkbox.checked;
+                if (lecture.studied) {
+                    recordStudyActivity('lecture', {
+                        id: lecture.id,
+                        courseId: course.id,
+                        courseTitle: course.title,
+                        title: lecture.title
+                    });
+                } else {
+                    saveStateToStorage();
+                }
+                renderCourses();
+                updateStudyDashboardStats();
+                renderStudyHistory();
+            });
+
+            document.getElementById('coursesList').addEventListener('click', event => {
+                const deleteCourseButton = event.target.closest('.delete-course-btn');
+                if (deleteCourseButton) {
+                    const course = AppState.studyCourses.find(item => String(item.id) === deleteCourseButton.dataset.courseId);
+                    if (!course || !confirm(`هل تريد حذف مادة "${course.title}" وكل محاضراتها؟ سيبقى سجل الإنجاز السابق محفوظًا.`)) return;
+                    AppState.studyCourses = AppState.studyCourses.filter(item => String(item.id) !== String(course.id));
+                    saveStateToStorage();
+                    renderCourses();
+                    updateStudyDashboardStats();
+                    return;
+                }
+
+                const deleteLectureButton = event.target.closest('.delete-lecture-btn');
+                if (deleteLectureButton) {
+                    const course = AppState.studyCourses.find(item => String(item.id) === deleteLectureButton.dataset.courseId);
+                    if (!course) return;
+                    course.lectures = course.lectures.filter(item => String(item.id) !== deleteLectureButton.dataset.lectureId);
+                    saveStateToStorage();
+                    renderCourses();
+                    updateStudyDashboardStats();
+                }
+            });
+
+            document.getElementById('historyYearSelect').addEventListener('change', renderStudyHistory);
+            document.getElementById('historyMonthSelect').addEventListener('change', renderStudyHistory);
+            renderCourses();
+            renderStudyHistory();
+            updateStudyDashboardStats();
+        }
+
+        function renderCourses() {
+            const container = document.getElementById('coursesList');
+            if (!container) return;
+            if (!AppState.studyCourses.length) {
+                container.innerHTML = `<div class="glass-panel rounded-2xl p-8 border border-slate-800 text-center text-slate-400 xl:col-span-2"><i class="fa-solid fa-book-open text-2xl text-slate-500 mb-3"></i><p class="text-sm">لم تضف مواد بعد. ابدأ بإضافة مادة، ثم أضف محاضراتها.</p></div>`;
+                return;
+            }
+
+            container.innerHTML = AppState.studyCourses.map(course => {
+                const lectures = Array.isArray(course.lectures) ? course.lectures : [];
+                const studiedCount = lectures.filter(lecture => lecture.studied).length;
+                const percentage = lectures.length ? Math.round((studiedCount / lectures.length) * 100) : 0;
+                const lectureList = lectures.length
+                    ? lectures.map(lecture => `
+                        <div class="flex items-center justify-between gap-3 rounded-xl bg-slate-900/60 border border-slate-800 px-3 py-2.5">
+                            <label class="flex min-w-0 items-center gap-3 cursor-pointer">
+                                <input type="checkbox" class="lecture-studied-checkbox w-4 h-4 accent-emerald-400 rounded" data-course-id="${escapeHTML(String(course.id))}" data-lecture-id="${escapeHTML(String(lecture.id))}" ${lecture.studied ? 'checked' : ''}>
+                                <span class="min-w-0">
+                                    <span class="block text-sm ${lecture.studied ? 'text-slate-400 line-through' : 'text-slate-200'}">${escapeHTML(String(lecture.title || 'درس بدون عنوان'))}</span>
+                                    <span class="text-[10px] text-slate-500">${lecture.studied ? 'تمت مذاكرته' : 'لم تتم مذاكرته بعد'}</span>
+                                </span>
+                            </label>
+                            <button type="button" class="delete-lecture-btn text-xs text-slate-500 hover:text-rose-400 p-1" data-course-id="${escapeHTML(String(course.id))}" data-lecture-id="${escapeHTML(String(lecture.id))}" title="حذف الدرس"><i class="fa-solid fa-trash-can"></i></button>
+                        </div>
+                    `).join('')
+                    : `<p class="text-xs text-slate-500 text-center py-3">لا توجد محاضرات لهذه المادة بعد.</p>`;
+
+                return `
+                    <article class="glass-panel rounded-2xl p-4 border border-slate-800 space-y-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <h3 class="text-base font-bold text-slate-100 break-words">${escapeHTML(String(course.title || 'مادة بدون اسم'))}</h3>
+                                <p class="text-[11px] text-slate-400 mt-1">${studiedCount} من ${lectures.length} درسًا تمت مذاكرته · ${percentage}%</p>
+                            </div>
+                            <button type="button" class="delete-course-btn text-xs text-slate-500 hover:text-rose-400 p-2" data-course-id="${escapeHTML(String(course.id))}" title="حذف المادة"><i class="fa-solid fa-trash-can"></i></button>
+                        </div>
+                        <div class="h-1.5 rounded-full bg-slate-800 overflow-hidden"><div class="h-full rounded-full bg-gradient-to-l from-cyan-400 to-emerald-400 transition-all" style="width:${percentage}%"></div></div>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2 text-xs font-bold text-indigo-300"><i class="fa-solid fa-book"></i><span>Course Lectures</span><span class="text-slate-500 font-normal">(${lectures.length})</span></div>
+                            <div class="space-y-2">${lectureList}</div>
+                        </div>
+                        <form class="add-lecture-form flex gap-2" data-course-id="${escapeHTML(String(course.id))}">
+                            <input type="text" class="lecture-title-input min-w-0 flex-1 glass-input px-3 py-2 rounded-xl text-xs" placeholder="اسم المحاضرة أو الدرس..." maxlength="120" required>
+                            <button type="submit" class="px-3 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 text-xs font-bold whitespace-nowrap"><i class="fa-solid fa-plus ml-1"></i>إضافة درس</button>
+                        </form>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        function updateStudyDashboardStats() {
+            const courses = Array.isArray(AppState.studyCourses) ? AppState.studyCourses : [];
+            const lectures = courses.flatMap(course => Array.isArray(course.lectures) ? course.lectures : []);
+            const studiedCount = lectures.filter(lecture => lecture.studied).length;
+            const percentage = lectures.length ? Math.round((studiedCount / lectures.length) * 100) : 0;
+            document.getElementById('dashboardCourseCount').textContent = String(courses.length);
+            document.getElementById('dashboardLectureCount').textContent = String(lectures.length);
+            document.getElementById('dashboardStudiedCount').textContent = String(studiedCount);
+            document.getElementById('dashboardStudyProgress').textContent = `${percentage}%`;
+        }
+
+        function monthLabel(year, month) {
+            return new Intl.DateTimeFormat('ar-EG', { month: 'long', year: 'numeric' })
+                .format(new Date(Number(year), Number(month) - 1, 1, 12));
+        }
+
+        function renderStudyHistory() {
+            const container = document.getElementById('studyHistoryList');
+            const yearSelect = document.getElementById('historyYearSelect');
+            const monthSelect = document.getElementById('historyMonthSelect');
+            if (!container || !yearSelect || !monthSelect) return;
+
+            const currentYear = new Date().getFullYear();
+            const previousYear = yearSelect.value;
+            const availableYears = [...new Set([currentYear, ...AppState.studyHistory.map(day => Number(day.date.slice(0, 4)))])]
+                .filter(Number.isFinite)
+                .sort((a, b) => b - a);
+            yearSelect.innerHTML = availableYears.map(year => `<option value="${year}">${year}</option>`).join('');
+            yearSelect.value = availableYears.includes(Number(previousYear)) ? previousYear : String(currentYear);
+
+            const monthNames = Array.from({ length: 12 }, (_, index) => ({
+                value: String(index + 1).padStart(2, '0'),
+                label: new Intl.DateTimeFormat('ar-EG', { month: 'long' }).format(new Date(2026, index, 1, 12))
+            }));
+            const previousMonth = monthSelect.value || 'all';
+            monthSelect.innerHTML = `<option value="all">كل الشهور</option>` + monthNames
+                .map(month => `<option value="${month.value}">${month.label}</option>`).join('');
+            monthSelect.value = monthNames.some(month => month.value === previousMonth) || previousMonth === 'all' ? previousMonth : 'all';
+
+            const filteredDays = AppState.studyHistory
+                .filter(day => day.date.slice(0, 4) === yearSelect.value)
+                .filter(day => monthSelect.value === 'all' || day.date.slice(5, 7) === monthSelect.value)
+                .filter(day => day.tasks.length || day.lectures.length)
+                .sort((a, b) => b.date.localeCompare(a.date));
+
+            if (!filteredDays.length) {
+                container.innerHTML = `<div class="glass-panel rounded-2xl p-8 border border-slate-800 text-center"><i class="fa-regular fa-calendar-xmark text-2xl text-slate-500 mb-3"></i><p class="text-sm text-slate-300">لا توجد إنجازات مسجلة في هذه الفترة.</p><p class="text-xs text-slate-500 mt-1">عند إتمام مهمة أو تحديد درس بأنه تمت مذاكرته، سيظهر اليوم هنا تلقائيًا.</p></div>`;
+                return;
+            }
+
+            const months = new Map();
+            filteredDays.forEach(day => {
+                const [year, month, dayOfMonth] = day.date.split('-').map(Number);
+                const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+                if (!months.has(monthKey)) months.set(monthKey, []);
+                months.get(monthKey).push({ ...day, year, month, dayOfMonth });
+            });
+
+            container.innerHTML = [...months.entries()].map(([monthKey, days]) => {
+                const [year, month] = monthKey.split('-');
+                const weeks = new Map();
+                days.forEach(day => {
+                    const weekNumber = Math.ceil(day.dayOfMonth / 7);
+                    if (!weeks.has(weekNumber)) weeks.set(weekNumber, []);
+                    weeks.get(weekNumber).push(day);
+                });
+                const weekContent = [...weeks.entries()].sort((a, b) => b[0] - a[0]).map(([weekNumber, weekDays]) => `
+                    <section class="space-y-2">
+                        <h4 class="text-xs font-bold text-indigo-300">الأسبوع ${weekNumber}</h4>
+                        <div class="space-y-2">
+                            ${weekDays.map(day => {
+                                const readableDate = new Intl.DateTimeFormat('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' })
+                                    .format(new Date(day.year, day.month - 1, day.dayOfMonth, 12));
+                                const taskItems = day.tasks.map(task => `<li class="flex items-start gap-2 text-xs text-slate-300"><i class="fa-solid fa-circle-check text-cyan-400 mt-0.5"></i><span>مهمة: ${escapeHTML(String(task.title || 'مهمة مكتملة'))}</span></li>`).join('');
+                                const lectureItems = day.lectures.map(lecture => `<li class="flex items-start gap-2 text-xs text-slate-300"><i class="fa-solid fa-book-open text-emerald-400 mt-0.5"></i><span>${escapeHTML(String(lecture.courseTitle || 'مادة'))} — ${escapeHTML(String(lecture.title || 'درس'))}</span></li>`).join('');
+                                return `
+                                    <article class="rounded-xl bg-slate-900/50 border border-slate-800 p-3">
+                                        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                            <h5 class="text-sm font-bold text-slate-100">${readableDate}</h5>
+                                            <span class="text-[10px] text-slate-500">${day.tasks.length + day.lectures.length} إنجاز</span>
+                                        </div>
+                                        <ul class="space-y-1.5">${taskItems}${lectureItems}</ul>
+                                    </article>
+                                `;
+                            }).join('')}
+                        </div>
+                    </section>
+                `).join('');
+
+                return `
+                    <div class="glass-panel rounded-2xl p-4 sm:p-5 border border-slate-800 space-y-4">
+                        <h3 class="text-base font-bold text-cyan-300 flex items-center gap-2"><i class="fa-regular fa-calendar"></i>${monthLabel(year, month)}</h3>
+                        ${weekContent}
+                    </div>
+                `;
+            }).join('');
         }
 
         function initWeeklyPlanner() {
@@ -2037,7 +2407,7 @@
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
         function alertModal(msg) { alert(msg); }
-        function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
+        function escapeHTML(str) { return String(str ?? '').replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
         function setCurrentDateText() {
             document.getElementById('currentDateText').textContent = new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         }
@@ -2076,6 +2446,7 @@
             initApiKeyModal();
             initBackupSystem();
             initDailyTasks();
+            initStudyModules();
             initWeeklyPlanner();
             initMonthlyPlanner();
             initQuickNotes();
