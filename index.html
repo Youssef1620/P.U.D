@@ -457,19 +457,45 @@
         <div id="focusNudgeBox" class="hidden max-w-sm w-full mx-auto mt-2 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-center space-y-3">
             <p id="focusNudgeText" class="text-sm text-amber-200 font-bold">وقت مناسب لاستراحة قصيرة؟</p>
             <div class="flex justify-center gap-2">
-                <button type="button" id="focusNudgeYes" class="px-4 py-2 rounded-xl bg-amber-400 text-slate-950 text-xs font-bold">نعم، استراحة</button>
-                <button type="button" id="focusNudgeNo" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-200 text-xs font-bold border border-slate-600">ليس الآن</button>
+                <button type="button" id="focusNudgeYes" class="px-4 py-2 rounded-xl bg-amber-400 text-slate-950 text-xs font-bold" data-i18n="yes_break">نعم، استراحة</button>
+                <button type="button" id="focusNudgeNo" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-200 text-xs font-bold border border-slate-600" data-i18n="not_now">ليس الآن</button>
             </div>
         </div>
     </div>
 
     <div id="confirmFocusModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 hidden">
         <div class="glass-panel rounded-2xl p-6 w-full max-w-sm border border-slate-700 space-y-4">
-            <h3 class="text-base font-bold text-slate-100" id="confirmFocusTitle">بدء وضع التركيز؟</h3>
-            <p class="text-sm text-slate-300" id="confirmFocusText"></p>
+            <h3 class="text-base font-bold text-slate-100" id="confirmFocusTitle" data-i18n="focus_confirm_title">بدء وضع التركيز؟</h3>
+            <p class="text-sm text-slate-300" id="confirmFocusText" data-i18n="focus_confirm_body">جاهز تبدأ جلسة تركيز؟</p>
             <div class="flex gap-2 justify-end">
-                <button type="button" id="confirmFocusNo" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-sm font-bold border border-slate-700">ليس الآن</button>
-                <button type="button" id="confirmFocusYes" class="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 text-sm font-bold">نعم، ابدأ</button>
+                <button type="button" id="confirmFocusNo" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-sm font-bold border border-slate-700" data-i18n="not_now">ليس الآن</button>
+                <button type="button" id="confirmFocusYes" class="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 text-sm font-bold" data-i18n="yes_start">نعم، ابدأ</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="focusPickModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 hidden">
+        <div class="glass-panel rounded-2xl p-6 w-full max-w-md border border-slate-700 space-y-4">
+            <h3 class="text-base font-bold text-slate-100" id="focusPickTitle" data-i18n="focus_pick_title">ماذا تريد التركيز عليه؟</h3>
+            <p class="text-xs text-slate-400" id="focusPickHint" data-i18n="focus_pick_hint">اختر مهمة أو مادة، أو ابدأ جلسة عامة.</p>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-[11px] font-bold text-slate-400 mb-1 block" data-i18n="focus_pick_task">مهمة يومية (اختياري)</label>
+                    <select id="focusPickTask" class="glass-input w-full px-3 py-2.5 rounded-xl text-sm"></select>
+                </div>
+                <div>
+                    <label class="text-[11px] font-bold text-slate-400 mb-1 block" data-i18n="focus_pick_course">مادة (اختياري)</label>
+                    <select id="focusPickCourse" class="glass-input w-full px-3 py-2.5 rounded-xl text-sm"></select>
+                </div>
+                <div>
+                    <label class="text-[11px] font-bold text-slate-400 mb-1 block" data-i18n="focus_pick_lecture">محاضرة (اختياري)</label>
+                    <select id="focusPickLecture" class="glass-input w-full px-3 py-2.5 rounded-xl text-sm"></select>
+                </div>
+            </div>
+            <p class="text-[11px] text-slate-500" data-i18n="focus_pick_note">لو ما اخترتش حاجة هتبدأ جلسة تركيز عامة.</p>
+            <div class="flex gap-2 justify-end pt-1">
+                <button type="button" id="focusPickCancel" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-sm font-bold border border-slate-700" data-i18n="cancel_btn">إلغاء</button>
+                <button type="button" id="focusPickStart" class="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 text-sm font-bold" data-i18n="yes_start">نعم، ابدأ</button>
             </div>
         </div>
     </div>
@@ -860,7 +886,7 @@
                 </div>
 
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-4">
-                    <h3 class="text-sm font-bold text-emerald-300 flex items-center gap-2"><i class="fa-solid fa-stopwatch"></i>تسجيل جلسة مذاكرة</h3>
+                    <h3 class="text-sm font-bold text-emerald-300 flex items-center gap-2"><i class="fa-solid fa-stopwatch"></i><span data-i18n="log_session">تسجيل جلسة مذاكرة</span></h3>
                     <form id="studySessionForm" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
                         <select id="sessionCourseSelect" class="glass-input px-3 py-2.5 rounded-xl text-sm bg-slate-900" required>
                             <option value="" data-i18n="ph_pick_course">Select course...</option>
@@ -3875,9 +3901,9 @@
                         <div class="flex items-center justify-between gap-2 rounded-xl bg-slate-900/60 border border-violet-500/20 px-3 py-2">
                             <div class="min-w-0">
                                 <p class="text-xs text-slate-200 truncate">${escapeHTML(r.lectureTitle)}</p>
-                                <p class="text-[10px] text-slate-500">${escapeHTML(r.courseTitle)} · مستحق ${escapeHTML(r.dueDate)}</p>
+                                <p class="text-[10px] text-slate-500">${escapeHTML(r.courseTitle)} · ${t('due_label')} ${escapeHTML(r.dueDate)}</p>
                             </div>
-                            <button type="button" class="complete-review-btn text-[10px] px-2 py-1 rounded-lg bg-violet-500/20 text-violet-300 font-bold hover:bg-violet-500/30" data-id="${escapeHTML(String(r.id))}">تم</button>
+                            <button type="button" class="complete-review-btn text-[10px] px-2 py-1 rounded-lg bg-violet-500/20 text-violet-300 font-bold hover:bg-violet-500/30" data-id="${escapeHTML(String(r.id))}">${t('done_short')}</button>
                         </div>
                     `).join('');
                     dueList.querySelectorAll('.complete-review-btn').forEach(btn => {
@@ -3898,7 +3924,7 @@
                     allRev.innerHTML = pending.map(r => {
                         const overdue = r.dueDate < today;
                         const isToday = r.dueDate === today;
-                        const badge = overdue ? 'متأخر' : isToday ? 'اليوم' : `بعد ${r.intervalDays}ي`;
+                        const badge = overdue ? t('overdue') : isToday ? t('due_today') : `${t('after_days')} ${r.intervalDays}${AppState.uiLang === 'en' ? 'd' : 'ي'}`;
                         const badgeCls = overdue ? 'bg-rose-500/20 text-rose-300' : isToday ? 'bg-violet-500/20 text-violet-300' : 'bg-slate-700 text-slate-400';
                         return `
                             <div class="flex items-center justify-between gap-3 rounded-xl bg-slate-900/50 border border-slate-800 px-3 py-2.5">
@@ -3934,7 +3960,7 @@
                         <div class="flex items-center justify-between gap-3 rounded-xl bg-slate-900/50 border border-slate-800 px-3 py-2.5">
                             <div class="min-w-0">
                                 <p class="text-sm text-slate-200 truncate">${escapeHTML(s.courseTitle)}${s.lectureTitle ? ' — ' + escapeHTML(s.lectureTitle) : ''}</p>
-                                <p class="text-[10px] text-slate-500">${escapeHTML(s.date)} · ${s.minutes} دقيقة${s.note ? ' · ' + escapeHTML(s.note) : ''}</p>
+                                <p class="text-[10px] text-slate-500">${escapeHTML(s.date)} · ${s.minutes} ${t('min_word')}${s.note ? ' · ' + escapeHTML(s.note) : ''}</p>
                             </div>
                             <button type="button" class="delete-session-btn text-xs text-slate-500 hover:text-rose-400 p-1" data-id="${escapeHTML(String(s.id))}"><i class="fa-solid fa-trash-can"></i></button>
                         </div>
@@ -4073,7 +4099,7 @@
                     const minutes = Number(document.getElementById('quickSessionMinutes').value);
                     const note = document.getElementById('quickSessionNote').value;
                     if (!courseId || !minutes) {
-                        alert('اختر مادة وحدد المدة.');
+                        alert(AppState.uiLang === 'en' ? 'Select a course and set the duration.' : 'اختر مادة وحدد المدة.');
                         return;
                     }
                     if (addStudySession({ courseId, minutes, note })) {
@@ -4167,6 +4193,13 @@
                 celeb_body: 'لقد أنجزت جميع مهامك اليومية بنجاح بنسبة 100%!',
                 celeb_btn: 'استمرار في الإنجاز ⚡',
                 about_label: 'عن هذا القسم',
+                not_now: 'ليس الآن', yes_start: 'نعم، ابدأ', yes_break: 'نعم، استراحة',
+                focus_confirm_title: 'بدء وضع التركيز؟', focus_confirm_body: 'جاهز تبدأ جلسة تركيز؟',
+                focus_pick_title: 'ماذا تريد التركيز عليه؟', focus_pick_hint: 'اختر مهمة أو مادة، أو ابدأ جلسة عامة.',
+                focus_pick_task: 'مهمة يومية (اختياري)', focus_pick_course: 'مادة (اختياري)',
+                focus_pick_lecture: 'محاضرة (اختياري)', focus_pick_note: 'لو ما اخترتش حاجة هتبدأ جلسة تركيز عامة.',
+                focus_pick_none: '— بدون اختيار —', focus_general: 'جلسة تركيز عامة',
+                due_label: 'مستحق', done_short: 'تم',
                 focus_today_title: 'جلسات التركيز اليوم',
                 focus_today_hint: 'جلسات متوقفة يمكنك استكمالها. تُمسح تلقائيًا في اليوم التالي.',
                 about_daily: 'نظّم مهامك اليومية، ابدأ تركيزًا من أي مهمة، وتابع نسبة الإنجاز.',
@@ -4270,6 +4303,13 @@
                 session_hint: 'Or use Sessions · Reviews · Grades for full details.',
 
                 about_label: 'About this section',
+                not_now: 'Not now', yes_start: 'Yes, start', yes_break: 'Yes, break',
+                focus_confirm_title: 'Start Focus Mode?', focus_confirm_body: 'Ready to start a focused session?',
+                focus_pick_title: 'What do you want to focus on?', focus_pick_hint: 'Pick a task or course, or start a general session.',
+                focus_pick_task: 'Daily task (optional)', focus_pick_course: 'Course (optional)',
+                focus_pick_lecture: 'Lecture (optional)', focus_pick_note: 'If you leave everything empty, a general focus session starts.',
+                focus_pick_none: '— None —', focus_general: 'General focus session',
+                due_label: 'Due', done_short: 'Done',
                 focus_today_title: "Today's focus sessions",
                 focus_today_hint: 'Paused sessions you can resume. Cleared automatically the next day.',
                 week_n: 'Week', achievements: 'done',
@@ -4657,6 +4697,23 @@
                 document.getElementById('focusPauseLaterBtn')?.addEventListener('click', () => this.pauseAndExit());
                 document.getElementById('confirmFocusYes')?.addEventListener('click', () => this.acceptConfirm());
                 document.getElementById('confirmFocusNo')?.addEventListener('click', () => this.cancelConfirm());
+                document.getElementById('focusPickCancel')?.addEventListener('click', () => this.cancelPick());
+                document.getElementById('focusPickStart')?.addEventListener('click', () => this.acceptPick());
+                document.getElementById('focusPickCourse')?.addEventListener('change', (e) => {
+                    this.fillPickLectures(e.target.value);
+                    if (e.target.value) {
+                        const taskSel = document.getElementById('focusPickTask');
+                        if (taskSel) taskSel.value = '';
+                    }
+                });
+                document.getElementById('focusPickTask')?.addEventListener('change', () => {
+                    const taskSel = document.getElementById('focusPickTask');
+                    if (taskSel && taskSel.value) {
+                        const courseSel = document.getElementById('focusPickCourse');
+                        if (courseSel) courseSel.value = '';
+                        this.fillPickLectures('');
+                    }
+                });
                 document.getElementById('focusNudgeYes')?.addEventListener('click', () => {
                     this.hideNudge();
                     if (this.running) this.toggle(); // pause for break
@@ -4720,8 +4777,8 @@
                 }
                 const title = document.getElementById('confirmFocusTitle');
                 const body = document.getElementById('confirmFocusText');
-                if (title) title.textContent = AppState.uiLang === 'en' ? 'Start Focus Mode?' : 'بدء وضع التركيز؟';
-                let desc = AppState.uiLang === 'en' ? 'Ready to start a focused session?' : 'جاهز تبدأ جلسة تركيز؟';
+                if (title) title.textContent = t('focus_confirm_title');
+                let desc = t('focus_confirm_body');
                 if (ctx && ctx.taskId != null) {
                     const task = AppState.dailyTasks.find(t => t.id === ctx.taskId);
                     if (task) desc = (AppState.uiLang === 'en' ? 'Focus on task: ' : 'التركيز على المهمة: ') + '"' + task.title + '"';
@@ -4731,13 +4788,99 @@
                     if (course && lecture) desc = (AppState.uiLang === 'en' ? 'Study: ' : 'مذاكرة: ') + course.title + ' — ' + lecture.title;
                 }
                 if (body) body.textContent = desc;
+                const noBtn = document.getElementById('confirmFocusNo');
+                const yesBtn = document.getElementById('confirmFocusYes');
+                if (noBtn) noBtn.textContent = t('not_now');
+                if (yesBtn) yesBtn.textContent = t('yes_start');
                 openModal('confirmFocusModal');
+            },
+
+            isGenericPending() {
+                const ctx = this.pending || {};
+                return ctx.taskId == null && !ctx.lectureId && !ctx.courseId;
             },
 
             acceptConfirm() {
                 closeModal('confirmFocusModal');
                 const ctx = this.pending || {};
+                // Generic entry (header / today board) → show picker
+                if (this.isGenericPending()) {
+                    this.openPickModal();
+                    return;
+                }
+                this.startWithContext(ctx);
+            },
+
+            cancelConfirm() {
                 this.pending = null;
+                closeModal('confirmFocusModal');
+            },
+
+            fillPickLectures(courseId) {
+                const sel = document.getElementById('focusPickLecture');
+                if (!sel) return;
+                const none = t('focus_pick_none');
+                if (!courseId) {
+                    sel.innerHTML = `<option value="">${none}</option>`;
+                    return;
+                }
+                const course = AppState.studyCourses.find(c => String(c.id) === String(courseId));
+                const lectures = (course && course.lectures) ? course.lectures : [];
+                sel.innerHTML = `<option value="">${none}</option>` + lectures.map(l =>
+                    `<option value="${escapeHTML(String(l.id))}">${escapeHTML(l.title)}${l.studied ? ' ✓' : ''}</option>`
+                ).join('');
+            },
+
+            openPickModal() {
+                const taskSel = document.getElementById('focusPickTask');
+                const courseSel = document.getElementById('focusPickCourse');
+                const none = t('focus_pick_none');
+                if (taskSel) {
+                    const openTasks = (AppState.dailyTasks || []).filter(tk => !tk.completed);
+                    taskSel.innerHTML = `<option value="">${none}</option>` + openTasks.map(tk =>
+                        `<option value="${escapeHTML(String(tk.id))}">${escapeHTML(tk.title)}</option>`
+                    ).join('');
+                }
+                if (courseSel) {
+                    courseSel.innerHTML = `<option value="">${none}</option>` + (AppState.studyCourses || []).map(c =>
+                        `<option value="${escapeHTML(String(c.id))}">${escapeHTML(c.title)}</option>`
+                    ).join('');
+                }
+                this.fillPickLectures('');
+                const title = document.getElementById('focusPickTitle');
+                const hint = document.getElementById('focusPickHint');
+                if (title) title.textContent = t('focus_pick_title');
+                if (hint) hint.textContent = t('focus_pick_hint');
+                document.querySelectorAll('#focusPickModal [data-i18n]').forEach(el => {
+                    const key = el.getAttribute('data-i18n');
+                    if (key && typeof t === 'function') el.textContent = t(key);
+                });
+                openModal('focusPickModal');
+            },
+
+            acceptPick() {
+                const taskVal = document.getElementById('focusPickTask')?.value || '';
+                const courseVal = document.getElementById('focusPickCourse')?.value || '';
+                const lectureVal = document.getElementById('focusPickLecture')?.value || '';
+                closeModal('focusPickModal');
+                const ctx = {};
+                if (taskVal) {
+                    ctx.taskId = Number(taskVal) || taskVal;
+                } else if (courseVal) {
+                    ctx.courseId = courseVal;
+                    if (lectureVal) ctx.lectureId = lectureVal;
+                }
+                this.pending = null;
+                this.startWithContext(ctx);
+            },
+
+            cancelPick() {
+                this.pending = null;
+                closeModal('focusPickModal');
+            },
+
+            startWithContext(ctx) {
+                ctx = ctx || {};
                 this.taskId = ctx.taskId != null ? ctx.taskId : null;
                 this.courseId = ctx.courseId != null ? String(ctx.courseId) : null;
                 this.lectureId = ctx.lectureId != null ? String(ctx.lectureId) : null;
@@ -4748,11 +4891,6 @@
                 this.syncDisplay();
                 this.showOverlay();
                 this.updateActionLabels();
-            },
-
-            cancelConfirm() {
-                this.pending = null;
-                closeModal('confirmFocusModal');
             },
 
             openForTask(taskId) { this.requestOpen({ taskId }); },
@@ -4954,6 +5092,10 @@
                 if (tx) tx.textContent = AppState.uiLang === 'en'
                     ? 'Good time for a short break?'
                     : 'وقت مناسب لاستراحة قصيرة؟';
+                const yes = document.getElementById('focusNudgeYes');
+                const no = document.getElementById('focusNudgeNo');
+                if (yes) yes.textContent = t('yes_break');
+                if (no) no.textContent = t('not_now');
                 if (box) box.classList.remove('hidden');
             },
 
