@@ -116,6 +116,14 @@
             border-color: #f43f5e !important;
         }
 
+
+        html:not(.dark) [data-i18n-static^="about_"] {
+            color: #1e293b !important;
+        }
+        html:not(.dark) [data-i18n-static="about_label"] {
+            color: #475569 !important;
+        }
+
         /* ===== Light mode — high contrast, cohesive cyan/slate palette ===== */
         html:not(.dark) body {
             background-color: #eef2f7;
@@ -325,35 +333,59 @@
             <i class="fa-solid fa-xmark ml-1"></i><span data-i18n="exit_focus">خروج</span>
         </button>
         <p class="text-sm text-slate-400 font-bold tracking-wide" data-i18n="focus_mode">وضع التركيز</p>
-        <div id="focusModeTimer">25:00</div>
+        <div id="focusModeTimer">00:00</div>
         <p id="focusModeSubject" class="text-base text-cyan-300 font-bold max-w-md text-center"></p>
-        <p id="focusModeHint" class="text-xs text-slate-500 max-w-sm text-center" data-i18n="focus_hint">ركّز على مادة واحدة. الجلسة هتتسجّل تلقائيًا لما توقّف.</p>
+        <p id="focusModeHint" class="text-xs text-slate-500 max-w-sm text-center" data-i18n="focus_hint">ركّز على هدفك. الجلسة تُحفظ عند الإيقاف أو الخروج.</p>
         <div class="flex flex-wrap items-center justify-center gap-3">
-            <select id="focusCourseSelect" class="glass-input px-4 py-2.5 rounded-xl text-sm bg-slate-900 min-w-[200px]"></select>
             <button type="button" id="focusToggleBtn" class="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm">
                 <i class="fa-solid fa-play ml-1"></i><span data-i18n="start">ابدأ</span>
+            </button>
+            <button type="button" id="focusFinishBtn" class="px-6 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm">
+                <i class="fa-solid fa-flag-checkered ml-1"></i><span id="focusFinishLabel">انتهيت</span>
+            </button>
+            <button type="button" id="focusPauseLaterBtn" class="px-4 py-2.5 rounded-xl bg-amber-500/20 text-amber-300 text-sm font-bold border border-amber-500/40">
+                <i class="fa-solid fa-pause ml-1"></i><span id="focusPauseLaterLabel">أكمل لاحقًا</span>
             </button>
             <button type="button" id="focusResetBtn" class="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-sm font-bold border border-slate-700">
                 <i class="fa-solid fa-rotate-left ml-1"></i><span data-i18n="reset">إعادة</span>
             </button>
         </div>
         <p id="focusElapsedLabel" class="text-xs text-slate-500"><span data-i18n="elapsed">المقضي:</span> <span id="focusElapsed">0</span> <span data-i18n="minutes">د</span></p>
+        <div id="focusNudgeBox" class="hidden max-w-sm w-full mx-auto mt-2 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-center space-y-3">
+            <p id="focusNudgeText" class="text-sm text-amber-200 font-bold">وقت مناسب لاستراحة قصيرة؟</p>
+            <div class="flex justify-center gap-2">
+                <button type="button" id="focusNudgeYes" class="px-4 py-2 rounded-xl bg-amber-400 text-slate-950 text-xs font-bold">نعم، استراحة</button>
+                <button type="button" id="focusNudgeNo" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-200 text-xs font-bold border border-slate-600">ليس الآن</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirmFocusModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 hidden">
+        <div class="glass-panel rounded-2xl p-6 w-full max-w-sm border border-slate-700 space-y-4">
+            <h3 class="text-base font-bold text-slate-100" id="confirmFocusTitle">بدء وضع التركيز؟</h3>
+            <p class="text-sm text-slate-300" id="confirmFocusText"></p>
+            <div class="flex gap-2 justify-end">
+                <button type="button" id="confirmFocusNo" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-sm font-bold border border-slate-700">ليس الآن</button>
+                <button type="button" id="confirmFocusYes" class="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 text-sm font-bold">نعم، ابدأ</button>
+            </div>
+        </div>
     </div>
 
     <header class="sticky top-0 z-30 glass-panel border-b border-slate-800/80 px-4 lg:px-8 py-3 transition-all">
-        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
-            
-            <div class="flex items-center gap-3">
-                <button id="sidebarToggleBtn" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-cyan-400 transition-all border border-slate-700/60" title="تبديل القائمة الجانبية">
-                    <i class="fa-solid fa-bars text-lg"></i>
-                </button>
+        <div class="max-w-7xl mx-auto space-y-3">
 
-                <div class="flex items-center gap-2">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-slate-950 shadow-md shadow-cyan-500/20">
-                        <i class="fa-solid fa-graduation-cap text-lg"></i>
-                    </div>
-                    <div>
-                        <div class="flex items-center gap-2">
+            <!-- Top row: welcome left · timer right -->
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <button id="sidebarToggleBtn" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-cyan-400 transition-all border border-slate-700/60" title="تبديل القائمة الجانبية">
+                        <i class="fa-solid fa-bars text-lg"></i>
+                    </button>
+
+                    <div class="flex items-center gap-2">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-slate-950 shadow-md shadow-cyan-500/20">
+                            <i class="fa-solid fa-graduation-cap text-lg"></i>
+                        </div>
+                        <div>
                             <h1 class="text-base font-bold text-slate-100 leading-tight flex items-center gap-1.5 flex-wrap">
                                 <span data-i18n="welcome">أهلاً بك،</span>
                                 <span id="displayUserName" class="text-cyan-400 font-extrabold">يا بطل</span>
@@ -362,33 +394,30 @@
                                     <i class="fa-solid fa-pen-to-square"></i>
                                 </button>
                             </h1>
+                            <p class="text-xs text-slate-400"><span data-i18n="brand_sub">لوحة التخطيط الجامعي | P.U.D</span></p>
                         </div>
-                        <p class="text-xs text-slate-400"><span data-i18n="brand_sub">لوحة التخطيط الجامعي | P.U.D</span></p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-2xl shadow-inner">
+                    <div class="flex bg-slate-950 p-1 rounded-xl text-xs font-medium">
+                        <button id="modePomoBtn" class="px-2.5 py-1 rounded-lg bg-cyan-500 text-slate-950 font-bold transition-all">بوومودورو (25د)</button>
+                        <button id="modeStopwatchBtn" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-slate-200 transition-all">ستوب ووتش</button>
+                    </div>
+                    <div class="text-lg font-mono font-bold tracking-wider text-cyan-400 min-w-[70px] text-center" id="timerDisplay">25:00</div>
+                    <div class="flex items-center gap-1">
+                        <button id="startTimerBtn" class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 flex items-center justify-center transition-all" title="تشغيل/إيقاف مؤقت">
+                            <i class="fa-solid fa-play text-xs"></i>
+                        </button>
+                        <button id="resetTimerBtn" class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:bg-rose-500/20 hover:text-rose-400 flex items-center justify-center transition-all" title="إعادة ضبط">
+                            <i class="fa-solid fa-rotate-left text-xs"></i>
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <div class="flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-2xl shadow-inner">
-                <div class="flex bg-slate-950 p-1 rounded-xl text-xs font-medium">
-                    <button id="modePomoBtn" class="px-2.5 py-1 rounded-lg bg-cyan-500 text-slate-950 font-bold transition-all">بوومودورو (25د)</button>
-                    <button id="modeStopwatchBtn" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-slate-200 transition-all">ستوب ووتش</button>
-                </div>
-
-                <div class="text-lg font-mono font-bold tracking-wider text-cyan-400 min-w-[70px] text-center" id="timerDisplay">
-                    25:00
-                </div>
-
-                <div class="flex items-center gap-1">
-                    <button id="startTimerBtn" class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 flex items-center justify-center transition-all" title="تشغيل/إيقاف مؤقت">
-                        <i class="fa-solid fa-play text-xs"></i>
-                    </button>
-                    <button id="resetTimerBtn" class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:bg-rose-500/20 hover:text-rose-400 flex items-center justify-center transition-all" title="إعادة ضبط">
-                        <i class="fa-solid fa-rotate-left text-xs"></i>
-                    </button>
-                </div>
-            </div>
-
-            <div class="flex items-center justify-center w-full lg:w-auto gap-2 mt-2 lg:mt-0 flex-wrap">
+            <!-- Second row: settings centered under the header -->
+            <div class="flex items-center justify-center gap-2 flex-wrap">
                 <button id="focusModeBtn" class="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-2 rounded-xl border border-emerald-500/30 transition-all font-bold" title="وضع التركيز" data-i18n-title="focus_mode">
                     <i class="fa-solid fa-bullseye"></i>
                     <span class="hidden xl:inline" data-i18n="focus_mode">تركيز</span>
@@ -405,18 +434,15 @@
                     <i class="fa-solid fa-download"></i>
                     <span class="hidden xl:inline" data-i18n="export_backup">تصدير النسخة</span>
                 </button>
-
                 <input type="file" id="importBackupInput" accept=".json" class="hidden">
                 <button id="importBackupBtn" class="flex items-center gap-1.5 text-xs text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 px-3 py-2 rounded-xl border border-purple-500/30 transition-all font-bold" title="استعادة نسخة احتياطية">
                     <i class="fa-solid fa-upload"></i>
                     <span class="hidden xl:inline" data-i18n="import_backup">استعادة البيانات</span>
                 </button>
-
                 <button id="openApiKeyModalBtn" class="flex items-center gap-1.5 text-xs text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 px-3 py-2 rounded-xl border border-cyan-500/30 transition-all font-bold" title="إعدادات مفتاح Gemini API">
                     <i class="fa-solid fa-key"></i>
                     <span class="hidden sm:inline" data-i18n="ai_settings">إعدادات الـ AI والمفتاح</span>
                 </button>
-
                 <div class="hidden md:flex items-center gap-2 text-xs text-slate-400 bg-slate-800/40 px-3 py-2 rounded-xl border border-slate-800">
                     <i class="fa-regular fa-calendar-check text-cyan-400"></i>
                     <span id="currentDateText">جاري تحميل التاريخ...</span>
@@ -514,7 +540,17 @@
                 <div class="glass-panel rounded-2xl p-5 border border-cyan-500/25 space-y-4">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                            <h2 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+       
+                <div id="resumeSessionsWrap" class="hidden glass-panel rounded-2xl p-4 border border-emerald-500/25 space-y-3">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-hourglass-half text-emerald-400"></i>
+                        <h3 class="text-sm font-bold text-emerald-300" data-i18n-static="focus_today_title">جلسات التركيز اليوم</h3>
+                    </div>
+                    <p class="text-[11px] text-slate-500" data-i18n-static="focus_today_hint">جلسات متوقفة يمكنك استكمالها. تُمسح تلقائيًا في اليوم التالي.</p>
+                    <div id="resumeSessionsList" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+                </div>
+
+                                     <h2 class="text-lg font-bold text-slate-100 flex items-center gap-2">
                                 <i class="fa-solid fa-sun text-amber-400"></i>
                                 <span data-i18n="today_board">لوحة اليوم</span>
                             </h2>
@@ -621,7 +657,12 @@
 
                     <div id="dailyTasksList" class="space-y-2"></div>
                 </div>
-            </section>
+            
+                <div class="rounded-xl border border-slate-600/60 bg-slate-900/55 px-4 py-3.5 mt-3">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1" data-i18n-static="about_label">About</p>
+                    <p class="text-sm text-slate-200 leading-relaxed" data-i18n-static="about_daily">عن هذا القسم: نظّم مهامك اليومية، ابدأ تركيزًا من أي مهمة، وتابع نسبة الإنجاز.</p>
+                </div>
+</section>
 
             <section id="tab-courses" class="tab-content space-y-6 hidden">
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800">
@@ -643,7 +684,12 @@
                 </div>
 
                 <div id="coursesList" class="grid grid-cols-1 xl:grid-cols-2 gap-4"></div>
-            </section>
+            
+                <div class="rounded-xl border border-slate-600/60 bg-slate-900/55 px-4 py-3.5 mt-3">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1" data-i18n-static="about_label">About</p>
+                    <p class="text-sm text-slate-200 leading-relaxed" data-i18n-static="about_courses">عن هذا القسم: أضف موادك ومحاضراتك، وابدأ جلسة تركيز من أي درس، وعلّم ما ذاكرته.</p>
+                </div>
+</section>
 
             <section id="tab-history" class="tab-content space-y-6 hidden">
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800">
@@ -675,7 +721,12 @@
                 </div>
 
                 <div id="studyHistoryList" class="space-y-4"></div>
-            </section>
+            
+                <div class="rounded-xl border border-slate-600/60 bg-slate-900/55 px-4 py-3.5 mt-3">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1" data-i18n-static="about_label">About</p>
+                    <p class="text-sm text-slate-200 leading-relaxed" data-i18n-static="about_history">عن هذا القسم: يعرض الأيام التي أنجزت فيها مهامًا أو ذاكرت دروسًا مع ملخص الأسبوع.</p>
+                </div>
+</section>
 
             <section id="tab-progress" class="tab-content space-y-6 hidden">
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800">
@@ -736,7 +787,12 @@
                     <p class="text-[11px] text-slate-500"><span data-i18n="grades_sub">أدخل درجاتك وأوزانها. يُحسب المعدل تلقائيًا.</span></p>
                     <div id="gradesList" class="grid grid-cols-1 xl:grid-cols-2 gap-4"></div>
                 </div>
-            </section>
+            
+                <div class="rounded-xl border border-slate-600/60 bg-slate-900/55 px-4 py-3.5 mt-3">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1" data-i18n-static="about_label">About</p>
+                    <p class="text-sm text-slate-200 leading-relaxed" data-i18n-static="about_progress">عن هذا القسم: جلسات المذاكرة، المراجعات المتباعدة، والدرجات والمعدل المتوقع.</p>
+                </div>
+</section>
 
             <section id="tab-weekly" class="tab-content space-y-6 hidden">
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800">
@@ -748,7 +804,12 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="weeklyDaysContainer"></div>
-            </section>
+            
+                <div class="rounded-xl border border-slate-600/60 bg-slate-900/55 px-4 py-3.5 mt-3">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1" data-i18n-static="about_label">About</p>
+                    <p class="text-sm text-slate-200 leading-relaxed" data-i18n-static="about_weekly">عن هذا القسم: وزّع محاضراتك ومهامك على أيام الأسبوع لتفادي الضغط.</p>
+                </div>
+</section>
 
             <section id="tab-monthly" class="tab-content space-y-6 hidden">
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800">
@@ -774,7 +835,12 @@
                     <h3 class="text-sm font-bold text-slate-300 border-b border-slate-800 pb-3 mb-4"><span data-i18n="planned_goals">الأهداف والمواعيد المخططة</span></h3>
                     <div id="monthlyList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
                 </div>
-            </section>
+            
+                <div class="rounded-xl border border-slate-600/60 bg-slate-900/55 px-4 py-3.5 mt-3">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1" data-i18n-static="about_label">About</p>
+                    <p class="text-sm text-slate-200 leading-relaxed" data-i18n-static="about_monthly">عن هذا القسم: سجّل الامتحانات والمواعيد الكبيرة وأهداف الشهر.</p>
+                </div>
+</section>
 
             <section id="tab-notes" class="tab-content space-y-6 hidden">
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800 flex items-center justify-between gap-4">
@@ -795,7 +861,12 @@
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800 max-h-[600px] overflow-y-auto">
                     <div id="notesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
                 </div>
-            </section>
+            
+                <div class="rounded-xl border border-slate-600/60 bg-slate-900/55 px-4 py-3.5 mt-3">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1" data-i18n-static="about_label">About</p>
+                    <p class="text-sm text-slate-200 leading-relaxed" data-i18n-static="about_notes">عن هذا القسم: ملاحظات سريعة وروابط وأفكار تحت يدك أثناء المذاكرة.</p>
+                </div>
+</section>
 
             <section id="tab-saved-files" class="tab-content space-y-6 hidden">
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
@@ -839,7 +910,12 @@
                     </div>
                     <div id="savedFilesList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                 </div>
-            </section>
+            
+                <div class="rounded-xl border border-slate-600/60 bg-slate-900/55 px-4 py-3.5 mt-3">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1" data-i18n-static="about_label">About</p>
+                    <p class="text-sm text-slate-200 leading-relaxed" data-i18n-static="about_files">عن هذا القسم: احفظ نصوصًا أو ملفات؛ ويمكن للـ AI الرجوع إليها عند السؤال.</p>
+                </div>
+</section>
 
             <section id="tab-ai-chat" class="tab-content space-y-4 hidden">
                 <div class="glass-panel rounded-2xl p-4 border border-slate-800 flex flex-wrap items-center justify-between gap-3">
@@ -874,7 +950,14 @@
                     </div>
                 </div>
 
-                <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+                
+                        <div class="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3 space-y-1.5 mb-2">
+                            <p class="text-[11px] font-bold text-cyan-300" data-i18n-static="ai_how_title">طريقة استخدام الـ AI</p>
+                            <p class="text-[11px] text-slate-400" data-i18n-static="ai_how_1">• اطلب إضافة مهام أو تنظيم يومك بجملة واضحة.</p>
+                            <p class="text-[11px] text-slate-400" data-i18n-static="ai_how_2">• اسأله عن ملف محفوظ بالاسم الذي حفظته به.</p>
+                            <p class="text-[11px] text-slate-400" data-i18n-static="ai_how_3">• يمكنه اقتراح جدول مراجعة أو أولويات للدراسة.</p>
+                        </div>
+<div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
                     <span class="text-slate-400 text-[11px] font-bold shrink-0"><span data-i18n="quick_prompts">مقترحات سريعة:</span></span>
                     <button class="quick-prompt-btn px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 border border-slate-700/60 shrink-0 transition-all">
                         <span data-i18n-qp="📋 Analyze my tasks and suggest a plan for today">📋 Analyze my tasks and suggest a plan for today</span>
@@ -932,7 +1015,12 @@
                         </button>
                     </form>
                 </div>
-            </section>
+            
+                <div class="rounded-xl border border-slate-600/60 bg-slate-900/55 px-4 py-3.5 mt-3">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1" data-i18n-static="about_label">About</p>
+                    <p class="text-sm text-slate-200 leading-relaxed" data-i18n-static="about_ai">عن هذا القسم: اطلب تنظيم يومك أو إضافة مهام أو نصائح مذاكرة بلغة طبيعية.</p>
+                </div>
+</section>
 
         </main>
     </div>
@@ -1600,15 +1688,17 @@
 
                 let priorityBadge = task.priority === 'عالي' ? `<span class="text-[10px] px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-400 font-bold border border-rose-500/30">${t('prio_high')}</span>` : task.priority === 'متوسط' ? `<span class="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30">${t('prio_med')}</span>` : `<span class="text-[10px] px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-400 font-bold border border-cyan-500/30">${t('prio_low')}</span>`;
 
+                const locked = typeof isTaskInFocusSession === 'function' && isTaskInFocusSession(task.id);
                 taskEl.innerHTML = `
                     <div class="flex items-center gap-3 min-w-0">
-                        <input type="checkbox" ${task.completed ? 'checked disabled' : ''} class="w-4 h-4 accent-cyan-400 rounded cursor-pointer task-checkbox shrink-0" data-id="${task.id}">
-                        <span class="text-sm text-slate-200 min-w-0 break-words ${task.completed ? 'line-through text-slate-400' : ''}">${escapeHTML(task.title)}</span>
+                        <input type="checkbox" ${task.completed ? 'checked disabled' : (locked ? 'disabled' : '')} class="w-4 h-4 accent-cyan-400 rounded ${locked && !task.completed ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} task-checkbox shrink-0" data-id="${task.id}" title="${locked ? (AppState.uiLang==='en'?'Finish Focus first':'أنهِ التركيز أولًا') : ''}">
+                        <span class="text-sm text-slate-200 min-w-0 break-words ${task.completed ? 'line-through text-slate-400' : ''}">${escapeHTML(task.title)}${locked ? ` <span class="text-[10px] text-emerald-400 font-bold">(${AppState.uiLang==='en'?'in focus':'في التركيز'})</span>` : ''}</span>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
                         ${priorityBadge}
-                        <button class="edit-task-btn text-xs text-slate-400 hover:text-cyan-400 transition-colors p-1" data-id="${task.id}" title="تعديل الاسم"><i class="fa-solid fa-pen"></i></button>
-                        <button class="delete-task-btn text-xs text-slate-400 hover:text-rose-400 transition-colors p-1" data-id="${task.id}" title="حذف"><i class="fa-solid fa-trash-can"></i></button>
+                        ${!task.completed ? `<button type="button" class="focus-task-btn text-xs ${locked ? 'text-emerald-300 bg-emerald-500/20 ring-1 ring-emerald-400/50' : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'} transition-colors p-1.5 rounded-lg" data-id="${task.id}" title="${locked ? (AppState.uiLang==='en'?'Resume Focus':'استكمال التركيز') : 'Focus'}"><i class="fa-solid fa-bullseye"></i></button>` : ''}
+                        <button class="edit-task-btn text-xs text-slate-400 ${locked ? 'opacity-30 pointer-events-none' : 'hover:text-cyan-400'} transition-colors p-1" data-id="${task.id}" title="تعديل الاسم"><i class="fa-solid fa-pen"></i></button>
+                        <button class="delete-task-btn text-xs text-slate-400 ${locked ? 'opacity-30 pointer-events-none' : 'hover:text-rose-400'} transition-colors p-1" data-id="${task.id}" title="حذف"><i class="fa-solid fa-trash-can"></i></button>
                     </div>
                 `;
                 container.appendChild(taskEl);
@@ -1644,6 +1734,13 @@
                     AppState.dailyTasks = AppState.dailyTasks.filter(t => t.id !== parseInt(btn.getAttribute('data-id')));
                     saveStateToStorage();
                     renderDailyTasks();
+                });
+            });
+
+            document.querySelectorAll('.focus-task-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = parseInt(btn.getAttribute('data-id'), 10);
+                    if (typeof FocusMode !== 'undefined') FocusMode.openForTask(id);
                 });
             });
 
@@ -1757,6 +1854,15 @@
             });
 
             document.getElementById('coursesList').addEventListener('click', event => {
+                const focusLectureButton = event.target.closest('.focus-lecture-btn');
+                if (focusLectureButton) {
+                    event.preventDefault();
+                    const courseId = focusLectureButton.dataset.courseId;
+                    const lectureId = focusLectureButton.dataset.lectureId;
+                    if (typeof FocusMode !== 'undefined') FocusMode.openForLecture(courseId, lectureId);
+                    return;
+                }
+
                 const editCourseButton = event.target.closest('.edit-course-btn');
                 if (editCourseButton) {
                     const course = AppState.studyCourses.find(item => String(item.id) === editCourseButton.dataset.courseId);
@@ -1855,6 +1961,7 @@
                                 </span>
                             </label>
                             <div class="flex items-center gap-1 shrink-0">
+                                ${!lecture.studied ? `<button type="button" class="focus-lecture-btn text-xs text-emerald-400 hover:text-emerald-300 p-1.5 rounded-lg hover:bg-emerald-500/10" data-course-id="${escapeHTML(String(course.id))}" data-lecture-id="${escapeHTML(String(lecture.id))}" title="Focus"><i class="fa-solid fa-bullseye"></i></button>` : ''}
                                 <button type="button" class="edit-lecture-btn text-xs text-slate-500 hover:text-cyan-400 p-1" data-course-id="${escapeHTML(String(course.id))}" data-lecture-id="${escapeHTML(String(lecture.id))}" title="تعديل اسم الدرس"><i class="fa-solid fa-pen"></i></button>
                                 <button type="button" class="delete-lecture-btn text-xs text-slate-500 hover:text-rose-400 p-1" data-course-id="${escapeHTML(String(course.id))}" data-lecture-id="${escapeHTML(String(lecture.id))}" title="حذف الدرس"><i class="fa-solid fa-trash-can"></i></button>
                             </div>
@@ -1900,8 +2007,7 @@
         }
 
         function monthLabel(year, month) {
-            return new Intl.DateTimeFormat(getUiLocale(), { month: 'long', year: 'numeric' })
-                .format(new Date(Number(year), Number(month) - 1, 1, 12));
+            return formatUiDate(new Date(Number(year), Number(month) - 1, 1, 12), { month: 'long', year: 'numeric' });
         }
 
         function renderStudyHistory() {
@@ -1920,10 +2026,10 @@
 
             const monthNames = Array.from({ length: 12 }, (_, index) => ({
                 value: String(index + 1).padStart(2, '0'),
-                label: new Intl.DateTimeFormat(getUiLocale(), { month: 'long' }).format(new Date(2026, index, 1, 12))
+                label: formatUiDate(new Date(2026, index, 1, 12), { month: 'long' })
             }));
             const previousMonth = monthSelect.value || 'all';
-            monthSelect.innerHTML = `<option value="all" data-i18n="all_months">All months</option>` + monthNames
+            monthSelect.innerHTML = `<option value="all">${t('all_months')}</option>` + monthNames
                 .map(month => `<option value="${month.value}">${month.label}</option>`).join('');
             monthSelect.value = monthNames.some(month => month.value === previousMonth) || previousMonth === 'all' ? previousMonth : 'all';
 
@@ -1959,10 +2065,9 @@
                         <h4 class="text-xs font-bold text-indigo-300">${t("week_n")} ${weekNumber}</h4>
                         <div class="space-y-2">
                             ${weekDays.map(day => {
-                                const readableDate = new Intl.DateTimeFormat(getUiLocale(), { weekday: 'long', day: 'numeric', month: 'long' })
-                                    .format(new Date(day.year, day.month - 1, day.dayOfMonth, 12));
+                                const readableDate = formatUiDate(new Date(day.year, day.month - 1, day.dayOfMonth, 12), { weekday: 'long', day: 'numeric', month: 'long' });
                                 const taskItems = day.tasks.map(task => `<li class="flex items-start gap-2 text-xs text-slate-300"><i class="fa-solid fa-circle-check text-cyan-400 mt-0.5"></i><span>${AppState.uiLang==="en"?"Task":"مهمة"}: ${escapeHTML(String(task.title || (AppState.uiLang==="en"?"Done":"مهمة مكتملة")))}</span></li>`).join('');
-                                const lectureItems = day.lectures.map(lecture => `<li class="flex items-start gap-2 text-xs text-slate-300"><i class="fa-solid fa-book-open text-emerald-400 mt-0.5"></i><span>${escapeHTML(String(lecture.courseTitle || 'مادة'))} — ${escapeHTML(String(lecture.title || 'درس'))}</span></li>`).join('');
+                                const lectureItems = day.lectures.map(lecture => `<li class="flex items-start gap-2 text-xs text-slate-300"><i class="fa-solid fa-book-open text-emerald-400 mt-0.5"></i><span>${escapeHTML(String(lecture.courseTitle || (AppState.uiLang==='en'?'Course':'مادة')))} — ${escapeHTML(String(lecture.title || (AppState.uiLang==='en'?'Lecture':'درس')))}</span></li>`).join('');
                                 return `
                                     <article class="rounded-xl bg-slate-900/50 border border-slate-800 p-3">
                                         <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
@@ -3929,6 +4034,25 @@
                 celeb_title: 'عاش يا بطل! أسطورة حقيقية 🚀🔥',
                 celeb_body: 'لقد أنجزت جميع مهامك اليومية بنجاح بنسبة 100%!',
                 celeb_btn: 'استمرار في الإنجاز ⚡',
+                about_label: 'عن هذا القسم',
+                focus_today_title: 'جلسات التركيز اليوم',
+                focus_today_hint: 'جلسات متوقفة يمكنك استكمالها. تُمسح تلقائيًا في اليوم التالي.',
+                about_daily: 'نظّم مهامك اليومية، ابدأ تركيزًا من أي مهمة، وتابع نسبة الإنجاز.',
+                about_courses: 'أضف موادك ومحاضراتك، ابدأ تركيزًا من أي درس، وعلّم ما ذاكرته.',
+                about_history: 'يعرض الأيام التي أنجزت فيها مهامًا أو ذاكرت دروسًا مع ملخص الأسبوع.',
+                about_progress: 'جلسات المذاكرة، المراجعات المتباعدة، والدرجات والمعدل المتوقع.',
+                about_weekly: 'وزّع محاضراتك ومهامك على أيام الأسبوع لتفادي الضغط.',
+                about_monthly: 'سجّل الامتحانات والمواعيد الكبيرة وأهداف الشهر.',
+                about_notes: 'ملاحظات سريعة وروابط وأفكار تحت يدك أثناء المذاكرة.',
+                about_files: 'احفظ نصوصًا أو ملفات؛ ويمكن للـ AI الرجوع إليها عند السؤال.',
+                about_ai: 'اطلب تنظيم يومك أو إضافة مهام أو نصائح مذاكرة بلغة طبيعية.',
+                resume_sessions: 'استكمال الجلسة',
+                ai_how_title: 'طريقة استخدام الـ AI',
+                ai_how_1: '• اطلب إضافة مهام أو تنظيم يومك بجملة واضحة.',
+                ai_how_2: '• اسأله عن ملف محفوظ بالاسم الذي حفظته به.',
+                ai_how_3: '• يمكنه اقتراح جدول مراجعة أو أولويات للدراسة.',
+                footer_about: 'P.U.D — لوحة تخطيط جامعي شخصية. بياناتك تُحفظ محليًا على جهازك.',
+
                 week_n: 'الأسبوع', achievements: 'إنجاز', new_conversation: 'محادثة جديدة',
                 files_count: 'ملفات', ask_ai_file: 'اسأل AI عن هذا الملف',
                 no_files: 'لا توجد ملفات محفوظة بعد.', no_history: 'لا توجد إنجازات مسجلة في هذه الفترة.',
@@ -4012,6 +4136,30 @@
                 confirm_done: 'Confirm task completion', yes_done: 'Yes, done 👍',
                 save_note_btn: 'Save note', edit_name: 'Edit your name',
                 session_hint: 'Or use Sessions · Reviews · Grades for full details.',
+
+                about_label: 'About this section',
+                focus_today_title: "Today's focus sessions",
+                focus_today_hint: 'Paused sessions you can resume. Cleared automatically the next day.',
+                week_n: 'Week', achievements: 'done',
+                about_daily: 'Organize your daily tasks, start Focus from any task, and track completion.',
+                about_courses: 'Add courses and lectures, start Focus from a lesson, and mark what you studied.',
+                about_history: 'Shows days with completed tasks or studied lectures, plus a weekly summary.',
+                about_progress: 'Study sessions, spaced reviews, grades, and expected average.',
+                about_weekly: 'Spread lectures and tasks across the week to reduce pressure.',
+                about_monthly: 'Log exams, big deadlines, and monthly goals.',
+                about_notes: 'Quick notes, links, and ideas while you study.',
+                about_files: 'Save text or files; the AI can use them when you ask.',
+                about_ai: 'Ask to organize your day, add tasks, or get study tips in natural language.',
+                resume_sessions: 'Resume session',
+                ai_how_title: 'How to use the AI',
+                ai_how_1: '• Ask to add tasks or plan your day in a clear sentence.',
+                ai_how_2: '• Ask about a saved file by the name you gave it.',
+                ai_how_3: '• It can suggest a review schedule or study priorities.',
+                footer_about: 'P.U.D — Personal University Dashboard. Your data stays locally on your device.',
+                celeb_title: 'Legend! You crushed it 🚀🔥',
+                celeb_body: 'You completed all daily tasks at 100%!',
+                celeb_btn: 'Keep going ⚡',
+
                 log_btn: 'Log', pick_course: 'Select course...'
             }
         };
@@ -4080,7 +4228,16 @@
 
 
         function getUiLocale() {
-            return AppState.uiLang === 'en' ? 'en-US' : 'ar-EG';
+            return (AppState.uiLang === 'en') ? 'en-US' : 'ar-EG';
+        }
+
+        function formatUiDate(date, options) {
+            const locale = getUiLocale();
+            try {
+                return new Intl.DateTimeFormat(locale, options).format(date);
+            } catch (e) {
+                return new Intl.DateTimeFormat('en-US', options).format(date);
+            }
         }
 
         function t(key) {
@@ -4127,6 +4284,7 @@
             try { renderDailyTasks(); } catch (e) {}
             try { renderCourses(); } catch (e) {}
             try { renderWeeklyPlanner(); } catch (e) {}
+            try { renderStudyHistory(); } catch (e) {}
             try { renderMonthlyPlanner(); } catch (e) {}
             try { renderQuickNotes(); } catch (e) {}
             try { renderProgressModule(); } catch (e) {}
@@ -4136,6 +4294,8 @@
             setCurrentDateText();
 
             pickMotivationalQuote(false);
+            try { renderResumeSessions(); } catch (e) {}
+            try { if (typeof FocusMode !== "undefined") FocusMode.updateActionLabels(); } catch (e) {}
 
             // Quick prompts
             const qps = document.querySelectorAll('.quick-prompt-btn');
@@ -4147,7 +4307,10 @@
             // Saved files helper labels
             document.querySelectorAll('[data-i18n-static]').forEach(el => {
                 const k = el.getAttribute('data-i18n-static');
-                if (k) el.textContent = t(k);
+                if (!k) return;
+                const dict = I18N[lang] || I18N.ar;
+                if (dict[k] != null) el.textContent = dict[k];
+                else if (I18N.ar[k] != null && lang === 'ar') el.textContent = I18N.ar[k];
             });
         }
 
@@ -4251,103 +4414,427 @@
             `;
         }
 
+
+        function todayKey() {
+            const d = new Date();
+            return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        }
+
+        function loadFocusSessions() {
+            try {
+                const raw = localStorage.getItem('pud_focus_sessions_today');
+                const data = raw ? JSON.parse(raw) : { day: todayKey(), sessions: [] };
+                if (data.day !== todayKey()) {
+                    AppState.focusSessionsToday = [];
+                    saveFocusSessions();
+                } else {
+                    AppState.focusSessionsToday = Array.isArray(data.sessions) ? data.sessions : [];
+                }
+            } catch (e) {
+                AppState.focusSessionsToday = [];
+            }
+        }
+
+        function saveFocusSessions() {
+            try {
+                localStorage.setItem('pud_focus_sessions_today', JSON.stringify({
+                    day: todayKey(),
+                    sessions: AppState.focusSessionsToday || []
+                }));
+            } catch (e) {}
+        }
+
+        function isTaskInFocusSession(taskId) {
+            return (AppState.focusSessionsToday || []).some(s => s.status === 'paused' && s.taskId != null && Number(s.taskId) === Number(taskId));
+        }
+
+        function isLectureInFocusSession(courseId, lectureId) {
+            return (AppState.focusSessionsToday || []).some(s =>
+                s.status === 'paused' &&
+                String(s.courseId) === String(courseId) &&
+                String(s.lectureId) === String(lectureId)
+            );
+        }
+
+        function renderResumeSessions() {
+            const wrap = document.getElementById('resumeSessionsWrap');
+            const list = document.getElementById('resumeSessionsList');
+            if (!wrap || !list) return;
+            const items = (AppState.focusSessionsToday || []).filter(s => s.status === 'paused');
+            if (!items.length) {
+                wrap.classList.add('hidden');
+                list.innerHTML = '';
+                return;
+            }
+            wrap.classList.remove('hidden');
+            list.innerHTML = items.map(s => {
+                const mins = Math.floor((s.elapsedSec || 0) / 60);
+                const secs = (s.elapsedSec || 0) % 60;
+                const timeStr = mins + ':' + String(secs).padStart(2, '0');
+                return `
+                <div class="flex items-center justify-between gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-3 py-2.5">
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-emerald-200 truncate">${escapeHTML(s.label || 'Focus')}</p>
+                        <p class="text-[10px] text-slate-500">${AppState.uiLang === 'en' ? 'Paused at' : 'متوقف عند'} ${timeStr}</p>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button type="button" class="resume-focus-btn px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 text-[11px] font-bold" data-id="${escapeHTML(String(s.id))}">${AppState.uiLang === 'en' ? 'Resume' : 'استكمال'}</button>
+                        <button type="button" class="dismiss-focus-btn px-2 py-1.5 rounded-lg text-slate-500 hover:text-rose-400 text-xs" data-id="${escapeHTML(String(s.id))}" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>`;
+            }).join('');
+            list.querySelectorAll('.resume-focus-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const s = (AppState.focusSessionsToday || []).find(x => String(x.id) === String(btn.getAttribute('data-id')));
+                    if (s) FocusMode.resumeSession(s);
+                });
+            });
+            list.querySelectorAll('.dismiss-focus-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    AppState.focusSessionsToday = (AppState.focusSessionsToday || []).filter(x => String(x.id) !== String(id));
+                    saveFocusSessions();
+                    renderResumeSessions();
+                    try { renderDailyTasks(); } catch (e) {}
+                    try { renderCourses(); } catch (e) {}
+                });
+            });
+        }
+
         const FocusMode = {
             running: false,
             elapsedSec: 0,
             interval: null,
             courseId: null,
+            lectureId: null,
+            taskId: null,
+            pending: null,
+            nudgeShown: false,
+            sessionId: null,
 
             init() {
-                document.getElementById('focusModeBtn')?.addEventListener('click', () => this.open());
-                document.getElementById('openFocusFromTodayBtn')?.addEventListener('click', () => this.open());
-                document.getElementById('closeFocusModeBtn')?.addEventListener('click', () => this.close());
+                loadFocusSessions();
+                document.getElementById('focusModeBtn')?.addEventListener('click', () => this.requestOpen());
+                document.getElementById('openFocusFromTodayBtn')?.addEventListener('click', () => this.requestOpen());
+                document.getElementById('closeFocusModeBtn')?.addEventListener('click', () => this.pauseAndExit());
                 document.getElementById('focusToggleBtn')?.addEventListener('click', () => this.toggle());
                 document.getElementById('focusResetBtn')?.addEventListener('click', () => this.reset());
-                document.getElementById('focusCourseSelect')?.addEventListener('change', (e) => {
-                    this.courseId = e.target.value || null;
-                    this.updateSubjectLabel();
+                document.getElementById('focusFinishBtn')?.addEventListener('click', () => this.finish());
+                document.getElementById('focusPauseLaterBtn')?.addEventListener('click', () => this.pauseAndExit());
+                document.getElementById('confirmFocusYes')?.addEventListener('click', () => this.acceptConfirm());
+                document.getElementById('confirmFocusNo')?.addEventListener('click', () => this.cancelConfirm());
+                document.getElementById('focusNudgeYes')?.addEventListener('click', () => {
+                    this.hideNudge();
+                    if (this.running) this.toggle(); // pause for break
                 });
+                document.getElementById('focusNudgeNo')?.addEventListener('click', () => this.hideNudge());
+                this.updateActionLabels();
+                renderResumeSessions();
             },
 
-            populateCourses() {
-                const sel = document.getElementById('focusCourseSelect');
-                if (!sel) return;
-                const suggest = getSuggestedCourse();
-                sel.innerHTML = `<option value="">${t('no_courses')}</option>` +
-                    AppState.studyCourses.map(c =>
-                        `<option value="${escapeHTML(String(c.id))}">${escapeHTML(c.title)}</option>`
-                    ).join('');
-                if (suggest) {
-                    sel.value = String(suggest.id);
-                    this.courseId = String(suggest.id);
+            updateActionLabels() {
+                const fin = document.getElementById('focusFinishLabel');
+                const pau = document.getElementById('focusPauseLaterLabel');
+                if (fin) fin.textContent = AppState.uiLang === 'en' ? 'Finish' : 'انتهيت';
+                if (pau) pau.textContent = AppState.uiLang === 'en' ? 'Continue later' : 'أكمل لاحقًا';
+            },
+
+            labelForContext() {
+                if (this.taskId != null) {
+                    const task = AppState.dailyTasks.find(t => t.id === this.taskId);
+                    return task ? ((AppState.uiLang === 'en' ? 'Task: ' : 'مهمة: ') + task.title) : '—';
                 }
-                this.updateSubjectLabel();
+                if (this.lectureId != null && this.courseId) {
+                    const course = AppState.studyCourses.find(c => String(c.id) === String(this.courseId));
+                    const lecture = course && (course.lectures || []).find(l => String(l.id) === String(this.lectureId));
+                    if (course && lecture) return course.title + ' — ' + lecture.title;
+                }
+                if (this.courseId) {
+                    const course = AppState.studyCourses.find(c => String(c.id) === String(this.courseId));
+                    if (course) return course.title;
+                }
+                return AppState.uiLang === 'en' ? 'Focus session' : 'جلسة تركيز';
             },
 
             updateSubjectLabel() {
                 const el = document.getElementById('focusModeSubject');
-                if (!el) return;
-                const course = AppState.studyCourses.find(c => String(c.id) === String(this.courseId));
-                el.textContent = course ? course.title : '—';
+                if (el) el.textContent = this.labelForContext();
             },
 
-            open() {
-                this.populateCourses();
+            requestOpen(ctx) {
+                this.pending = ctx || {};
+                // If task already has paused session → resume it
+                if (ctx && ctx.taskId != null) {
+                    const existing = (AppState.focusSessionsToday || []).find(s =>
+                        s.status === 'paused' && Number(s.taskId) === Number(ctx.taskId)
+                    );
+                    if (existing) {
+                        this.resumeSession(existing);
+                        return;
+                    }
+                }
+                if (ctx && ctx.lectureId) {
+                    const existing = (AppState.focusSessionsToday || []).find(s =>
+                        s.status === 'paused' &&
+                        String(s.courseId) === String(ctx.courseId) &&
+                        String(s.lectureId) === String(ctx.lectureId)
+                    );
+                    if (existing) {
+                        this.resumeSession(existing);
+                        return;
+                    }
+                }
+                const title = document.getElementById('confirmFocusTitle');
+                const body = document.getElementById('confirmFocusText');
+                if (title) title.textContent = AppState.uiLang === 'en' ? 'Start Focus Mode?' : 'بدء وضع التركيز؟';
+                let desc = AppState.uiLang === 'en' ? 'Ready to start a focused session?' : 'جاهز تبدأ جلسة تركيز؟';
+                if (ctx && ctx.taskId != null) {
+                    const task = AppState.dailyTasks.find(t => t.id === ctx.taskId);
+                    if (task) desc = (AppState.uiLang === 'en' ? 'Focus on task: ' : 'التركيز على المهمة: ') + '"' + task.title + '"';
+                } else if (ctx && ctx.lectureId) {
+                    const course = AppState.studyCourses.find(c => String(c.id) === String(ctx.courseId));
+                    const lecture = course && (course.lectures || []).find(l => String(l.id) === String(ctx.lectureId));
+                    if (course && lecture) desc = (AppState.uiLang === 'en' ? 'Study: ' : 'مذاكرة: ') + course.title + ' — ' + lecture.title;
+                }
+                if (body) body.textContent = desc;
+                openModal('confirmFocusModal');
+            },
+
+            acceptConfirm() {
+                closeModal('confirmFocusModal');
+                const ctx = this.pending || {};
+                this.pending = null;
+                this.taskId = ctx.taskId != null ? ctx.taskId : null;
+                this.courseId = ctx.courseId != null ? String(ctx.courseId) : null;
+                this.lectureId = ctx.lectureId != null ? String(ctx.lectureId) : null;
+                this.elapsedSec = 0;
+                this.nudgeShown = false;
+                this.sessionId = 'f_' + Date.now();
+                this.hideNudge();
                 this.syncDisplay();
+                this.showOverlay();
+                this.updateActionLabels();
+            },
+
+            cancelConfirm() {
+                this.pending = null;
+                closeModal('confirmFocusModal');
+            },
+
+            openForTask(taskId) { this.requestOpen({ taskId }); },
+            openForLecture(courseId, lectureId) { this.requestOpen({ courseId, lectureId }); },
+            open() { this.requestOpen({}); },
+
+            resumeSession(s) {
+                if (!s) return;
+                this.taskId = s.taskId != null ? s.taskId : null;
+                this.courseId = s.courseId != null ? String(s.courseId) : null;
+                this.lectureId = s.lectureId != null ? String(s.lectureId) : null;
+                this.elapsedSec = s.elapsedSec || 0;
+                this.sessionId = s.id;
+                this.nudgeShown = !!s.nudgeShown;
+                this.hideNudge();
+                // keep in list as paused until finish; while overlay open still "paused" until running
+                this.syncDisplay();
+                this.showOverlay();
+                this.updateActionLabels();
+            },
+
+            showOverlay() {
                 document.getElementById('focusModeOverlay')?.classList.add('active');
                 document.getElementById('focusModeOverlay')?.setAttribute('aria-hidden', 'false');
             },
 
-            close() {
-                if (this.running) this.stop(true);
+            hideOverlay() {
                 document.getElementById('focusModeOverlay')?.classList.remove('active');
                 document.getElementById('focusModeOverlay')?.setAttribute('aria-hidden', 'true');
             },
 
+            upsertPausedSession() {
+                if (this.elapsedSec < 5 && !this.taskId && !this.lectureId) return; // ignore tiny empty
+                const id = this.sessionId || ('f_' + Date.now());
+                this.sessionId = id;
+                const entry = {
+                    id,
+                    label: this.labelForContext(),
+                    elapsedSec: this.elapsedSec,
+                    taskId: this.taskId,
+                    courseId: this.courseId,
+                    lectureId: this.lectureId,
+                    status: 'paused',
+                    day: todayKey(),
+                    nudgeShown: this.nudgeShown,
+                    updatedAt: Date.now()
+                };
+                AppState.focusSessionsToday = (AppState.focusSessionsToday || []).filter(x => String(x.id) !== String(id));
+                // also one session per task
+                if (this.taskId != null) {
+                    AppState.focusSessionsToday = AppState.focusSessionsToday.filter(x =>
+                        !(x.status === 'paused' && Number(x.taskId) === Number(this.taskId) && String(x.id) !== String(id))
+                    );
+                }
+                AppState.focusSessionsToday.unshift(entry);
+                AppState.focusSessionsToday = AppState.focusSessionsToday.slice(0, 12);
+                saveFocusSessions();
+            },
+
+            removeSession(id) {
+                AppState.focusSessionsToday = (AppState.focusSessionsToday || []).filter(x => String(x.id) !== String(id));
+                saveFocusSessions();
+            },
+
             toggle() {
-                if (this.running) this.stop(true);
-                else this.start();
+                if (this.running) {
+                    this.running = false;
+                    clearInterval(this.interval);
+                    const btn = document.getElementById('focusToggleBtn');
+                    if (btn) btn.innerHTML = `<i class="fa-solid fa-play ml-1"></i><span>${t('start')}</span>`;
+                } else {
+                    this.start();
+                }
             },
 
             start() {
-                if (!this.courseId) {
-                    alert(t('no_courses'));
-                    return;
-                }
                 this.running = true;
                 const btn = document.getElementById('focusToggleBtn');
                 if (btn) btn.innerHTML = `<i class="fa-solid fa-pause ml-1"></i><span>${t('pause')}</span>`;
+                clearInterval(this.interval);
                 this.interval = setInterval(() => {
                     this.elapsedSec++;
                     this.syncDisplay();
+                    if (!this.nudgeShown && this.elapsedSec >= 600) {
+                        this.nudgeShown = true;
+                        this.showNudge();
+                    }
                 }, 1000);
             },
 
-            stop(saveSession) {
-                this.running = false;
-                clearInterval(this.interval);
+            /** Pause timer, save session for today, exit overlay — does NOT complete task */
+            pauseAndExit() {
+                if (this.running) {
+                    this.running = false;
+                    clearInterval(this.interval);
+                    const btn = document.getElementById('focusToggleBtn');
+                    if (btn) btn.innerHTML = `<i class="fa-solid fa-play ml-1"></i><span>${t('start')}</span>`;
+                }
+                if (this.elapsedSec >= 5 || this.taskId != null || this.lectureId != null) {
+                    this.upsertPausedSession();
+                }
+                this.hideOverlay();
+                this.hideNudge();
+                renderResumeSessions();
+                try { renderDailyTasks(); } catch (e) {}
+                try { renderCourses(); } catch (e) {}
+            },
+
+            /** Finish: log time, complete linked task/lecture, remove from paused */
+            finish() {
+                if (this.running) {
+                    this.running = false;
+                    clearInterval(this.interval);
+                }
+                const minutes = Math.max(1, Math.round(this.elapsedSec / 60) || (this.elapsedSec > 0 ? 1 : 0));
+                if (this.elapsedSec >= 30 && this.courseId && typeof addStudySession === 'function') {
+                    try {
+                        addStudySession({
+                            courseId: this.courseId,
+                            lectureId: this.lectureId || null,
+                            minutes: Math.max(1, minutes),
+                            note: AppState.uiLang === 'en' ? 'Focus session' : 'جلسة تركيز'
+                        });
+                    } catch (e) {}
+                }
+                // complete linked items
+                if (this.taskId != null) {
+                    const task = AppState.dailyTasks.find(t => t.id === this.taskId);
+                    if (task && !task.completed) {
+                        task.completed = true;
+                        try {
+                            if (typeof recordStudyActivity === 'function') {
+                                recordStudyActivity('task', { id: task.id, title: task.title });
+                            }
+                        } catch (e) {}
+                    }
+                }
+                if (this.lectureId != null && this.courseId) {
+                    const course = AppState.studyCourses.find(c => String(c.id) === String(this.courseId));
+                    const lecture = course && (course.lectures || []).find(l => String(l.id) === String(this.lectureId));
+                    if (lecture && !lecture.studied) {
+                        lecture.studied = true;
+                        try {
+                            if (typeof scheduleReviewsForLecture === 'function') scheduleReviewsForLecture(course, lecture);
+                        } catch (e) {}
+                        try {
+                            if (typeof recordStudyActivity === 'function') {
+                                recordStudyActivity('lecture', {
+                                    id: lecture.id, courseId: course.id, courseTitle: course.title, title: lecture.title
+                                });
+                            }
+                        } catch (e) {}
+                    }
+                }
+                if (this.sessionId) this.removeSession(this.sessionId);
+                // also clear any paused for same task
+                if (this.taskId != null) {
+                    AppState.focusSessionsToday = (AppState.focusSessionsToday || []).filter(x =>
+                        !(Number(x.taskId) === Number(this.taskId))
+                    );
+                    saveFocusSessions();
+                }
+                this.elapsedSec = 0;
+                this.taskId = null;
+                this.lectureId = null;
+                this.courseId = null;
+                this.sessionId = null;
+                saveStateToStorage();
+                this.hideOverlay();
+                this.hideNudge();
                 const btn = document.getElementById('focusToggleBtn');
                 if (btn) btn.innerHTML = `<i class="fa-solid fa-play ml-1"></i><span>${t('start')}</span>`;
-                if (saveSession && this.elapsedSec >= 60 && this.courseId) {
-                    const minutes = Math.max(1, Math.round(this.elapsedSec / 60));
-                    addStudySession({ courseId: this.courseId, minutes, note: AppState.uiLang === 'en' ? 'Focus session' : 'جلسة تركيز' });
-                    renderTodayBoard();
-                }
+                try { renderDailyTasks(); } catch (e) {}
+                try { renderCourses(); } catch (e) {}
+                try { renderTodayBoard(); } catch (e) {}
+                try { renderProgressModule(); } catch (e) {}
+                try { renderStudyHistory(); } catch (e) {}
+                try { updateStudyDashboardStats(); } catch (e) {}
+                try { checkAllTasksCompleted(); } catch (e) {}
+                renderResumeSessions();
             },
 
             reset() {
-                if (this.running) this.stop(false);
+                if (this.running) {
+                    this.running = false;
+                    clearInterval(this.interval);
+                }
                 this.elapsedSec = 0;
+                this.nudgeShown = false;
+                this.hideNudge();
+                const btn = document.getElementById('focusToggleBtn');
+                if (btn) btn.innerHTML = `<i class="fa-solid fa-play ml-1"></i><span>${t('start')}</span>`;
                 this.syncDisplay();
             },
 
+            showNudge() {
+                const box = document.getElementById('focusNudgeBox');
+                const tx = document.getElementById('focusNudgeText');
+                if (tx) tx.textContent = AppState.uiLang === 'en'
+                    ? 'Good time for a short break?'
+                    : 'وقت مناسب لاستراحة قصيرة؟';
+                if (box) box.classList.remove('hidden');
+            },
+
+            hideNudge() {
+                document.getElementById('focusNudgeBox')?.classList.add('hidden');
+            },
+
             syncDisplay() {
-                const mins = Math.floor(this.elapsedSec / 60);
-                const secs = this.elapsedSec % 60;
                 const timer = document.getElementById('focusModeTimer');
-                if (timer) timer.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                const m = Math.floor(this.elapsedSec / 60);
+                const s = this.elapsedSec % 60;
+                if (timer) timer.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
                 const el = document.getElementById('focusElapsed');
-                if (el) el.textContent = String(mins);
+                if (el) el.textContent = String(Math.floor(this.elapsedSec / 60));
+                this.updateSubjectLabel();
             }
         };
 
@@ -4402,5 +4889,10 @@
             initAiChatModule();
         };
     </script>
+
+    <footer class="border-t border-slate-800/60 mt-8 py-5 px-4 lg:px-8">
+        <p class="text-xs text-slate-400 text-center" data-i18n-static="footer_about">P.U.D — لوحة تخطيط جامعي شخصية. بياناتك تُحفظ محليًا على جهازك.</p>
+    </footer>
+
 </body>
 </html>
