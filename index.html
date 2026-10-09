@@ -1192,7 +1192,7 @@
             const firstUserMessage = AppState.chatHistory.find(message => message.sender === 'user' && message.text);
             const migratedConversation = {
                 id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                title: firstUserMessage ? firstUserMessage.text.slice(0, 36) : (typeof t==='function'?t('new_conversation'):'New chat'),
+                title: firstUserMessage ? firstUserMessage.text.slice(0, 36) : 'New chat',
                 messages: AppState.chatHistory,
                 updatedAt: new Date().toISOString()
             };
@@ -3956,7 +3956,7 @@
 
 
         // ===== i18n · Theme · Today · Focus =====
-        const I18N = {
+        var I18N = {
             ar: {
                 nav_sections: 'أقسام اللوحة', nav_daily: 'المهام اليومية', nav_courses: 'المواد والدروس',
                 nav_history: 'سجل الإنجاز', nav_progress: 'جلسات · مراجعات · درجات', nav_weekly: 'خطة الأسبوع',
@@ -4241,8 +4241,10 @@
         }
 
         function t(key) {
-            const lang = AppState.uiLang === 'en' ? 'en' : 'ar';
-            return (I18N[lang] && I18N[lang][key]) || (I18N.ar[key]) || key;
+            if (!I18N) return key;
+            const lang = (typeof AppState !== 'undefined' && AppState.uiLang === 'en') ? 'en' : 'ar';
+            const dict = I18N[lang] || I18N.ar || {};
+            return (dict[key] != null ? dict[key] : (I18N.ar && I18N.ar[key] != null ? I18N.ar[key] : key));
         }
 
         function applyLanguage() {
