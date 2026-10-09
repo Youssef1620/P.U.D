@@ -3,10 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="google-site-verification" content="SCsRoBL202QOpkh9ZLPJf6hepiJjPIequyfG95Zri10" />
     <title>P.U.D - Personal University Dashboard</title>
-    <meta name="description" content="P.U.D is a personal student dashboard for tracking lectures, managing daily tasks, and boosting productivity with built-in study tools.">
-    <meta name="robots" content="index, follow">
     
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -325,6 +322,109 @@
             background: linear-gradient(90deg, #0891b2, #059669);
             transition: width 0.4s ease;
         }
+
+        /* Unified checkbox style + complete animation (tasks & lectures) */
+        .task-checkbox,
+        .lecture-studied-checkbox {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            width: 1.2rem !important;
+            height: 1.2rem !important;
+            min-width: 1.2rem;
+            min-height: 1.2rem;
+            border: 2px solid #64748b !important;
+            border-radius: 0.3rem !important;
+            background-color: transparent !important;
+            background-image: none !important;
+            cursor: pointer;
+            position: relative;
+            flex-shrink: 0;
+            padding: 0 !important;
+            margin: 0;
+            vertical-align: middle;
+            transition: border-color 0.15s ease, background-color 0.15s ease;
+            display: inline-block;
+            box-sizing: border-box;
+        }
+        .task-checkbox:hover:not(:disabled),
+        .lecture-studied-checkbox:hover:not(:disabled) {
+            border-color: #22d3ee !important;
+        }
+        .task-checkbox:checked,
+        .lecture-studied-checkbox:checked {
+            background-color: #06b6d4 !important;
+            border-color: #06b6d4 !important;
+        }
+        /* Centered checkmark using flex on pseudo — 50% / 50% */
+        .task-checkbox:checked::after,
+        .lecture-studied-checkbox:checked::after {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.72rem;
+            font-weight: 800;
+            line-height: 1;
+            color: #0f172a;
+            border: none;
+            transform: none;
+            pointer-events: none;
+        }
+        .task-checkbox:disabled,
+        .lecture-studied-checkbox:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+        .task-checkbox.anim-complete,
+        .lecture-studied-checkbox.anim-complete {
+            animation: checkCompletePop 0.6s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+        }
+        @keyframes checkCompletePop {
+            0% {
+                transform: scale(1);
+                border-radius: 0.3rem;
+                background-color: transparent;
+                border-color: #22d3ee;
+            }
+            30% {
+                transform: scale(0.45);
+                border-radius: 50%;
+                background-color: transparent;
+                border-color: #22d3ee;
+                box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.5);
+            }
+            55% {
+                transform: scale(1.35);
+                border-radius: 0.35rem;
+                background-color: #22d3ee;
+                border-color: #22d3ee;
+                box-shadow: 0 0 12px 2px rgba(34, 211, 238, 0.45);
+            }
+            100% {
+                transform: scale(1);
+                border-radius: 0.3rem;
+                background-color: #06b6d4;
+                border-color: #06b6d4;
+                box-shadow: none;
+            }
+        }
+        html:not(.dark) .task-checkbox,
+        html:not(.dark) .lecture-studied-checkbox {
+            border-color: #64748b !important;
+        }
+        html:not(.dark) .task-checkbox:checked,
+        html:not(.dark) .lecture-studied-checkbox:checked,
+        html:not(.dark) .task-checkbox.anim-complete,
+        html:not(.dark) .lecture-studied-checkbox.anim-complete {
+            background-color: #0891b2 !important;
+            border-color: #0891b2 !important;
+        }
+
     </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased text-slate-100 overflow-x-hidden selection:bg-cyan-500 selection:text-slate-900">
@@ -1648,18 +1748,31 @@
             });
 
             document.getElementById('confirmYesBtn').addEventListener('click', () => {
-                if (AppState.selectedTaskToComplete) {
-                    const task = AppState.dailyTasks.find(t => t.id === AppState.selectedTaskToComplete);
-                    if (task) {
-                        task.completed = true;
-                        recordStudyActivity('task', task);
-                        saveStateToStorage();
-                        renderDailyTasks();
-                        renderStudyHistory();
-                        checkAllTasksCompleted();
-                    }
-                }
+                const taskId = AppState.selectedTaskToComplete;
                 closeModal('confirmTaskModal');
+                if (!taskId) return;
+                const task = AppState.dailyTasks.find(t => t.id === taskId);
+                if (!task || task.completed) return;
+
+                const cb = document.querySelector(`.task-checkbox[data-id="${taskId}"]`);
+                if (cb) {
+                    cb.checked = true;
+                    cb.classList.remove('anim-complete');
+                    // reflow so animation restarts
+                    void cb.offsetWidth;
+                    cb.classList.add('anim-complete');
+                }
+
+                setTimeout(() => {
+                    task.completed = true;
+                    try { recordStudyActivity('task', task); } catch (e) {}
+                    saveStateToStorage();
+                    renderDailyTasks();
+                    try { renderStudyHistory(); } catch (e) {}
+                    try { renderTodayBoard(); } catch (e) {}
+                    checkAllTasksCompleted();
+                    AppState.selectedTaskToComplete = null;
+                }, 620);
             });
 
             document.getElementById('confirmNoBtn').addEventListener('click', () => {
@@ -1687,17 +1800,17 @@
                 if (task.completed) completedCount++;
 
                 const taskEl = document.createElement('div');
-                taskEl.className = `flex items-center justify-between p-3.5 rounded-xl border transition-all ${task.completed ? 'bg-slate-900/40 border-slate-800/50 opacity-60' : 'bg-slate-800/40 border-slate-700/60'}`;
+                taskEl.className = `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 p-3.5 rounded-xl border transition-all ${task.completed ? 'bg-slate-900/40 border-slate-800/50 opacity-60' : 'bg-slate-800/40 border-slate-700/60'}`;
 
                 let priorityBadge = task.priority === 'عالي' ? `<span class="text-[10px] px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-400 font-bold border border-rose-500/30">${t('prio_high')}</span>` : task.priority === 'متوسط' ? `<span class="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30">${t('prio_med')}</span>` : `<span class="text-[10px] px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-400 font-bold border border-cyan-500/30">${t('prio_low')}</span>`;
 
                 const locked = typeof isTaskInFocusSession === 'function' && isTaskInFocusSession(task.id);
                 taskEl.innerHTML = `
-                    <div class="flex items-center gap-3 min-w-0">
-                        <input type="checkbox" ${task.completed ? 'checked disabled' : (locked ? 'disabled' : '')} class="w-4 h-4 accent-cyan-400 rounded ${locked && !task.completed ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} task-checkbox shrink-0" data-id="${task.id}" title="${locked ? (AppState.uiLang==='en'?'Finish Focus first':'أنهِ التركيز أولًا') : ''}">
-                        <span class="text-sm text-slate-200 min-w-0 break-words ${task.completed ? 'line-through text-slate-400' : ''}">${escapeHTML(task.title)}${locked ? ` <span class="text-[10px] text-emerald-400 font-bold">(${AppState.uiLang==='en'?'in focus':'في التركيز'})</span>` : ''}</span>
+                    <div class="flex items-start gap-3 min-w-0 w-full">
+                        <input type="checkbox" ${task.completed ? 'checked disabled' : (locked ? 'disabled' : '')} class="mt-0.5 task-checkbox ${locked && !task.completed ? 'opacity-40' : ''}" data-id="${task.id}" title="${locked ? (AppState.uiLang==='en'?'Finish Focus first':'أنهِ التركيز أولًا') : ''}">
+                        <span class="text-sm text-slate-200 min-w-0 flex-1 break-words leading-snug ${task.completed ? 'line-through text-slate-400' : ''}">${escapeHTML(task.title)}${locked ? ` <span class="text-[10px] text-emerald-400 font-bold whitespace-nowrap">(${AppState.uiLang==='en'?'in focus':'في التركيز'})</span>` : ''}</span>
                     </div>
-                    <div class="flex items-center gap-2 shrink-0">
+                    <div class="flex items-center gap-2 shrink-0 flex-wrap ps-7 sm:ps-0">
                         ${priorityBadge}
                         ${!task.completed ? `<button type="button" class="focus-task-btn text-xs ${locked ? 'text-emerald-300 bg-emerald-500/20 ring-1 ring-emerald-400/50' : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'} transition-colors p-1.5 rounded-lg" data-id="${task.id}" title="${locked ? (AppState.uiLang==='en'?'Resume Focus':'استكمال التركيز') : 'Focus'}"><i class="fa-solid fa-bullseye"></i></button>` : ''}
                         <button class="edit-task-btn text-xs text-slate-400 ${locked ? 'opacity-30 pointer-events-none' : 'hover:text-cyan-400'} transition-colors p-1" data-id="${task.id}" title="تعديل الاسم"><i class="fa-solid fa-pen"></i></button>
@@ -1838,22 +1951,38 @@
                 const course = AppState.studyCourses.find(item => String(item.id) === checkbox.dataset.courseId);
                 const lecture = course?.lectures.find(item => String(item.id) === checkbox.dataset.lectureId);
                 if (!course || !lecture) return;
-                lecture.studied = checkbox.checked;
-                if (lecture.studied) {
-                    recordStudyActivity('lecture', {
-                        id: lecture.id,
-                        courseId: course.id,
-                        courseTitle: course.title,
-                        title: lecture.title
-                    });
-                    scheduleReviewsForLecture(course, lecture);
+
+                const willStudy = checkbox.checked;
+                if (willStudy) {
+                    // play animation, then commit
+                    checkbox.classList.remove('anim-complete');
+                    void checkbox.offsetWidth;
+                    checkbox.classList.add('anim-complete');
+                    setTimeout(() => {
+                        lecture.studied = true;
+                        try {
+                            recordStudyActivity('lecture', {
+                                id: lecture.id,
+                                courseId: course.id,
+                                courseTitle: course.title,
+                                title: lecture.title
+                            });
+                            scheduleReviewsForLecture(course, lecture);
+                        } catch (e) {}
+                        renderCourses();
+                        updateStudyDashboardStats();
+                        try { renderStudyHistory(); } catch (e) {}
+                        try { renderProgressModule(); } catch (e) {}
+                        try { renderTodayBoard(); } catch (e) {}
+                    }, 620);
                 } else {
+                    lecture.studied = false;
                     saveStateToStorage();
+                    renderCourses();
+                    updateStudyDashboardStats();
+                    try { renderStudyHistory(); } catch (e) {}
+                    try { renderProgressModule(); } catch (e) {}
                 }
-                renderCourses();
-                updateStudyDashboardStats();
-                renderStudyHistory();
-                renderProgressModule();
             });
 
             document.getElementById('coursesList').addEventListener('click', event => {
@@ -1957,7 +2086,7 @@
                     ? lectures.map(lecture => `
                         <div class="flex items-center justify-between gap-3 rounded-xl bg-slate-900/60 border border-slate-800 px-3 py-2.5">
                             <label class="flex min-w-0 items-center gap-3 cursor-pointer">
-                                <input type="checkbox" class="lecture-studied-checkbox w-4 h-4 accent-emerald-400 rounded" data-course-id="${escapeHTML(String(course.id))}" data-lecture-id="${escapeHTML(String(lecture.id))}" ${lecture.studied ? 'checked' : ''}>
+                                <input type="checkbox" class="lecture-studied-checkbox" data-course-id="${escapeHTML(String(course.id))}" data-lecture-id="${escapeHTML(String(lecture.id))}" ${lecture.studied ? 'checked' : ''}>
                                 <span class="min-w-0">
                                     <span class="block text-sm ${lecture.studied ? 'text-slate-400 line-through' : 'text-slate-200'}">${escapeHTML(String(lecture.title || (AppState.uiLang==='en'?'Untitled lecture':'درس بدون عنوان')))}</span>
                                     <span class="text-[10px] text-slate-500">${lecture.studied ? t('studied') : t('not_studied')}</span>
