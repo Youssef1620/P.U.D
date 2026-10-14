@@ -967,11 +967,11 @@
                             <label class="text-[10px] text-slate-500 font-bold block mb-1" data-i18n="tt_day">اليوم</label>
                             <select id="ttDaySelect" class="w-full glass-input px-2 py-2 rounded-xl text-xs bg-slate-900" required></select>
                         </div>
-                        <div>
+                        <div id="ttStartWrap">
                             <label class="text-[10px] text-slate-500 font-bold block mb-1" data-i18n="tt_start">من</label>
                             <input type="time" id="ttStartInput" value="08:00" class="w-full glass-input px-2 py-2 rounded-xl text-xs bg-slate-900" required>
                         </div>
-                        <div>
+                        <div id="ttEndWrap">
                             <label class="text-[10px] text-slate-500 font-bold block mb-1" data-i18n="tt_end">إلى</label>
                             <input type="time" id="ttEndInput" value="09:30" class="w-full glass-input px-2 py-2 rounded-xl text-xs bg-slate-900" required>
                         </div>
@@ -985,10 +985,11 @@
                                 <option value="lecture" data-i18n="tt_type_lecture">محاضرة</option>
                                 <option value="section" data-i18n="tt_type_section">سكشن</option>
                                 <option value="lab" data-i18n="tt_type_lab">لاب</option>
+                                <option value="holiday" data-i18n="tt_type_holiday">إجازة</option>
                                 <option value="other" data-i18n="tt_type_other">أخرى</option>
                             </select>
                         </div>
-                        <div>
+                        <div id="ttLocationWrap">
                             <label class="text-[10px] text-slate-500 font-bold block mb-1" data-i18n="tt_location">القاعة (اختياري)</label>
                             <input type="text" id="ttLocationInput" class="w-full glass-input px-2 py-2 rounded-xl text-xs" data-i18n-placeholder="ph_tt_location" placeholder="A-12" maxlength="60">
                         </div>
@@ -1468,7 +1469,7 @@
                             start: String(item.start || '08:00').slice(0, 5),
                             end: String(item.end || '09:00').slice(0, 5),
                             title: String(item.title || '').trim() || '—',
-                            type: ['lecture', 'section', 'lab', 'other'].includes(item.type) ? item.type : 'lecture',
+                            type: ['lecture', 'section', 'lab', 'holiday', 'other'].includes(item.type) ? item.type : (isHolidaySlot(item) ? 'holiday' : 'lecture'),
                             location: String(item.location || '').trim(),
                             courseId: item.courseId ? String(item.courseId) : ''
                         };
@@ -1489,7 +1490,8 @@
                         title = s.replace(m[0], '').replace(/[()]/g, '').trim() || s;
                     }
                     let type = 'lecture';
-                    if (/سكشن|section|تمرين/i.test(s)) type = 'section';
+                    if (/إجازة|اجازة|holiday|day\s*off/i.test(s)) type = 'holiday';
+                    else if (/سكشن|section|تمرين/i.test(s)) type = 'section';
                     else if (/لاب|معمل|lab/i.test(s)) type = 'lab';
                     return { id: createTimetableId() + '-' + idx, start, end, title: title || s || '—', type, location: '', courseId: '' };
                 }).sort((a, b) => String(a.start).localeCompare(String(b.start)));
@@ -2441,16 +2443,44 @@
             }).join('');
         }
 
+        function isHolidaySlot(item) {
+            if (!item) return false;
+            if (item.type === 'holiday') return true;
+            const title = String(item.title || '');
+            return /إجازة|اجازة|holiday|day\s*off|off\s*day/i.test(title);
+        }
+
         function timetableTypeLabel(type) {
-            const map = { lecture: t('tt_type_lecture'), section: t('tt_type_section'), lab: t('tt_type_lab'), other: t('tt_type_other') };
+            const map = {
+                lecture: t('tt_type_lecture'), section: t('tt_type_section'), lab: t('tt_type_lab'),
+                holiday: t('tt_type_holiday'), other: t('tt_type_other')
+            };
             return map[type] || map.lecture;
         }
 
         function timetableTypeClass(type) {
             if (type === 'section') return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
             if (type === 'lab') return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
+            if (type === 'holiday') return 'border-rose-500/30 bg-rose-500/10 text-rose-300';
             if (type === 'other') return 'border-slate-600 bg-slate-800/60 text-slate-300';
             return 'border-indigo-500/30 bg-indigo-500/10 text-indigo-300';
+        }
+
+        function syncTimetableFormByType() {
+            const type = document.getElementById('ttTypeSelect')?.value || 'lecture';
+            const isHol = type === 'holiday';
+            ['ttStartWrap', 'ttEndWrap', 'ttLocationWrap'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.toggle('hidden', isHol);
+            });
+            const start = document.getElementById('ttStartInput');
+            const end = document.getElementById('ttEndInput');
+            const title = document.getElementById('ttTitleInput');
+            if (start) start.required = !isHol;
+            if (end) end.required = !isHol;
+            if (isHol && title && !title.value.trim()) {
+                title.value = AppState.uiLang === 'en' ? 'Day off' : 'إجازة';
+            }
         }
 
         function getTodayWeekdayKey() {
@@ -2477,23 +2507,38 @@
             const form = document.getElementById('addTimetableForm');
             if (form && !form.dataset.bound) {
                 form.dataset.bound = '1';
+                document.getElementById('ttTypeSelect')?.addEventListener('change', syncTimetableFormByType);
+                syncTimetableFormByType();
                 form.addEventListener('submit', (e) => {
                     e.preventDefault();
                     const day = document.getElementById('ttDaySelect').value;
-                    const start = document.getElementById('ttStartInput').value;
-                    const end = document.getElementById('ttEndInput').value;
-                    const title = document.getElementById('ttTitleInput').value.trim();
                     const type = document.getElementById('ttTypeSelect').value || 'lecture';
-                    const location = document.getElementById('ttLocationInput').value.trim();
-                    if (!day || !start || !end || !title) return;
+                    const isHol = type === 'holiday';
+                    let start = document.getElementById('ttStartInput').value;
+                    let end = document.getElementById('ttEndInput').value;
+                    let title = document.getElementById('ttTitleInput').value.trim();
+                    const location = isHol ? '' : document.getElementById('ttLocationInput').value.trim();
+                    if (isHol) {
+                        start = '';
+                        end = '';
+                        if (!title) title = AppState.uiLang === 'en' ? 'Day off' : 'إجازة';
+                    }
+                    if (!day || !title) return;
+                    if (!isHol && (!start || !end)) return;
                     if (!Array.isArray(AppState.weeklyPlanner[day])) AppState.weeklyPlanner[day] = [];
                     AppState.weeklyPlanner[day].push({
                         id: createTimetableId(), start, end, title, type, location, courseId: ''
                     });
-                    AppState.weeklyPlanner[day].sort((a, b) => String(a.start).localeCompare(String(b.start)));
+                    AppState.weeklyPlanner[day].sort((a, b) => {
+                        if (!a.start && b.start) return -1;
+                        if (a.start && !b.start) return 1;
+                        return String(a.start || '').localeCompare(String(b.start || ''));
+                    });
                     saveStateToStorage();
                     document.getElementById('ttTitleInput').value = '';
                     document.getElementById('ttLocationInput').value = '';
+                    document.getElementById('ttTypeSelect').value = 'lecture';
+                    syncTimetableFormByType();
                     renderWeeklyPlanner();
                     try { renderOpenReminders(); } catch (err) {}
                 });
@@ -2519,16 +2564,31 @@
                 dayCard.className = 'glass-panel rounded-2xl p-4 border flex flex-col space-y-3 ' + (isToday ? 'border-indigo-500/40' : 'border-slate-800');
 
                 let itemsHTML = items.map((item) => {
-                    const time = `${escapeHTML(item.start)}–${escapeHTML(item.end)}`;
-                    const loc = item.location ? ` · ${escapeHTML(item.location)}` : '';
+                    const hol = isHolidaySlot(item) || item.type === 'holiday';
+                    const typeKey = hol ? 'holiday' : (item.type || 'lecture');
+                    if (hol) {
+                        return `
+                    <div class="rounded-xl border border-rose-500/25 bg-rose-500/5 p-2.5 space-y-1.5" data-slot-id="${escapeHTML(String(item.id))}">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[9px] px-1.5 py-0.5 rounded-md border font-bold ${timetableTypeClass('holiday')}">${escapeHTML(timetableTypeLabel('holiday'))}</span>
+                            <div class="flex items-center gap-1">
+                                <button type="button" class="edit-tt-btn text-[10px] text-slate-400 hover:text-cyan-400 px-1.5 py-0.5" data-day="${escapeHTML(day)}" data-id="${escapeHTML(String(item.id))}" title="${t('edit')}"><i class="fa-solid fa-pen"></i></button>
+                                <button type="button" class="remove-tt-btn text-[10px] text-slate-400 hover:text-rose-400 px-1.5 py-0.5" data-day="${escapeHTML(day)}" data-id="${escapeHTML(String(item.id))}" title="${t('del')}"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                        </div>
+                        <p class="text-sm text-rose-200 font-bold leading-snug text-center py-1"><i class="fa-solid fa-umbrella-beach ml-1 opacity-80"></i>${escapeHTML(item.title || timetableTypeLabel('holiday'))}</p>
+                    </div>`;
+                    }
+                    const time = (item.start || item.end) ? `${escapeHTML(item.start || '')}${item.start && item.end ? '–' : ''}${escapeHTML(item.end || '')}` : '';
+                    const loc = item.location ? escapeHTML(item.location) : '';
                     return `
                     <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-2.5 space-y-1.5" data-slot-id="${escapeHTML(String(item.id))}">
                         <div class="flex items-center justify-between gap-2">
                             <span class="text-[11px] font-mono font-bold text-cyan-300">${time}</span>
-                            <span class="text-[9px] px-1.5 py-0.5 rounded-md border font-bold ${timetableTypeClass(item.type)}">${escapeHTML(timetableTypeLabel(item.type))}</span>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded-md border font-bold ${timetableTypeClass(typeKey)}">${escapeHTML(timetableTypeLabel(typeKey))}</span>
                         </div>
                         <p class="text-xs text-slate-100 font-bold leading-snug">${escapeHTML(item.title)}</p>
-                        ${loc ? `<p class="text-[10px] text-slate-500"><i class="fa-solid fa-location-dot ml-1"></i>${loc.replace(/^ · /, '')}</p>` : ''}
+                        ${loc ? `<p class="text-[10px] text-slate-500"><i class="fa-solid fa-location-dot ml-1"></i>${loc}</p>` : ''}
                         <div class="flex items-center gap-1 pt-0.5">
                             <button type="button" class="edit-tt-btn text-[10px] text-slate-400 hover:text-cyan-400 px-1.5 py-0.5" data-day="${escapeHTML(day)}" data-id="${escapeHTML(String(item.id))}" title="${t('edit')}"><i class="fa-solid fa-pen"></i></button>
                             <button type="button" class="remove-tt-btn text-[10px] text-slate-400 hover:text-rose-400 px-1.5 py-0.5" data-day="${escapeHTML(day)}" data-id="${escapeHTML(String(item.id))}" title="${t('del')}"><i class="fa-solid fa-xmark"></i></button>
@@ -2566,15 +2626,28 @@
                     if (!slot) return;
                     const title = prompt(AppState.uiLang === 'en' ? 'Title:' : 'العنوان:', slot.title);
                     if (title == null) return;
-                    const start = prompt(AppState.uiLang === 'en' ? 'Start (HH:MM):' : 'من (س:د):', slot.start) || slot.start;
-                    const end = prompt(AppState.uiLang === 'en' ? 'End (HH:MM):' : 'إلى (س:د):', slot.end) || slot.end;
-                    const location = prompt(AppState.uiLang === 'en' ? 'Room (optional):' : 'القاعة (اختياري):', slot.location || '');
-                    if (location == null) return;
                     slot.title = title.trim() || slot.title;
-                    slot.start = String(start).slice(0, 5);
-                    slot.end = String(end).slice(0, 5);
-                    slot.location = String(location).trim();
-                    AppState.weeklyPlanner[day].sort((a, b) => String(a.start).localeCompare(String(b.start)));
+                    if (isHolidaySlot(slot) || slot.type === 'holiday') {
+                        slot.type = 'holiday';
+                        slot.start = '';
+                        slot.end = '';
+                        slot.location = '';
+                    } else {
+                        const start = prompt(AppState.uiLang === 'en' ? 'Start (HH:MM):' : 'من (س:د):', slot.start || '08:00');
+                        if (start == null) return;
+                        const end = prompt(AppState.uiLang === 'en' ? 'End (HH:MM):' : 'إلى (س:د):', slot.end || '09:30');
+                        if (end == null) return;
+                        const location = prompt(AppState.uiLang === 'en' ? 'Room (optional):' : 'القاعة (اختياري):', slot.location || '');
+                        if (location == null) return;
+                        slot.start = String(start).slice(0, 5);
+                        slot.end = String(end).slice(0, 5);
+                        slot.location = String(location).trim();
+                    }
+                    AppState.weeklyPlanner[day].sort((a, b) => {
+                        if (!a.start && b.start) return -1;
+                        if (a.start && !b.start) return 1;
+                        return String(a.start || '').localeCompare(String(b.start || ''));
+                    });
                     saveStateToStorage();
                     renderWeeklyPlanner();
                     try { renderOpenReminders(); } catch (e) {}
@@ -3750,7 +3823,7 @@ ${JSON.stringify(recentChat)}
 7) ADD_LECTURE — {"courseTitle":"...","title":"..."} أو courseId
 8) MARK_LECTURE_STUDIED — {"courseTitle":"...","lectureTitle":"...","studied":true}
 9) DELETE_LECTURE — {"courseTitle":"...","lectureTitle":"..."}
-10) ADD_TIMETABLE_SLOT — {"day":"السبت","start":"08:00","end":"09:30","title":"...","type":"lecture|section|lab|other","location":""}
+10) ADD_TIMETABLE_SLOT — {"day":"السبت","start":"08:00","end":"09:30","title":"...","type":"lecture|section|lab|holiday|other","location":""}
 11) SET_TIMETABLE_DAY — {"day":"السبت","slots":[{"start":"08:00","end":"09:30","title":"...","type":"lecture","location":""}]}
 12) REMOVE_TIMETABLE_SLOT — {"day":"...","title":"جزء"} أو {"day":"...","id":"..."}
 13) CLEAR_TIMETABLE — {} أو {"day":"السبت"}
@@ -4114,7 +4187,7 @@ ${JSON.stringify(recentChat)}
                         if (WEEK_DAYS.includes(day)) {
                             if (!Array.isArray(AppState.weeklyPlanner[day])) AppState.weeklyPlanner[day] = [];
                             let type = String(data.type || 'lecture').toLowerCase();
-                            if (!['lecture', 'section', 'lab', 'other'].includes(type)) {
+                            if (!['lecture', 'section', 'lab', 'holiday', 'other'].includes(type)) {
                                 if (/سكشن|section/i.test(data.title || '')) type = 'section';
                                 else if (/لاب|lab/i.test(data.title || '')) type = 'lab';
                                 else type = 'lecture';
@@ -4164,7 +4237,7 @@ ${JSON.stringify(recentChat)}
                                 start: String(s.start || '08:00').slice(0, 5),
                                 end: String(s.end || '09:30').slice(0, 5),
                                 title: String(s.title || '').trim() || '—',
-                                type: ['lecture', 'section', 'lab', 'other'].includes(s.type) ? s.type : 'lecture',
+                                type: ['lecture', 'section', 'lab', 'holiday', 'other'].includes(s.type) ? s.type : 'lecture',
                                 location: String(s.location || '').trim(),
                                 courseId: s.courseId ? String(s.courseId) : ''
                             })).sort((a, b) => String(a.start).localeCompare(String(b.start)));
@@ -4891,7 +4964,7 @@ ${JSON.stringify(recentChat)}
                 grades_title: 'الدرجات والمعدل المتوقع', grades_sub: 'أدخل درجاتك وأوزانها. يُحسب المعدل تلقائيًا.',
                 weekly_title: 'جدول المحاضرات الأسبوعي', weekly_sub: 'سجّل محاضراتك وسكاشنك باليوم والساعة. يمكن للـ AI قراءة جدولك وملء هذا القسم.',
                 tt_add_slot: 'إضافة حصة', tt_day: 'اليوم', tt_start: 'من', tt_end: 'إلى', tt_title: 'المادة / العنوان',
-                tt_type: 'النوع', tt_type_lecture: 'محاضرة', tt_type_section: 'سكشن', tt_type_lab: 'لاب', tt_type_other: 'أخرى',
+                tt_type: 'النوع', tt_type_lecture: 'محاضرة', tt_type_section: 'سكشن', tt_type_lab: 'لاب', tt_type_holiday: 'إجازة', tt_type_other: 'أخرى',
                 tt_location: 'القاعة (اختياري)', tt_ai_hint: 'نصيحة: الصق جدولك في محادثة الـ AI واطلب «املأ جدول المحاضرات».',
                 ph_tt_title: 'مثال: رياضيات 1', ph_tt_location: 'A-12',
                 mistakes_title: 'بنك الأخطاء', mistakes_sub: 'سجّل الأخطاء المتكررة والإجابات الصحيحة. يمكن للـ AI تحليل ملف أخطاء وملء هذا القسم.',
@@ -5021,7 +5094,7 @@ ${JSON.stringify(recentChat)}
                 grades_title: 'Grades & expected score', grades_sub: 'Enter scores and weights. Expected average is calculated automatically.',
                 weekly_title: 'Weekly lecture timetable', weekly_sub: 'Log lectures and sections by day and time. AI can read your schedule and fill this section.',
                 tt_add_slot: 'Add slot', tt_day: 'Day', tt_start: 'From', tt_end: 'To', tt_title: 'Course / title',
-                tt_type: 'Type', tt_type_lecture: 'Lecture', tt_type_section: 'Section', tt_type_lab: 'Lab', tt_type_other: 'Other',
+                tt_type: 'Type', tt_type_lecture: 'Lecture', tt_type_section: 'Section', tt_type_lab: 'Lab', tt_type_holiday: 'Day off', tt_type_other: 'Other',
                 tt_location: 'Room (optional)', tt_ai_hint: 'Tip: paste your schedule in AI chat and ask to fill the timetable.',
                 ph_tt_title: 'e.g. Calculus 1', ph_tt_location: 'A-12',
                 mistakes_title: 'Mistake bank', mistakes_sub: 'Log recurring mistakes with correct answers. AI can parse an error file into this section.',
