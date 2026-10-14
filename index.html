@@ -436,6 +436,77 @@
         }
 
 
+        /* Chat composer: wrap lines, grow upward, scroll inside */
+        #chatTextInput {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            field-sizing: content; /* modern browsers */
+        }
+
+        /* Sidebar open/close soft animation (esp. mobile hamburger) */
+        #sidebar {
+            transform-origin: top center;
+            transition: opacity 0.32s ease, transform 0.32s ease, max-height 0.38s ease, margin 0.32s ease, padding 0.32s ease;
+            max-height: 2000px;
+            opacity: 1;
+        }
+        #sidebar.sidebar-anim-closed {
+            max-height: 0 !important;
+            opacity: 0;
+            transform: translateY(-10px);
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            overflow: hidden !important;
+            pointer-events: none;
+            border: none !important;
+        }
+        @media (min-width: 768px) {
+            #sidebar.sidebar-anim-closed {
+                /* on desktop keep toggle but still animate */
+            }
+        }
+
+        /* Chat bubbles: wrap text, never grow sideways */
+        #chatMessagesContainer {
+            min-width: 0;
+            overflow-x: hidden;
+        }
+        #chatMessagesContainer .chat-bubble-wrapper {
+            max-width: 100%;
+            min-width: 0;
+        }
+        #chatMessagesContainer .chat-bubble {
+            max-width: min(80%, 36rem);
+            min-width: 0;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+        #chatMessagesContainer .chat-bubble-text {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            white-space: pre-wrap;
+            max-width: 100%;
+        }
+
+        /* Tab switch: soft fade + slight rise */
+        .tab-content {
+            animation: none;
+        }
+        .tab-content.tab-enter {
+            animation: tabFadeIn 0.28s ease-out;
+        }
+        @keyframes tabFadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .tab-content.tab-enter {
+            animation-duration: 0.4s;
+        }
+
         /* Rocket faces RIGHT-UP and flies RIGHT-UP (same direction) */
         #motivRocketCard {
             cursor: pointer;
@@ -1408,7 +1479,7 @@
                         <p class="text-[11px] text-slate-400">سيتم تحليل الصورة المرفقة بواسطة Gemini...</p>
                     </div>
 
-                    <form id="chatForm" class="pt-3 border-t border-slate-800 flex items-center gap-2">
+                    <form id="chatForm" class="pt-3 border-t border-slate-800 flex items-end gap-2">
                         <input type="file" id="chatImageInput" accept="image/*" class="hidden">
                         <button type="button" id="triggerImageBtn" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-cyan-400 transition-all border border-slate-700/60" title="إرفاق صورة">
                             <i class="fa-solid fa-paperclip text-sm"></i>
@@ -1418,7 +1489,7 @@
                             <i class="fa-solid fa-microphone text-sm"></i>
                         </button>
 
-                        <input type="text" id="chatTextInput" placeholder="Ask a question or request tasks..." data-i18n-placeholder="ph_chat" class="flex-1 glass-input px-4 py-2.5 rounded-xl text-sm" autocomplete="off">
+                        <textarea id="chatTextInput" rows="1" placeholder="Ask a question or request tasks..." data-i18n-placeholder="ph_chat" class="flex-1 glass-input px-4 py-2.5 rounded-xl text-sm resize-none overflow-y-auto" autocomplete="off" style="max-height: 8rem; min-height: 2.5rem; line-height: 1.4;"></textarea>
 
                         <button type="submit" id="sendChatBtn" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-cyan-500/20">
                             <span class="sub-ai">إرسال</span>
@@ -2060,6 +2131,8 @@
             navButtons.forEach(btn => {
                 btn.addEventListener('click', () => {
                     const targetTabId = btn.getAttribute('data-tab');
+                    const alreadyActive = btn.classList.contains('active');
+
                     navButtons.forEach(b => {
                         b.classList.remove('active', 'bg-gradient-to-r', 'from-cyan-500/20', 'to-transparent', 'text-cyan-400', 'border-r-4', 'border-cyan-400', 'font-semibold');
                         b.classList.add('text-slate-400', 'font-medium');
@@ -2068,14 +2141,45 @@
                     btn.classList.remove('text-slate-400', 'font-medium');
 
                     tabContents.forEach(content => {
-                        if (content.id === targetTabId) content.classList.remove('hidden');
-                        else content.classList.add('hidden');
+                        content.classList.remove('tab-enter');
+                        if (content.id === targetTabId) {
+                            content.classList.remove('hidden');
+                            if (!alreadyActive) {
+                                // restart fade animation
+                                void content.offsetWidth;
+                                content.classList.add('tab-enter');
+                            }
+                        } else {
+                            content.classList.add('hidden');
+                        }
                     });
                 });
             });
 
             document.getElementById('sidebarToggleBtn').addEventListener('click', () => {
-                document.getElementById('sidebar').classList.toggle('hidden');
+                const side = document.getElementById('sidebar');
+                if (!side) return;
+                // Soft open/close instead of instant display:none
+                if (side.classList.contains('hidden') || side.classList.contains('sidebar-anim-closed')) {
+                    side.classList.remove('hidden');
+                    // force reflow then open
+                    void side.offsetWidth;
+                    side.classList.remove('sidebar-anim-closed');
+                } else {
+                    side.classList.add('sidebar-anim-closed');
+                    const onEnd = (e) => {
+                        if (e.propertyName !== 'opacity' && e.propertyName !== 'max-height') return;
+                        side.removeEventListener('transitionend', onEnd);
+                        if (side.classList.contains('sidebar-anim-closed')) {
+                            side.classList.add('hidden');
+                        }
+                    };
+                    side.addEventListener('transitionend', onEnd);
+                    // fallback if transitionend missed
+                    setTimeout(() => {
+                        if (side.classList.contains('sidebar-anim-closed')) side.classList.add('hidden');
+                    }, 420);
+                }
             });
         }
 
@@ -3714,6 +3818,7 @@
                 renderChatMessages();
                 syncActiveAiConversation();
                 chatInput.value = '';
+                try { autoResizeChatInput(); } catch (e) {}
                 const imagePayload = AppState.attachedImageData;
                 clearAttachedImage();
 
@@ -3786,7 +3891,7 @@
                 const imgHTML = msg.image ? `<img src="${msg.image}" class="w-32 h-32 object-cover rounded-xl mb-2 border border-slate-700">` : '';
                 const bubbleClass = msg.sender === 'user' ? 'bg-cyan-500/25 border-cyan-500/40 text-slate-100 rounded-2xl rounded-tr-none' : 'bg-slate-800/80 border-slate-700/80 text-slate-200 rounded-2xl rounded-tl-none';
 
-                wrapper.innerHTML = `${avatar}<div class="max-w-[80%] p-3.5 border ${bubbleClass} text-xs leading-relaxed space-y-1">${imgHTML}<div class="whitespace-pre-wrap">${escapeHTML(msg.text)}</div></div>`;
+                wrapper.innerHTML = `${avatar}<div class="chat-bubble max-w-[80%] p-3.5 border ${bubbleClass} text-xs leading-relaxed space-y-1">${imgHTML}<div class="chat-bubble-text">${escapeHTML(msg.text)}</div></div>`;
                 container.appendChild(wrapper);
             });
             container.scrollTop = container.scrollHeight;
@@ -5441,6 +5546,31 @@ ${JSON.stringify(recentChat)}
             }, 480);
         }
 
+
+        function autoResizeChatInput() {
+            const el = document.getElementById('chatTextInput');
+            if (!el) return;
+            el.style.height = 'auto';
+            const next = Math.min(el.scrollHeight, 128); // ~8rem
+            el.style.height = next + 'px';
+        }
+
+        function initChatInputBehavior() {
+            const el = document.getElementById('chatTextInput');
+            if (!el || el.dataset.boundResize) return;
+            el.dataset.boundResize = '1';
+            el.addEventListener('input', autoResizeChatInput);
+            // Enter = send, Shift+Enter = new line
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    const form = document.getElementById('chatForm');
+                    if (form) form.requestSubmit();
+                }
+            });
+            autoResizeChatInput();
+        }
+
         function initMotivRocket() {
             const card = document.getElementById('motivRocketCard');
             if (!card || card.dataset.bound) return;
@@ -6219,6 +6349,7 @@ ${JSON.stringify(recentChat)}
             initProgressModule();
             initThemeLangToday();
             initMotivRocket();
+            initChatInputBehavior();
             initWeeklyPlanner();
             initMistakesModule();
             initOpenReminders();
