@@ -618,8 +618,13 @@
                     </button>
 
                     <button data-tab="tab-weekly" class="nav-btn w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
-                        <i class="fa-solid fa-calendar-week text-base"></i>
-                        <span data-i18n="nav_weekly">خطة الأسبوع</span>
+                        <i class="fa-solid fa-table-cells text-base text-indigo-400"></i>
+                        <span data-i18n="nav_weekly">جدول المحاضرات</span>
+                    </button>
+
+                    <button data-tab="tab-mistakes" class="nav-btn w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
+                        <i class="fa-solid fa-triangle-exclamation text-base text-rose-400"></i>
+                        <span data-i18n="nav_mistakes">بنك الأخطاء</span>
                     </button>
 
                     <button data-tab="tab-monthly" class="nav-btn w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
@@ -680,6 +685,19 @@
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
        
+                                <div id="openRemindersBanner" class="hidden glass-panel rounded-2xl p-4 border border-amber-500/30 space-y-2">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-start gap-2 min-w-0">
+                            <i class="fa-solid fa-bell text-amber-400 mt-0.5"></i>
+                            <div class="min-w-0">
+                                <h3 class="text-sm font-bold text-amber-300" data-i18n="reminders_title">تذكير عند الفتح</h3>
+                                <ul id="openRemindersList" class="mt-1 space-y-1 text-xs text-slate-300"></ul>
+                            </div>
+                        </div>
+                        <button type="button" id="dismissRemindersBtn" class="text-slate-500 hover:text-rose-400 text-xs shrink-0" title="Dismiss"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>
+
                 <div id="resumeSessionsWrap" class="hidden glass-panel rounded-2xl p-4 border border-emerald-500/25 space-y-3">
                     <div class="flex items-center gap-2">
                         <i class="fa-solid fa-hourglass-half text-emerald-400"></i>
@@ -936,17 +954,131 @@
             <section id="tab-weekly" class="tab-content space-y-6 hidden">
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800">
                     <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
-                        <i class="fa-solid fa-calendar-week text-indigo-400"></i>
-                        <span data-i18n="weekly_title">خطة الأسبوع</span>
+                        <i class="fa-solid fa-table-cells text-indigo-400"></i>
+                        <span data-i18n="weekly_title">جدول المحاضرات الأسبوعي</span>
                     </h2>
-                    <p class="text-xs text-slate-400 mt-1"><span data-i18n="weekly_sub">وزّع موادك على أيام الأسبوع لتقليل الضغط</span></p>
+                    <p class="text-xs text-slate-400 mt-1"><span data-i18n="weekly_sub">سجّل محاضراتك وسكاشنك باليوم والساعة. يمكن للـ AI قراءة جدولك وملء هذا القسم.</span></p>
+                </div>
+
+                <div class="glass-panel rounded-2xl p-4 border border-slate-800 space-y-3">
+                    <h3 class="text-sm font-bold text-indigo-300 flex items-center gap-2"><i class="fa-solid fa-plus"></i><span data-i18n="tt_add_slot">إضافة حصة</span></h3>
+                    <form id="addTimetableForm" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-2 items-end">
+                        <div>
+                            <label class="text-[10px] text-slate-500 font-bold block mb-1" data-i18n="tt_day">اليوم</label>
+                            <select id="ttDaySelect" class="w-full glass-input px-2 py-2 rounded-xl text-xs bg-slate-900" required></select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-500 font-bold block mb-1" data-i18n="tt_start">من</label>
+                            <input type="time" id="ttStartInput" value="08:00" class="w-full glass-input px-2 py-2 rounded-xl text-xs bg-slate-900" required>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-500 font-bold block mb-1" data-i18n="tt_end">إلى</label>
+                            <input type="time" id="ttEndInput" value="09:30" class="w-full glass-input px-2 py-2 rounded-xl text-xs bg-slate-900" required>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="text-[10px] text-slate-500 font-bold block mb-1" data-i18n="tt_title">المادة / العنوان</label>
+                            <input type="text" id="ttTitleInput" class="w-full glass-input px-2 py-2 rounded-xl text-xs" data-i18n-placeholder="ph_tt_title" placeholder="مثال: رياضيات 1" required maxlength="120">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-500 font-bold block mb-1" data-i18n="tt_type">النوع</label>
+                            <select id="ttTypeSelect" class="w-full glass-input px-2 py-2 rounded-xl text-xs bg-slate-900">
+                                <option value="lecture" data-i18n="tt_type_lecture">محاضرة</option>
+                                <option value="section" data-i18n="tt_type_section">سكشن</option>
+                                <option value="lab" data-i18n="tt_type_lab">لاب</option>
+                                <option value="other" data-i18n="tt_type_other">أخرى</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-500 font-bold block mb-1" data-i18n="tt_location">القاعة (اختياري)</label>
+                            <input type="text" id="ttLocationInput" class="w-full glass-input px-2 py-2 rounded-xl text-xs" data-i18n-placeholder="ph_tt_location" placeholder="A-12" maxlength="60">
+                        </div>
+                        <div>
+                            <button type="submit" class="w-full px-3 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1">
+                                <i class="fa-solid fa-plus"></i><span data-i18n="add">إضافة</span>
+                            </button>
+                        </div>
+                    </form>
+                    <p class="text-[11px] text-slate-500" data-i18n="tt_ai_hint">نصيحة: الصق جدولك في محادثة الـ AI واطلب «املأ جدول المحاضرات» — هيضيف الحصص تلقائيًا.</p>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="weeklyDaysContainer"></div>
             
                 <div class="rounded-xl border border-slate-600/60 bg-slate-900/55 px-4 py-3.5 mt-3">
                     <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1" data-i18n-static="about_label">About</p>
-                    <p class="text-sm text-slate-200 leading-relaxed" data-i18n-static="about_weekly">عن هذا القسم: وزّع محاضراتك ومهامك على أيام الأسبوع لتفادي الضغط.</p>
+                    <p class="text-sm text-slate-200 leading-relaxed" data-i18n-static="about_weekly">عن هذا القسم: جدول محاضراتك الأسبوعي بالساعات. اربطه بالمواد ودع الـ AI يملأه من صورة أو نص الجدول.</p>
+                </div>
+</section>
+
+            <section id="tab-mistakes" class="tab-content space-y-6 hidden">
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800">
+                    <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
+                        <span data-i18n="mistakes_title">بنك الأخطاء</span>
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1"><span data-i18n="mistakes_sub">سجّل الأخطاء المتكررة والإجابات الصحيحة. يمكن للـ AI تحليل ملف أخطاء وملء هذا القسم.</span></p>
+                </div>
+
+                <div class="glass-panel rounded-2xl p-4 border border-slate-800 space-y-3">
+                    <h3 class="text-sm font-bold text-rose-300 flex items-center gap-2"><i class="fa-solid fa-plus"></i><span data-i18n="mistakes_add">إضافة خطأ</span></h3>
+                    <form id="addMistakeForm" class="space-y-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-[10px] text-slate-500 font-bold block mb-1" data-i18n="mistakes_course">المادة (اختياري)</label>
+                                <select id="mistakeCourseSelect" class="w-full glass-input px-3 py-2.5 rounded-xl text-xs bg-slate-900"></select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-500 font-bold block mb-1" data-i18n="mistakes_topic">الشابتر / الدرس (من محاضرات المادة)</label>
+                                <select id="mistakeTopicInput" class="w-full glass-input px-3 py-2.5 rounded-xl text-xs bg-slate-900">
+                                    <option value="">—</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-500 font-bold block mb-1" data-i18n="mistakes_error">الخطأ / السؤال</label>
+                            <textarea id="mistakeErrorInput" rows="2" class="w-full glass-input px-3 py-2.5 rounded-xl text-sm resize-y" data-i18n-placeholder="ph_mistake_error" placeholder="وصّف الخطأ أو الصق السؤال..." required></textarea>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-500 font-bold block mb-1" data-i18n="mistakes_correct">الإجابة الصحيحة</label>
+                            <textarea id="mistakeCorrectInput" rows="2" class="w-full glass-input px-3 py-2.5 rounded-xl text-sm resize-y" data-i18n-placeholder="ph_mistake_correct" placeholder="الإجابة الصحيحة..." required></textarea>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-500 font-bold block mb-1" data-i18n="mistakes_explain">شرح مختصر (اختياري)</label>
+                            <textarea id="mistakeExplainInput" rows="2" class="w-full glass-input px-3 py-2.5 rounded-xl text-sm resize-y" data-i18n-placeholder="ph_mistake_explain" placeholder="ليش كانت الغلطة؟ قاعدة تتذكرها..."></textarea>
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="submit" class="px-5 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-slate-950 font-bold text-sm flex items-center gap-2">
+                                <i class="fa-solid fa-plus"></i><span data-i18n="add">إضافة</span>
+                            </button>
+                        </div>
+                    </form>
+                    <p class="text-[11px] text-slate-500" data-i18n="mistakes_ai_hint">ارفع ملف أخطاء في الملفات المحفوظة أو الصقه في الـ AI واطلب: «حلّل الأخطاء وضعها في بنك الأخطاء».</p>
+                </div>
+
+                <div class="glass-panel rounded-2xl p-4 border border-slate-800 space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <h3 class="text-sm font-bold text-slate-200" data-i18n="mistakes_list">سجل الأخطاء</h3>
+                        <span id="mistakesFilterCount" class="text-[10px] text-slate-500 font-bold"></span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div>
+                            <label class="text-[10px] text-slate-500 font-bold block mb-1" data-i18n="mistakes_filter_course">فلترة بالمادة</label>
+                            <select id="mistakesFilterCourse" class="w-full glass-input px-3 py-2 rounded-xl text-xs bg-slate-900"></select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-500 font-bold block mb-1" data-i18n="mistakes_filter_topic">فلترة بالشابتر / الموضوع</label>
+                            <select id="mistakesFilterTopic" class="w-full glass-input px-3 py-2 rounded-xl text-xs bg-slate-900"></select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-500 font-bold block mb-1" data-i18n="mistakes_filter_search">بحث نصي (اختياري)</label>
+                            <input type="search" id="mistakesSearchInput" class="w-full glass-input px-3 py-2 rounded-xl text-xs" data-i18n-placeholder="ph_mistake_search" placeholder="بحث...">
+                        </div>
+                    </div>
+                    <div id="mistakesList" class="space-y-3 max-h-[520px] overflow-y-auto"></div>
+                </div>
+            
+                <div class="rounded-xl border border-slate-600/60 bg-slate-900/55 px-4 py-3.5 mt-3">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1" data-i18n-static="about_label">About</p>
+                    <p class="text-sm text-slate-200 leading-relaxed" data-i18n-static="about_mistakes">عن هذا القسم: خزّن أخطاءك المتكررة مع الإجابة والشرح، وراجعها قبل الامتحان. الـ AI يقدر يملأها من ملف.</p>
                 </div>
 </section>
 
@@ -1023,6 +1155,9 @@
                     <h3 class="text-sm font-bold text-slate-200"><span data-i18n="add_saved_file">إضافة ملف محفوظ</span></h3>
                     <form id="savedFileForm" class="space-y-3">
                         <input type="text" id="savedFileTitleInput" placeholder="Optional name — or the uploaded file name is used" data-i18n-placeholder="ph_saved_title" class="w-full glass-input px-4 py-2.5 rounded-xl text-sm" maxlength="120">
+                        <select id="savedFileCourseSelect" class="w-full glass-input px-3 py-2.5 rounded-xl text-xs bg-slate-900">
+                            <option value="" data-i18n="ph_course_opt">المادة (اختياري)</option>
+                        </select>
                         <textarea id="savedFileContentInput" rows="4" placeholder="Write something to save, or leave empty if uploading a file..." data-i18n-placeholder="ph_saved_content" class="w-full glass-input px-4 py-3 rounded-xl text-sm resize-y"></textarea>
                         <input type="file" id="savedFileAttachmentInput" class="hidden" multiple>
                         <div class="flex flex-wrap items-center gap-3">
@@ -1092,24 +1227,20 @@
                 
                         <div class="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3 space-y-1.5 mb-2">
                             <p class="text-[11px] font-bold text-cyan-300" data-i18n-static="ai_how_title">طريقة استخدام الـ AI</p>
-                            <p class="text-[11px] text-slate-400" data-i18n-static="ai_how_1">• اطلب إضافة مهام أو تنظيم يومك بجملة واضحة.</p>
-                            <p class="text-[11px] text-slate-400" data-i18n-static="ai_how_2">• اسأله عن ملف محفوظ بالاسم الذي حفظته به.</p>
-                            <p class="text-[11px] text-slate-400" data-i18n-static="ai_how_3">• يمكنه اقتراح جدول مراجعة أو أولويات للدراسة.</p>
+                            <p class="text-[11px] text-slate-400" data-i18n-static="ai_how_1">• اطلب تنظيم يومك أو إضافة مهام بجملة واضحة — ينفّذ على اللوحة.</p>
+                            <p class="text-[11px] text-slate-400" data-i18n-static="ai_how_2">• الصق جدول المحاضرات أو ارفع صورته واطلب ملء جدول الحصص.</p>
+                            <p class="text-[11px] text-slate-400" data-i18n-static="ai_how_3">• اطلب overview لمادة، أو حلّل ملف أخطاء ليضيفها لبنك الأخطاء.</p>
                         </div>
 <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
                     <span class="text-slate-400 text-[11px] font-bold shrink-0"><span data-i18n="quick_prompts">مقترحات سريعة:</span></span>
-                    <button class="quick-prompt-btn px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 border border-slate-700/60 shrink-0 transition-all">
-                        <span data-i18n-qp="📋 Analyze my tasks and suggest a plan for today">📋 Analyze my tasks and suggest a plan for today</span>
-                    </button>
-                    <button class="quick-prompt-btn px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 border border-slate-700/60 shrink-0 transition-all">
-                        <span data-i18n-qp="⚡ Add 3 high-priority review tasks">⚡ Add 3 high-priority review tasks</span>
-                    </button>
-                    <button class="quick-prompt-btn px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 border border-slate-700/60 shrink-0 transition-all">
-                        <span data-i18n-qp="⏱ Start the Pomodoro timer for studying">⏱ Start the Pomodoro timer for studying</span>
-                    </button>
-                    <button class="quick-prompt-btn px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 border border-slate-700/60 shrink-0 transition-all">
-                        <span data-i18n-qp="💡 Give me a tip for focused studying">💡 Give me a tip for focused studying</span>
-                    </button>
+                    
+                    <button type="button" class="quick-prompt-btn px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 border border-slate-700/60 shrink-0 transition-all" data-qp="qp1">📋 Plan my day</button>
+                    <button type="button" class="quick-prompt-btn px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 border border-slate-700/60 shrink-0 transition-all" data-qp="qp2">⚡ Review tasks</button>
+                    <button type="button" class="quick-prompt-btn px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 border border-slate-700/60 shrink-0 transition-all" data-qp="qp3">📅 Timetable</button>
+                    <button type="button" class="quick-prompt-btn px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 border border-slate-700/60 shrink-0 transition-all" data-qp="qp4">📚 Overview</button>
+                    <button type="button" class="quick-prompt-btn px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 border border-slate-700/60 shrink-0 transition-all" data-qp="qp5">🧠 Mistakes</button>
+                    <button type="button" class="quick-prompt-btn px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 border border-slate-700/60 shrink-0 transition-all" data-qp="qp6">⏱ Pomodoro</button>
+
                 </div>
 
                 <div class="glass-panel rounded-2xl p-3 border border-slate-800">
@@ -1272,14 +1403,15 @@
             studyCourses: JSON.parse(localStorage.getItem('pud_study_courses')) || [],
             studyHistory: JSON.parse(localStorage.getItem('pud_study_history')) || [],
             weeklyPlanner: JSON.parse(localStorage.getItem('pud_weekly_planner')) || {
-                'السبت': ['Chemistry lecture (8:00 AM)'],
-                'الأحد': ['Physics section (10:00 AM)'],
+                'السبت': [],
+                'الأحد': [],
                 'الإثنين': [],
-                'الثلاثاء': ['Math lecture (12:00 PM)'],
+                'الثلاثاء': [],
                 'الأربعاء': [],
-                'الخميس': ['Weekly review (6:00 PM)'],
-                'الجمعة': ['Rest day ☕']
+                'الخميس': [],
+                'الجمعة': []
             },
+            studyMistakes: JSON.parse(localStorage.getItem('pud_study_mistakes')) || [],
             monthlyGoals: JSON.parse(localStorage.getItem('pud_monthly_goals')) || [
                 { id: 1, title: 'Physics midterm exam', date: '2026-11-15' }
             ],
@@ -1319,6 +1451,52 @@
             : [];
         AppState.studySessions = Array.isArray(AppState.studySessions) ? AppState.studySessions : [];
         AppState.studyReviews = Array.isArray(AppState.studyReviews) ? AppState.studyReviews : [];
+        AppState.studyMistakes = Array.isArray(AppState.studyMistakes) ? AppState.studyMistakes : [];
+
+        const WEEK_DAYS = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+        function createTimetableId() {
+            return `tt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        }
+        function normalizeWeeklyPlanner(raw) {
+            const out = {};
+            WEEK_DAYS.forEach(day => {
+                const items = (raw && Array.isArray(raw[day])) ? raw[day] : [];
+                out[day] = items.map((item, idx) => {
+                    if (item && typeof item === 'object' && (item.title || item.start)) {
+                        return {
+                            id: item.id || createTimetableId(),
+                            start: String(item.start || '08:00').slice(0, 5),
+                            end: String(item.end || '09:00').slice(0, 5),
+                            title: String(item.title || '').trim() || '—',
+                            type: ['lecture', 'section', 'lab', 'other'].includes(item.type) ? item.type : 'lecture',
+                            location: String(item.location || '').trim(),
+                            courseId: item.courseId ? String(item.courseId) : ''
+                        };
+                    }
+                    const s = String(item || '').trim();
+                    let start = '08:00', end = '09:30', title = s;
+                    const m = s.match(/(\d{1,2})[:.](\d{2})\s*(AM|PM|ص|م)?/i);
+                    if (m) {
+                        let h = parseInt(m[1], 10);
+                        const min = m[2];
+                        const ap = (m[3] || '').toUpperCase();
+                        if (ap === 'PM' && h < 12) h += 12;
+                        if (ap === 'AM' && h === 12) h = 0;
+                        if (ap === 'م' && h < 12) h += 12;
+                        start = String(h).padStart(2, '0') + ':' + min;
+                        const endH = Math.min(23, h + 1);
+                        end = String(endH).padStart(2, '0') + ':' + min;
+                        title = s.replace(m[0], '').replace(/[()]/g, '').trim() || s;
+                    }
+                    let type = 'lecture';
+                    if (/سكشن|section|تمرين/i.test(s)) type = 'section';
+                    else if (/لاب|معمل|lab/i.test(s)) type = 'lab';
+                    return { id: createTimetableId() + '-' + idx, start, end, title: title || s || '—', type, location: '', courseId: '' };
+                }).sort((a, b) => String(a.start).localeCompare(String(b.start)));
+            });
+            return out;
+        }
+        AppState.weeklyPlanner = normalizeWeeklyPlanner(AppState.weeklyPlanner);
         AppState.studyHistory = Array.isArray(AppState.studyHistory)
             ? AppState.studyHistory.filter(day => day && /^\d{4}-\d{2}-\d{2}$/.test(String(day.date || '')))
                 .map(day => ({ ...day, tasks: Array.isArray(day.tasks) ? day.tasks : [], lectures: Array.isArray(day.lectures) ? day.lectures : [] }))
@@ -1468,6 +1646,7 @@
             localStorage.setItem('pud_study_courses', JSON.stringify(AppState.studyCourses));
             localStorage.setItem('pud_study_history', JSON.stringify(AppState.studyHistory));
             localStorage.setItem('pud_weekly_planner', JSON.stringify(AppState.weeklyPlanner));
+            localStorage.setItem('pud_study_mistakes', JSON.stringify(AppState.studyMistakes || []));
             localStorage.setItem('pud_monthly_goals', JSON.stringify(AppState.monthlyGoals));
             localStorage.setItem('pud_quick_notes', JSON.stringify(AppState.quickNotes));
             localStorage.setItem('pud_saved_files', JSON.stringify(AppState.savedFiles));
@@ -1502,6 +1681,7 @@
                         pud_study_courses: AppState.studyCourses,
                         pud_study_history: AppState.studyHistory,
                         pud_weekly_planner: AppState.weeklyPlanner,
+                        pud_study_mistakes: AppState.studyMistakes,
                         pud_monthly_goals: AppState.monthlyGoals,
                         pud_quick_notes: AppState.quickNotes,
                         pud_saved_files: savedFilesForBackup,
@@ -1549,7 +1729,8 @@
                                     .filter(day => day && /^\d{4}-\d{2}-\d{2}$/.test(String(day.date || '')))
                                     .map(day => ({ ...day, tasks: Array.isArray(day.tasks) ? day.tasks : [], lectures: Array.isArray(day.lectures) ? day.lectures : [] }));
                             }
-                            if (importedData.pud_weekly_planner) AppState.weeklyPlanner = importedData.pud_weekly_planner;
+                            if (importedData.pud_weekly_planner) AppState.weeklyPlanner = normalizeWeeklyPlanner(importedData.pud_weekly_planner);
+                            if (Array.isArray(importedData.pud_study_mistakes)) AppState.studyMistakes = importedData.pud_study_mistakes;
                             if (importedData.pud_monthly_goals) AppState.monthlyGoals = importedData.pud_monthly_goals;
                             if (importedData.pud_quick_notes) AppState.quickNotes = importedData.pud_quick_notes;
                             if (Array.isArray(importedData.pud_study_sessions)) AppState.studySessions = importedData.pud_study_sessions;
@@ -1588,6 +1769,7 @@
                             renderStudyHistory();
                             updateStudyDashboardStats();
                             renderWeeklyPlanner();
+                            try { renderMistakes(); } catch (e) {}
                             renderMonthlyPlanner();
                             renderQuickNotes();
                             renderSavedFiles();
@@ -2259,87 +2441,489 @@
             }).join('');
         }
 
+        function timetableTypeLabel(type) {
+            const map = { lecture: t('tt_type_lecture'), section: t('tt_type_section'), lab: t('tt_type_lab'), other: t('tt_type_other') };
+            return map[type] || map.lecture;
+        }
+
+        function timetableTypeClass(type) {
+            if (type === 'section') return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
+            if (type === 'lab') return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
+            if (type === 'other') return 'border-slate-600 bg-slate-800/60 text-slate-300';
+            return 'border-indigo-500/30 bg-indigo-500/10 text-indigo-300';
+        }
+
+        function getTodayWeekdayKey() {
+            // JS: 0 Sun .. 6 Sat — Arabic week keys start Saturday
+            const map = { 6: 'السبت', 0: 'الأحد', 1: 'الإثنين', 2: 'الثلاثاء', 3: 'الأربعاء', 4: 'الخميس', 5: 'الجمعة' };
+            return map[new Date().getDay()] || 'السبت';
+        }
+
+        function getTodayTimetableSlots() {
+            const day = getTodayWeekdayKey();
+            return (AppState.weeklyPlanner[day] || []).slice().sort((a, b) => String(a.start).localeCompare(String(b.start)));
+        }
+
         function initWeeklyPlanner() {
+            const daySel = document.getElementById('ttDaySelect');
+            if (daySel) {
+                const labels = {
+                    'السبت': t('day_sat'), 'الأحد': t('day_sun'), 'الإثنين': t('day_mon'),
+                    'الثلاثاء': t('day_tue'), 'الأربعاء': t('day_wed'), 'الخميس': t('day_thu'), 'الجمعة': t('day_fri')
+                };
+                daySel.innerHTML = WEEK_DAYS.map(d => `<option value="${d}">${labels[d] || d}</option>`).join('');
+                daySel.value = getTodayWeekdayKey();
+            }
+            const form = document.getElementById('addTimetableForm');
+            if (form && !form.dataset.bound) {
+                form.dataset.bound = '1';
+                form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const day = document.getElementById('ttDaySelect').value;
+                    const start = document.getElementById('ttStartInput').value;
+                    const end = document.getElementById('ttEndInput').value;
+                    const title = document.getElementById('ttTitleInput').value.trim();
+                    const type = document.getElementById('ttTypeSelect').value || 'lecture';
+                    const location = document.getElementById('ttLocationInput').value.trim();
+                    if (!day || !start || !end || !title) return;
+                    if (!Array.isArray(AppState.weeklyPlanner[day])) AppState.weeklyPlanner[day] = [];
+                    AppState.weeklyPlanner[day].push({
+                        id: createTimetableId(), start, end, title, type, location, courseId: ''
+                    });
+                    AppState.weeklyPlanner[day].sort((a, b) => String(a.start).localeCompare(String(b.start)));
+                    saveStateToStorage();
+                    document.getElementById('ttTitleInput').value = '';
+                    document.getElementById('ttLocationInput').value = '';
+                    renderWeeklyPlanner();
+                    try { renderOpenReminders(); } catch (err) {}
+                });
+            }
             renderWeeklyPlanner();
         }
 
         function renderWeeklyPlanner() {
             const container = document.getElementById('weeklyDaysContainer');
+            if (!container) return;
             container.innerHTML = '';
 
-
-            const dayKeys = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
             const dayLabel = {
                 'السبت': t('day_sat'), 'الأحد': t('day_sun'), 'الإثنين': t('day_mon'),
                 'الثلاثاء': t('day_tue'), 'الأربعاء': t('day_wed'), 'الخميس': t('day_thu'), 'الجمعة': t('day_fri')
             };
-            dayKeys.forEach(day => {
-                const items = AppState.weeklyPlanner[day] || [];
+            const todayKey = getTodayWeekdayKey();
+
+            WEEK_DAYS.forEach(day => {
+                const items = (AppState.weeklyPlanner[day] || []).slice().sort((a, b) => String(a.start).localeCompare(String(b.start)));
                 const dayCard = document.createElement('div');
-                dayCard.className = 'glass-panel rounded-2xl p-4 border border-slate-800 flex flex-col justify-between space-y-3';
+                const isToday = day === todayKey;
+                dayCard.className = 'glass-panel rounded-2xl p-4 border flex flex-col space-y-3 ' + (isToday ? 'border-indigo-500/40' : 'border-slate-800');
 
-                let itemsHTML = items.map((item, idx) => `
-                    <div class="flex items-center justify-between text-xs bg-slate-900/60 p-2 rounded-lg border border-slate-800 text-slate-200 gap-2">
-                        <span class="min-w-0 break-words">${escapeHTML(item)}</span>
-                        <div class="flex items-center gap-1 shrink-0">
-                            <button class="text-slate-400 hover:text-cyan-400 transition-colors edit-weekly-item" data-day="${day}" data-idx="${idx}" title="${t('edit')}"><i class="fa-solid fa-pen"></i></button>
-                            <button class="text-slate-400 hover:text-rose-400 transition-colors remove-weekly-item" data-day="${day}" data-idx="${idx}" title="${t('del')}"><i class="fa-solid fa-xmark"></i></button>
+                let itemsHTML = items.map((item) => {
+                    const time = `${escapeHTML(item.start)}–${escapeHTML(item.end)}`;
+                    const loc = item.location ? ` · ${escapeHTML(item.location)}` : '';
+                    return `
+                    <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-2.5 space-y-1.5" data-slot-id="${escapeHTML(String(item.id))}">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[11px] font-mono font-bold text-cyan-300">${time}</span>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded-md border font-bold ${timetableTypeClass(item.type)}">${escapeHTML(timetableTypeLabel(item.type))}</span>
                         </div>
-                    </div>
-                `).join('');
+                        <p class="text-xs text-slate-100 font-bold leading-snug">${escapeHTML(item.title)}</p>
+                        ${loc ? `<p class="text-[10px] text-slate-500"><i class="fa-solid fa-location-dot ml-1"></i>${loc.replace(/^ · /, '')}</p>` : ''}
+                        <div class="flex items-center gap-1 pt-0.5">
+                            <button type="button" class="edit-tt-btn text-[10px] text-slate-400 hover:text-cyan-400 px-1.5 py-0.5" data-day="${escapeHTML(day)}" data-id="${escapeHTML(String(item.id))}" title="${t('edit')}"><i class="fa-solid fa-pen"></i></button>
+                            <button type="button" class="remove-tt-btn text-[10px] text-slate-400 hover:text-rose-400 px-1.5 py-0.5" data-day="${escapeHTML(day)}" data-id="${escapeHTML(String(item.id))}" title="${t('del')}"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>`;
+                }).join('');
 
-                if (items.length === 0) itemsHTML = `<p class="text-[11px] text-slate-400 italic text-center py-2">${t('no_items')}</p>`;
+                if (!items.length) itemsHTML = `<p class="text-[11px] text-slate-400 italic text-center py-3">${t('no_items')}</p>`;
 
                 dayCard.innerHTML = `
-                    <div class="space-y-2">
-                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                            <h4 class="text-sm font-bold text-cyan-400">${dayLabel[day] || day}</h4>
-                            <span class="text-[10px] text-slate-400 font-bold bg-slate-800 px-2 py-0.5 rounded-md">${items.length}</span>
-                        </div>
-                        <div class="space-y-1.5">${itemsHTML}</div>
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <h4 class="text-sm font-bold ${isToday ? 'text-indigo-300' : 'text-cyan-400'}">${dayLabel[day] || day}${isToday ? ' · ' + (AppState.uiLang === 'en' ? 'Today' : 'اليوم') : ''}</h4>
+                        <span class="text-[10px] text-slate-400 font-bold bg-slate-800 px-2 py-0.5 rounded-md">${items.length}</span>
                     </div>
-                    <button class="add-weekly-btn w-full py-1.5 rounded-lg bg-slate-800/80 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-400 text-xs font-bold transition-all flex items-center justify-center gap-1 mt-2" data-day="${day}">
-                        <i class="fa-solid fa-plus text-[10px]"></i><span>${t('add_item')}</span>
-                    </button>
+                    <div class="space-y-2 flex-1">${itemsHTML}</div>
                 `;
                 container.appendChild(dayCard);
             });
 
-            document.querySelectorAll('.add-weekly-btn').forEach(btn => {
+            container.querySelectorAll('.remove-tt-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const day = btn.getAttribute('data-day');
-                    const text = prompt(`إضافة بند جديد ليوم (${day}):`);
-                    if (text && text.trim()) {
-                        AppState.weeklyPlanner[day].push(text.trim());
-                        saveStateToStorage();
-                        renderWeeklyPlanner();
+                    const id = btn.getAttribute('data-id');
+                    AppState.weeklyPlanner[day] = (AppState.weeklyPlanner[day] || []).filter(s => String(s.id) !== String(id));
+                    saveStateToStorage();
+                    renderWeeklyPlanner();
+                    try { renderOpenReminders(); } catch (e) {}
+                });
+            });
+            container.querySelectorAll('.edit-tt-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const day = btn.getAttribute('data-day');
+                    const id = btn.getAttribute('data-id');
+                    const slot = (AppState.weeklyPlanner[day] || []).find(s => String(s.id) === String(id));
+                    if (!slot) return;
+                    const title = prompt(AppState.uiLang === 'en' ? 'Title:' : 'العنوان:', slot.title);
+                    if (title == null) return;
+                    const start = prompt(AppState.uiLang === 'en' ? 'Start (HH:MM):' : 'من (س:د):', slot.start) || slot.start;
+                    const end = prompt(AppState.uiLang === 'en' ? 'End (HH:MM):' : 'إلى (س:د):', slot.end) || slot.end;
+                    const location = prompt(AppState.uiLang === 'en' ? 'Room (optional):' : 'القاعة (اختياري):', slot.location || '');
+                    if (location == null) return;
+                    slot.title = title.trim() || slot.title;
+                    slot.start = String(start).slice(0, 5);
+                    slot.end = String(end).slice(0, 5);
+                    slot.location = String(location).trim();
+                    AppState.weeklyPlanner[day].sort((a, b) => String(a.start).localeCompare(String(b.start)));
+                    saveStateToStorage();
+                    renderWeeklyPlanner();
+                    try { renderOpenReminders(); } catch (e) {}
+                });
+            });
+
+            // refresh day select labels on re-render language
+            const daySel = document.getElementById('ttDaySelect');
+            if (daySel) {
+                const cur = daySel.value;
+                const labels = {
+                    'السبت': t('day_sat'), 'الأحد': t('day_sun'), 'الإثنين': t('day_mon'),
+                    'الثلاثاء': t('day_tue'), 'الأربعاء': t('day_wed'), 'الخميس': t('day_thu'), 'الجمعة': t('day_fri')
+                };
+                daySel.innerHTML = WEEK_DAYS.map(d => `<option value="${d}">${labels[d] || d}</option>`).join('');
+                if (WEEK_DAYS.includes(cur)) daySel.value = cur;
+            }
+        }
+
+        function getCourseByFilterId(courseKey) {
+            if (!courseKey) return null;
+            if (String(courseKey).startsWith('title:')) {
+                const title = String(courseKey).slice(6);
+                return (AppState.studyCourses || []).find(c => c.title === title) || null;
+            }
+            return (AppState.studyCourses || []).find(c => String(c.id) === String(courseKey)) || null;
+        }
+
+        function getLectureTitlesForCourse(courseKey) {
+            const course = getCourseByFilterId(courseKey);
+            const titles = [];
+            if (course && Array.isArray(course.lectures)) {
+                course.lectures.forEach(l => {
+                    const t = String(l.title || '').trim();
+                    if (t) titles.push(t);
+                });
+            }
+            // also include topics already used on mistakes for this course
+            (AppState.studyMistakes || []).forEach(m => {
+                const topic = String(m.topic || '').trim();
+                if (!topic) return;
+                if (courseKey) {
+                    if (String(courseKey).startsWith('title:')) {
+                        if (String(m.courseTitle || '') !== String(courseKey).slice(6)) return;
+                    } else if (String(m.courseId || '') !== String(courseKey)) {
+                        return;
                     }
+                }
+                if (!titles.includes(topic)) titles.push(topic);
+            });
+            return titles;
+        }
+
+        function populateMistakeTopicSelect(courseId, selectedTopic) {
+            const sel = document.getElementById('mistakeTopicInput');
+            if (!sel) return;
+            const none = AppState.uiLang === 'en' ? '— Select lecture / chapter —' : '— اختر درس / شابتر —';
+            const pickFirst = AppState.uiLang === 'en' ? '— Select a course first —' : '— اختر المادة أولاً —';
+            const cur = selectedTopic != null ? selectedTopic : sel.value;
+            if (!courseId) {
+                sel.innerHTML = `<option value="">${pickFirst}</option>`;
+                return;
+            }
+            const titles = getLectureTitlesForCourse(courseId);
+            if (!titles.length) {
+                const empty = AppState.uiLang === 'en'
+                    ? '— No lectures in this course yet —'
+                    : '— لا توجد محاضرات لهذه المادة بعد —';
+                sel.innerHTML = `<option value="">${empty}</option>`;
+                return;
+            }
+            sel.innerHTML = `<option value="">${none}</option>` + titles.map(t =>
+                `<option value="${escapeHTML(t)}">${escapeHTML(t)}</option>`
+            ).join('');
+            if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+        }
+
+        function populateMistakeCourseSelect() {
+            const sel = document.getElementById('mistakeCourseSelect');
+            if (!sel) return;
+            const cur = sel.value;
+            const none = AppState.uiLang === 'en' ? '— No course —' : '— بدون مادة —';
+            sel.innerHTML = `<option value="">${none}</option>` + (AppState.studyCourses || []).map(c =>
+                `<option value="${escapeHTML(String(c.id))}">${escapeHTML(c.title)}</option>`
+            ).join('');
+            if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+            else sel.value = '';
+            populateMistakeTopicSelect(sel.value);
+            if (!sel.dataset.topicBound) {
+                sel.dataset.topicBound = '1';
+                sel.addEventListener('change', () => populateMistakeTopicSelect(sel.value));
+            }
+        }
+
+        function populateSavedFileCourseSelect() {
+            const sel = document.getElementById('savedFileCourseSelect');
+            if (!sel) return;
+            const cur = sel.value;
+            const none = t('ph_course_opt');
+            sel.innerHTML = `<option value="">${none}</option>` + (AppState.studyCourses || []).map(c =>
+                `<option value="${escapeHTML(String(c.id))}">${escapeHTML(c.title)}</option>`
+            ).join('');
+            if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+        }
+
+        function initMistakesModule() {
+            const form = document.getElementById('addMistakeForm');
+            if (form && !form.dataset.bound) {
+                form.dataset.bound = '1';
+                form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const courseId = document.getElementById('mistakeCourseSelect').value;
+                    const course = AppState.studyCourses.find(c => String(c.id) === String(courseId));
+                    const topic = document.getElementById('mistakeTopicInput').value.trim();
+                    const errorText = document.getElementById('mistakeErrorInput').value.trim();
+                    const correctAnswer = document.getElementById('mistakeCorrectInput').value.trim();
+                    const explanation = document.getElementById('mistakeExplainInput').value.trim();
+                    if (!errorText || !correctAnswer) return;
+                    AppState.studyMistakes.unshift({
+                        id: `mis-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                        courseId: course ? course.id : '',
+                        courseTitle: course ? course.title : '',
+                        topic,
+                        errorText,
+                        correctAnswer,
+                        explanation,
+                        createdAt: new Date().toISOString()
+                    });
+                    saveStateToStorage();
+                    form.reset();
+                    populateMistakeCourseSelect();
+                    populateMistakeTopicSelect('');
+                    renderMistakes();
                 });
+            }
+            const search = document.getElementById('mistakesSearchInput');
+            if (search && !search.dataset.bound) {
+                search.dataset.bound = '1';
+                search.addEventListener('input', () => renderMistakes());
+            }
+            const fCourse = document.getElementById('mistakesFilterCourse');
+            const fTopic = document.getElementById('mistakesFilterTopic');
+            if (fCourse && !fCourse.dataset.bound) {
+                fCourse.dataset.bound = '1';
+                fCourse.addEventListener('change', () => {
+                    // reset topic when course changes
+                    const tSel = document.getElementById('mistakesFilterTopic');
+                    if (tSel) tSel.value = '';
+                    renderMistakes();
+                });
+            }
+            if (fTopic && !fTopic.dataset.bound) {
+                fTopic.dataset.bound = '1';
+                fTopic.addEventListener('change', () => renderMistakes());
+            }
+            populateMistakeCourseSelect();
+            renderMistakes();
+        }
+
+        function getMistakeFilterValues() {
+            return {
+                courseId: document.getElementById('mistakesFilterCourse')?.value || '',
+                topic: document.getElementById('mistakesFilterTopic')?.value || '',
+                search: document.getElementById('mistakesSearchInput')?.value || ''
+            };
+        }
+
+        function populateMistakesFilterControls() {
+            const courseSel = document.getElementById('mistakesFilterCourse');
+            const topicSel = document.getElementById('mistakesFilterTopic');
+            if (!courseSel || !topicSel) return;
+
+            const prevCourse = courseSel.value;
+            const prevTopic = topicSel.value;
+            const allLabel = AppState.uiLang === 'en' ? 'All courses' : 'كل المواد';
+            const allTopic = AppState.uiLang === 'en' ? 'All chapters / lectures' : 'كل الشابترات / الدروس';
+            const pickCourseFirst = AppState.uiLang === 'en' ? '— Select a course first —' : '— اختر المادة أولاً —';
+            const noLectures = AppState.uiLang === 'en' ? '— No lectures in this course —' : '— لا محاضرات لهذه المادة —';
+
+            // Prefer registered courses (with real ids) so we can load their lectures
+            const courseMap = new Map();
+            (AppState.studyCourses || []).forEach(c => courseMap.set(String(c.id), c.title));
+            (AppState.studyMistakes || []).forEach(m => {
+                if (m.courseId && !courseMap.has(String(m.courseId))) {
+                    courseMap.set(String(m.courseId), m.courseTitle || String(m.courseId));
+                } else if (!m.courseId && m.courseTitle) {
+                    const found = (AppState.studyCourses || []).find(c => c.title === m.courseTitle);
+                    if (found) courseMap.set(String(found.id), found.title);
+                    else if (![...courseMap.values()].includes(m.courseTitle)) {
+                        courseMap.set('title:' + m.courseTitle, m.courseTitle);
+                    }
+                }
             });
 
-            document.querySelectorAll('.edit-weekly-item').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const day = btn.getAttribute('data-day');
-                    const idx = parseInt(btn.getAttribute('data-idx'));
-                    const current = AppState.weeklyPlanner[day]?.[idx];
-                    if (current == null) return;
-                    const next = prompt(`تعديل بند يوم (${day}):`, current);
-                    if (next == null) return;
-                    const trimmed = next.trim();
-                    if (!trimmed || trimmed === current) return;
-                    AppState.weeklyPlanner[day][idx] = trimmed;
-                    saveStateToStorage();
-                    renderWeeklyPlanner();
-                });
-            });
+            courseSel.innerHTML = `<option value="">${allLabel}</option>` +
+                [...courseMap.entries()].map(([id, title]) =>
+                    `<option value="${escapeHTML(String(id))}">${escapeHTML(title)}</option>`
+                ).join('');
+            if ([...courseSel.options].some(o => o.value === prevCourse)) courseSel.value = prevCourse;
 
-            document.querySelectorAll('.remove-weekly-item').forEach(btn => {
+            const selectedCourse = courseSel.value;
+            if (!selectedCourse) {
+                topicSel.innerHTML = `<option value="">${pickCourseFirst}</option>`;
+                return;
+            }
+
+            const titles = getLectureTitlesForCourse(selectedCourse);
+            if (!titles.length) {
+                topicSel.innerHTML = `<option value="">${noLectures}</option>`;
+                return;
+            }
+            topicSel.innerHTML = `<option value="">${allTopic}</option>` +
+                titles.map(t => `<option value="${escapeHTML(t)}">${escapeHTML(t)}</option>`).join('');
+            if ([...topicSel.options].some(o => o.value === prevTopic)) topicSel.value = prevTopic;
+            else topicSel.value = '';
+        }
+
+        function renderMistakes() {
+            const list = document.getElementById('mistakesList');
+            if (!list) return;
+            populateMistakeCourseSelect();
+            populateMistakesFilterControls();
+
+            const { courseId, topic, search } = getMistakeFilterValues();
+            const term = String(search || '').trim().toLocaleLowerCase('ar');
+
+            let items = AppState.studyMistakes || [];
+            if (courseId) {
+                if (courseId.startsWith('title:')) {
+                    const title = courseId.slice(6);
+                    items = items.filter(m => String(m.courseTitle || '') === title);
+                } else {
+                    items = items.filter(m => String(m.courseId || '') === courseId);
+                }
+            }
+            if (topic) {
+                items = items.filter(m => String(m.topic || '').trim() === topic);
+            }
+            if (term) {
+                items = items.filter(m =>
+                    `${m.courseTitle || ''} ${m.topic || ''} ${m.errorText || ''} ${m.correctAnswer || ''} ${m.explanation || ''}`.toLocaleLowerCase('ar').includes(term)
+                );
+            }
+
+            const countEl = document.getElementById('mistakesFilterCount');
+            if (countEl) {
+                const total = (AppState.studyMistakes || []).length;
+                countEl.textContent = items.length === total
+                    ? `${total}`
+                    : `${items.length} / ${total}`;
+            }
+
+            if (!items.length) {
+                list.innerHTML = `<p class="text-xs text-slate-500 text-center py-6">${t('no_mistakes')}</p>`;
+                return;
+            }
+            list.innerHTML = items.map(m => `
+                <article class="rounded-2xl border border-rose-500/20 bg-slate-900/50 p-4 space-y-2" data-id="${escapeHTML(String(m.id))}">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <p class="text-[10px] font-bold text-rose-300">${escapeHTML(m.courseTitle || (AppState.uiLang === 'en' ? 'General' : 'عام'))}${m.topic ? ' · ' + escapeHTML(m.topic) : ''}</p>
+                            <p class="text-[10px] text-slate-500 mt-0.5">${m.createdAt ? new Date(m.createdAt).toLocaleDateString(getUiLocale()) : ''}</p>
+                        </div>
+                        <button type="button" class="delete-mistake-btn text-slate-500 hover:text-rose-400 p-1" data-id="${escapeHTML(String(m.id))}"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                    </div>
+                    <div class="rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-2">
+                        <p class="text-[10px] font-bold text-rose-300 mb-0.5">${t('mistakes_error')}</p>
+                        <p class="text-sm text-slate-200 whitespace-pre-wrap">${escapeHTML(m.errorText)}</p>
+                    </div>
+                    <div class="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2">
+                        <p class="text-[10px] font-bold text-emerald-300 mb-0.5">${t('mistakes_correct')}</p>
+                        <p class="text-sm text-slate-200 whitespace-pre-wrap">${escapeHTML(m.correctAnswer)}</p>
+                    </div>
+                    ${m.explanation ? `<div class="rounded-xl bg-slate-800/60 border border-slate-700 px-3 py-2"><p class="text-[10px] font-bold text-slate-400 mb-0.5">${t('mistakes_explain')}</p><p class="text-xs text-slate-300 whitespace-pre-wrap">${escapeHTML(m.explanation)}</p></div>` : ''}
+                    <button type="button" class="edit-mistake-btn text-[11px] text-cyan-400 hover:text-cyan-300 font-bold" data-id="${escapeHTML(String(m.id))}"><i class="fa-solid fa-pen ml-1"></i>${t('edit')}</button>
+                </article>
+            `).join('');
+            list.querySelectorAll('.delete-mistake-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    AppState.weeklyPlanner[btn.getAttribute('data-day')].splice(parseInt(btn.getAttribute('data-idx')), 1);
+                    AppState.studyMistakes = AppState.studyMistakes.filter(m => String(m.id) !== String(btn.dataset.id));
                     saveStateToStorage();
-                    renderWeeklyPlanner();
+                    renderMistakes();
                 });
             });
+            list.querySelectorAll('.edit-mistake-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const m = AppState.studyMistakes.find(x => String(x.id) === String(btn.dataset.id));
+                    if (!m) return;
+                    const err = prompt(t('mistakes_error'), m.errorText);
+                    if (err == null) return;
+                    const cor = prompt(t('mistakes_correct'), m.correctAnswer);
+                    if (cor == null) return;
+                    const exp = prompt(t('mistakes_explain'), m.explanation || '');
+                    if (exp == null) return;
+                    const top = prompt(AppState.uiLang === 'en' ? 'Chapter / topic (optional):' : 'الشابتر / الموضوع (اختياري):', m.topic || '');
+                    if (top == null) return;
+                    m.errorText = err.trim() || m.errorText;
+                    m.correctAnswer = cor.trim() || m.correctAnswer;
+                    m.explanation = exp.trim();
+                    m.topic = top.trim();
+                    saveStateToStorage();
+                    renderMistakes();
+                });
+            });
+        }
+
+        function renderOpenReminders() {
+            const banner = document.getElementById('openRemindersBanner');
+            const list = document.getElementById('openRemindersList');
+            if (!banner || !list) return;
+            if (sessionStorage.getItem('pud_reminders_dismissed') === createLocalDateKey()) {
+                banner.classList.add('hidden');
+                return;
+            }
+            const tips = [];
+            const slots = getTodayTimetableSlots();
+            if (slots.length) {
+                const names = slots.slice(0, 4).map(s => `${s.start} ${s.title}`).join(' · ');
+                tips.push((AppState.uiLang === 'en' ? 'Today\'s classes: ' : 'محاضرات اليوم: ') + names);
+            }
+            const due = typeof getReviewsDueToday === 'function' ? getReviewsDueToday() : [];
+            if (due.length) {
+                tips.push((AppState.uiLang === 'en' ? `${due.length} review(s) due — start with: ` : `${due.length} مراجعة مستحقة — ابدأ بـ: `) + (due[0].lectureTitle || ''));
+            }
+            const openTasks = (AppState.dailyTasks || []).filter(tk => !tk.completed).length;
+            if (openTasks) {
+                tips.push(AppState.uiLang === 'en' ? `${openTasks} open daily task(s)` : `${openTasks} مهمة يومية مفتوحة`);
+            }
+            const goal = Number(AppState.dailyMinutesGoal) || 90;
+            const done = typeof getTodayMinutes === 'function' ? getTodayMinutes() : 0;
+            if (done < goal) {
+                tips.push(AppState.uiLang === 'en'
+                    ? `Study goal: ${done}/${goal} min — suggested focus now`
+                    : `هدف المذاكرة: ${done}/${goal} د — رشّح جلسة تركيز الآن`);
+            }
+            if (!tips.length) {
+                banner.classList.add('hidden');
+                return;
+            }
+            list.innerHTML = tips.map(t => `<li class="leading-relaxed">• ${escapeHTML(t)}</li>`).join('');
+            banner.classList.remove('hidden');
+        }
+
+        function initOpenReminders() {
+            document.getElementById('dismissRemindersBtn')?.addEventListener('click', () => {
+                sessionStorage.setItem('pud_reminders_dismissed', createLocalDateKey());
+                document.getElementById('openRemindersBanner')?.classList.add('hidden');
+            });
+            renderOpenReminders();
         }
 
         function initMonthlyPlanner() {
@@ -2503,6 +3087,7 @@
             const searchInput = document.getElementById('savedFilesSearchInput');
             const attachmentInput = document.getElementById('savedFileAttachmentInput');
             const attachmentNames = document.getElementById('savedFileAttachmentNames');
+            populateSavedFileCourseSelect();
 
             attachmentInput.addEventListener('change', () => {
                 const selectedFiles = Array.from(attachmentInput.files || []);
@@ -2533,19 +3118,27 @@
                         const savedTitle = title
                             ? (selectedFiles.length === 1 ? title : `${title} - ${file.name}`)
                             : file.name;
+                        const courseIdSF = document.getElementById('savedFileCourseSelect')?.value || '';
+                        const courseSF = AppState.studyCourses.find(c => String(c.id) === String(courseIdSF));
                         AppState.savedFiles.unshift({
                             id,
                             title: savedTitle,
                             content,
+                            courseId: courseSF ? courseSF.id : '',
+                            courseTitle: courseSF ? courseSF.title : '',
                             attachment: { name: file.name, type: file.type || 'application/octet-stream', size: file.size },
                             createdAt: new Date().toISOString()
                         });
                     }
                 } else {
+                    const courseIdSF2 = document.getElementById('savedFileCourseSelect')?.value || '';
+                    const courseSF2 = AppState.studyCourses.find(c => String(c.id) === String(courseIdSF2));
                     AppState.savedFiles.unshift({
                         id: `saved-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                         title,
                         content,
+                        courseId: courseSF2 ? courseSF2.id : '',
+                        courseTitle: courseSF2 ? courseSF2.title : '',
                         createdAt: new Date().toISOString()
                     });
                 }
@@ -2566,7 +3159,7 @@
             const files = Array.isArray(AppState.savedFiles) ? AppState.savedFiles : [];
             const term = searchTerm.trim().toLocaleLowerCase('ar');
             const filteredFiles = files.filter(file =>
-                `${file.title || ''} ${file.content || ''} ${file.attachment?.name || ''}`.toLocaleLowerCase('ar').includes(term)
+                `${file.title || ''} ${file.content || ''} ${file.attachment?.name || ''} ${file.courseTitle || ''}`.toLocaleLowerCase('ar').includes(term)
             );
 
             document.getElementById('savedFilesCount').textContent = `${files.length} ${t('files_count')}`;
@@ -2588,6 +3181,7 @@
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
                             <h4 class="font-bold text-sm text-slate-100 break-words">${escapeHTML(String(file.title || 'ملف بدون اسم'))}</h4>
+                            ${file.courseTitle ? `<p class="text-[10px] text-indigo-300 font-bold mt-0.5"><i class="fa-solid fa-book ml-1"></i>${escapeHTML(file.courseTitle)}</p>` : ''}
                             ${dateLabel ? `<p class="text-[10px] text-slate-500 mt-1">${escapeHTML(dateLabel)}</p>` : ''}
                         </div>
                         <i class="fa-solid fa-file-lines text-emerald-400 mt-1"></i>
@@ -2789,7 +3383,9 @@
 
             document.querySelectorAll('.quick-prompt-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    chatInput.value = btn.textContent.trim().replace(/^[\u200B-\u200D\uFEFF]/, '');
+                    const key = btn.getAttribute('data-qp');
+                    const promptText = (key && typeof t === 'function') ? t(key) : btn.textContent.trim();
+                    chatInput.value = String(promptText || '').trim();
                     chatForm.dispatchEvent(new Event('submit'));
                 });
             });
@@ -3001,7 +3597,7 @@
         // ===== Gemini API (auto-selects a working model) =====
         const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
         // Order: auto-updating alias first, then explicit fallbacks
-        const GEMINI_MODEL_CANDIDATES = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite'];
+        const GEMINI_MODEL_CANDIDATES = ['gemini-flash-lite-latest', 'gemini-2.0-flash-lite', 'gemini-flash-latest', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
         async function geminiGenerate(model, apiKey, body) {
             return fetch(`${GEMINI_BASE}/models/${model}:generateContent`, {
@@ -3047,136 +3643,148 @@
             }
             apiKey = apiKey.trim();
 
+            const isEn = AppState.uiLang === 'en';
+            const todayKey = (typeof createLocalDateKey === 'function') ? createLocalDateKey() : new Date().toISOString().slice(0, 10);
+            const todayWeekday = (typeof getTodayWeekdayKey === 'function') ? getTodayWeekdayKey() : '';
+            const todaySlots = (typeof getTodayTimetableSlots === 'function') ? getTodayTimetableSlots() : [];
+            const dueReviews = (typeof getReviewsDueToday === 'function') ? getReviewsDueToday() : [];
+            const openTasks = (AppState.dailyTasks || []).filter(tk => !tk.completed);
+            const todayMins = (typeof getTodayMinutes === 'function') ? getTodayMinutes() : 0;
+            const streak = (typeof computeStreak === 'function') ? computeStreak() : 0;
+            const goal = Number(AppState.dailyMinutesGoal) || 90;
+
             const savedFilesContext = JSON.stringify(
-                AppState.savedFiles.map(({ title, content, attachment }) => ({
-                    title,
-                    content,
-                    attachment: attachment ? { name: attachment.name, type: attachment.type } : null
+                (AppState.savedFiles || []).slice(0, 15).map(({ id, title, content, courseTitle, courseId, attachment }) => ({
+                    id, title,
+                    content: String(content || '').slice(0, 200),
+                    courseTitle: courseTitle || '',
+                    courseId: courseId || '',
+                    hasAttachment: !!(attachment)
                 }))
             );
             const coursesContext = JSON.stringify(
-                AppState.studyCourses.map(c => ({
-                    id: c.id,
-                    title: c.title,
-                    lectures: (c.lectures || []).map(l => ({ id: l.id, title: l.title, studied: !!l.studied }))
-                }))
+                (AppState.studyCourses || []).map(c => {
+                    const lectures = c.lectures || [];
+                    const studied = lectures.filter(l => l.studied).length;
+                    return {
+                        id: c.id,
+                        title: c.title,
+                        lectureCount: lectures.length,
+                        studiedCount: studied,
+                        lectures: lectures.map(l => ({ id: l.id, title: l.title, studied: !!l.studied })),
+                        grades: c.grades || null
+                    };
+                })
             );
             const notesContext = JSON.stringify(
-                AppState.quickNotes.map(n => ({ id: n.id, title: n.title, body: n.body, color: n.color }))
+                (AppState.quickNotes || []).slice(0, 12).map(n => ({ id: n.id, title: n.title, body: String(n.body || '').slice(0, 120) }))
             );
-            const monthlyContext = JSON.stringify(AppState.monthlyGoals);
-            const contextPrompt = `أنت مساعد ذكي اسمه P.U.D AI لتنظيم الدراسة الجامعية. تتحدث بالعربية بأسلوب مشجع وواضح ومختصر.
+            const monthlyContext = JSON.stringify(AppState.monthlyGoals || []);
+            const mistakesContext = JSON.stringify((AppState.studyMistakes || []).slice(0, 12).map(m => ({
+                id: m.id, courseTitle: m.courseTitle, topic: m.topic,
+                errorText: String(m.errorText || '').slice(0, 120),
+                correctAnswer: String(m.correctAnswer || '').slice(0, 80)
+            })));
+            const sessionsContext = JSON.stringify((AppState.studySessions || []).slice(0, 8).map(s => ({
+                courseTitle: s.courseTitle, minutes: s.minutes, date: s.date
+            })));
+            const reviewsContext = JSON.stringify((AppState.studyReviews || []).filter(r => !r.completed).slice(0, 12).map(r => ({
+                id: r.id, lectureTitle: r.lectureTitle, dueDate: r.dueDate
+            })));
+            const recentChat = (AppState.chatHistory || []).slice(-4).map(m => ({
+                role: m.sender === 'user' ? 'user' : 'assistant',
+                text: String(m.text || '').slice(0, 280)
+            }));
 
-طلب المستخدم الآن: "${userPrompt}"
+            const langInstruction = isEn
+                ? 'Respond in clear, encouraging English. Keep answers concise unless the user asks for detail.'
+                : 'رد بالعربية الفصحى المبسطة بأسلوب مشجع وواضح ومختصر. استخدم الإنجليزية فقط إذا كتب المستخدم بالإنجليزية أو طلب ذلك.';
 
-=== بيانات اللوحة الحالية ===
-- اسم المستخدم: ${AppState.userName}
-- المهام اليومية: ${JSON.stringify(AppState.dailyTasks)}
+            const contextPrompt = `أنت P.U.D AI — مساعد الدراسة الجامعية داخل لوحة Personal University Dashboard.
+اختصر الرد: جمل قليلة واضحة، بدون حشو. نفّذ الأوامر بسرعة ودقة.
+${langInstruction}
+أنت تنفّذ أوامر حقيقية على بيانات اللوحة (مهام، مواد، جدول محاضرات، أخطاء، مراجعات…). لست مجرد شات.
+
+طلب المستخدم الآن:
+"""
+${userPrompt}
+"""
+
+=== لقطة سريعة لليوم (${todayKey}) ===
+- يوم الأسبوع في الجدول: ${todayWeekday || '—'}
+- حصص اليوم: ${JSON.stringify(todaySlots)}
+- مراجعات مستحقة الآن: ${dueReviews.length} → ${JSON.stringify(dueReviews.slice(0, 8).map(r => r.lectureTitle))}
+- مهام يومية مفتوحة: ${openTasks.length}
+- دقائق المذاكرة اليوم: ${todayMins} / هدف ${goal}
+- سلسلة الأيام النشطة: ${streak}
+
+=== بيانات اللوحة ===
+- الاسم: ${AppState.userName}
+- المهام اليومية: ${JSON.stringify(AppState.dailyTasks || [])}
 - المواد والمحاضرات: ${coursesContext}
-- خطة الأسبوع (أيام: السبت، الأحد، الإثنين، الثلاثاء، الأربعاء، الخميس، الجمعة): ${JSON.stringify(AppState.weeklyPlanner)}
-- مواعيد الشهر والامتحانات: ${monthlyContext}
-- الملاحظات السريعة: ${notesContext}
-- الملفات المحفوظة (مرجعية للإجابة): ${savedFilesContext}
-- جلسات المذاكرة: ${JSON.stringify(AppState.studySessions.slice(0, 30))}
-- المراجعات: ${JSON.stringify(AppState.studyReviews.filter(r => !r.completed).slice(0, 40))}
-- الدرجات: ${JSON.stringify(AppState.studyCourses.map(c => ({ id: c.id, title: c.title, grades: c.grades })))}
+- جدول المحاضرات الأسبوعي (مفاتيح الأيام عربية ثابتة: السبت، الأحد، الإثنين، الثلاثاء، الأربعاء، الخميس، الجمعة؛ الوقت 24 ساعة HH:MM): ${JSON.stringify(AppState.weeklyPlanner || {})}
+- بنك الأخطاء: ${mistakesContext}
+- مواعيد/امتحانات الشهر: ${monthlyContext}
+- ملاحظات سريعة: ${notesContext}
+- ملفات محفوظة: ${savedFilesContext}
+- جلسات مذاكرة أخيرة: ${sessionsContext}
+- مراجعات غير مكتملة: ${reviewsContext}
 
-=== قدراتك التنفيذية ===
-عندما يطلب المستخدم تنفيذ شيء على اللوحة، أضف في نهاية ردك كتلة JSON واحدة أو أكثر بهذا الشكل بالضبط (يمكن أكثر من كتلة إذا لزم الأمر):
+=== آخر رسائل المحادثة (للسياق فقط) ===
+${JSON.stringify(recentChat)}
+
+=== كيفية التنفيذ ===
+عندما يحتاج الطلب تعديلاً على اللوحة، أضف في **نهاية** ردك كتلة JSON أو أكثر بهذا الشكل فقط:
 
 \`\`\`json
-{"action": "ACTION_NAME", "data": { ... }}
+{"action":"ACTION_NAME","data":{...}}
 \`\`\`
 
-الأوامر المتاحة (استخدمها فقط عند الحاجة الفعلية):
+أوامر متاحة:
+1) ADD_DAILY_TASK — {"title":"...","priority":"عالي|متوسط|عادي"}
+2) COMPLETE_DAILY_TASK — {"id":n} أو {"title":"جزء"}
+3) DELETE_DAILY_TASK — {"id":n} أو {"title":"جزء"}
+4) CLEAR_COMPLETED_TASKS — {}
+5) ADD_COURSE — {"title":"..."}
+6) DELETE_COURSE — {"id":"..."} أو {"title":"..."}
+7) ADD_LECTURE — {"courseTitle":"...","title":"..."} أو courseId
+8) MARK_LECTURE_STUDIED — {"courseTitle":"...","lectureTitle":"...","studied":true}
+9) DELETE_LECTURE — {"courseTitle":"...","lectureTitle":"..."}
+10) ADD_TIMETABLE_SLOT — {"day":"السبت","start":"08:00","end":"09:30","title":"...","type":"lecture|section|lab|other","location":""}
+11) SET_TIMETABLE_DAY — {"day":"السبت","slots":[{"start":"08:00","end":"09:30","title":"...","type":"lecture","location":""}]}
+12) REMOVE_TIMETABLE_SLOT — {"day":"...","title":"جزء"} أو {"day":"...","id":"..."}
+13) CLEAR_TIMETABLE — {} أو {"day":"السبت"}
+14) ADD_MISTAKE — {"errorText":"...","correctAnswer":"...","explanation":"","topic":"","courseTitle":""}
+15) DELETE_MISTAKE — {"id":"..."} أو {"errorText":"جزء"}
+16) ADD_MONTHLY_GOAL — {"title":"...","date":"YYYY-MM-DD"}
+17) DELETE_MONTHLY_GOAL — {"id":n} أو {"title":"جزء"}
+18) ADD_NOTE — {"title":"...","body":"...","color":"cyan|purple|amber|emerald"}
+19) DELETE_NOTE — {"id":n} أو {"title":"جزء"}
+20) ADD_SAVED_FILE — {"title":"...","content":"...","courseTitle":"اختياري"}
+21) DELETE_SAVED_FILE — {"id":"..."} أو {"title":"جزء"}
+22) SET_USER_NAME — {"name":"..."}
+23) SWITCH_TAB — {"tab":"daily|courses|history|progress|weekly|mistakes|monthly|notes|saved-files|ai-chat"}
+24) START_TIMER — {"mode":"pomodoro|stopwatch"}
+25) RESET_TIMER — {}
+26) NEW_AI_CHAT — {}
+27) ADD_STUDY_SESSION — {"courseTitle":"...","lectureTitle":"اختياري","minutes":25,"note":""}
+28) COMPLETE_REVIEW — {"id":"..."} أو {"lectureTitle":"جزء"}
+29) SET_COURSE_GRADES — {"courseTitle":"...","coursework":0,"midterm":0,"final":0,"courseworkWeight":20,"midtermWeight":30,"finalWeight":50}
+30) BUILD_EXAM_PLAN — {"courseTitle":"...","examDate":"YYYY-MM-DD","days":7} ثم أضف مهام يومية بـ ADD_DAILY_TASK موزعة
+31) PLAN_TODAY — {} خطّط لليوم من الحصص + المراجعات المستحقة + المهام المفتوحة؛ أضف مهام يومية عملية بـ ADD_DAILY_TASK (3–7 مهام واضحة)
 
-1) ADD_DAILY_TASK — إضافة مهمة يومية
-   data: {"title": "نص المهمة", "priority": "عالي" | "متوسط" | "عادي"}
-
-2) COMPLETE_DAILY_TASK — إتمام مهمة (بالـ id أو بالعنوان الجزئي)
-   data: {"id": رقم} أو {"title": "جزء من العنوان"}
-
-3) DELETE_DAILY_TASK — حذف مهمة
-   data: {"id": رقم} أو {"title": "جزء من العنوان"}
-
-4) CLEAR_COMPLETED_TASKS — مسح كل المهام المكتملة
-   data: {}
-
-5) ADD_COURSE — إضافة مادة دراسية
-   data: {"title": "اسم المادة"}
-
-6) DELETE_COURSE — حذف مادة
-   data: {"id": "معرف المادة"} أو {"title": "اسم المادة"}
-
-7) ADD_LECTURE — إضافة محاضرة/درس لمادة
-   data: {"courseId": "معرف"} أو {"courseTitle": "اسم المادة"}, "title": "اسم المحاضرة"
-
-8) MARK_LECTURE_STUDIED — تحديد درس كمُذاكر
-   data: {"courseId": "...", "lectureId": "..."} أو {"courseTitle": "...", "lectureTitle": "..."}, "studied": true|false
-
-9) DELETE_LECTURE — حذف درس
-   data: {"courseId": "...", "lectureId": "..."} أو {"courseTitle": "...", "lectureTitle": "..."}
-
-10) ADD_WEEKLY_ITEM — إضافة بند ليوم في الجدول الأسبوعي
-    data: {"day": "السبت|الأحد|الإثنين|الثلاثاء|الأربعاء|الخميس|الجمعة", "title": "النص"}
-
-11) REMOVE_WEEKLY_ITEM — حذف بند من يوم (بالفهرس أو بالنص)
-    data: {"day": "...", "index": 0} أو {"day": "...", "title": "جزء من النص"}
-
-12) ADD_MONTHLY_GOAL — إضافة موعد/هدف شهري
-    data: {"title": "العنوان", "date": "YYYY-MM-DD"}
-
-13) DELETE_MONTHLY_GOAL — حذف موعد
-    data: {"id": رقم} أو {"title": "جزء من العنوان"}
-
-14) ADD_NOTE — إضافة ملاحظة سريعة
-    data: {"title": "العنوان", "body": "المحتوى", "color": "cyan|purple|amber|emerald"}
-
-15) DELETE_NOTE — حذف ملاحظة
-    data: {"id": رقم} أو {"title": "جزء من العنوان"}
-
-16) ADD_SAVED_FILE — إضافة ملف محفوظ (نصي بدون مرفق)
-    data: {"title": "العنوان", "content": "المحتوى"}
-
-17) DELETE_SAVED_FILE — حذف ملف محفوظ
-    data: {"id": "معرف"} أو {"title": "جزء من العنوان"}
-
-18) SET_USER_NAME — تغيير اسم المستخدم في اللوحة
-    data: {"name": "الاسم الجديد"}
-
-19) SWITCH_TAB — الانتقال لقسم معيّن
-    data: {"tab": "daily|courses|history|weekly|monthly|notes|saved-files|ai-chat"}
-
-20) START_TIMER — تشغيل مؤقت البومودورو أو الستوب ووتش
-    data: {"mode": "pomodoro" | "stopwatch"}
-
-21) RESET_TIMER — إعادة ضبط المؤقت
-    data: {}
-
-22) NEW_AI_CHAT — بدء محادثة AI جديدة
-    data: {}
-
-23) ADD_STUDY_SESSION — تسجيل جلسة مذاكرة
-    data: {"courseTitle": "اسم المادة", "lectureTitle": "اختياري", "minutes": 25, "note": "اختياري"}
-
-24) COMPLETE_REVIEW — إتمام مراجعة مستحقة
-    data: {"id": "معرف"} أو {"lectureTitle": "جزء من العنوان"}
-
-25) SET_COURSE_GRADES — تحديث درجات مادة
-    data: {"courseTitle": "اسم المادة", "coursework": 85, "midterm": 78, "final": 90, "courseworkWeight": 20, "midtermWeight": 30, "finalWeight": 50}
-    (أي حقل اختياري ما عدا courseTitle)
-
-26) BUILD_EXAM_PLAN — بناء خطة مذاكرة لامتحان (يضيف مهام يومية موزعة)
-    data: {"courseTitle": "اسم المادة", "examDate": "YYYY-MM-DD", "days": 7}
-    ملاحظة: أضف المهام عبر ADD_DAILY_TASK متعددة في نفس الرد بعد شرح الخطة.
-
-قواعد مهمة:
-- رد أولاً بنص طبيعي ومشجع يشرح ما فعلته أو يجيب على السؤال.
-- ضع كتل JSON في النهاية فقط، بدون شرح داخلها.
-- استخدم الـ id إن وُجد في البيانات، وإلا ابحث بالعنوان الجزئي (غير حساس لحالة الأحرف).
-- يمكنك تنفيذ أكثر من أمر في رد واحد إذا طلب المستخدم ذلك.
-- إذا كان الطلب مجرد سؤال أو نصيحة بدون تعديل، لا تُخرج أي JSON.
-- استخدم محتوى الملفات المحفوظة للإجابة عندما يُسأل عنها.`;
+قواعد سلوك ذكية:
+- ابدأ دائماً برد نصي مفهوم يشرح ما ستفعله أو الإجابة، ثم JSON في النهاية إن لزم.
+- لا تخترع بيانات غير موجودة في اللوحة؛ إن نقص شيء اطلبه باختصار.
+- جدول من نص/صورة: استخرج كل حصة بدقة (يوم عربي صحيح، وقت 24 ساعة) واستخدم SET_TIMETABLE_DAY لكل يوم أفضل من عشرات ADD المنفصلة.
+- ملف أخطاء: كل خطأ = ADD_MISTAKE منفصل مع correctAnswer وشرح مختصر إن وُجد.
+- «overview / ملخص مادة»: لخّص من المحاضرات (نسبة المذاكرة) + الجلسات + الدرجات + أخطاء المادة + أقرب امتحان إن وُجد. لا تحتاج JSON إلا لو طلب المستخدم تحديث شيء.
+- «خطة اليوم / نظم يومي»: استخدم PLAN_TODAY + مهام حقيقية مرتبطة بالمراجعات والحصص.
+- «خطة امتحان»: BUILD_EXAM_PLAN + مهام موزعة بأيام، أولوية عالية للمراجعة.
+- إن سأل عن ملف محفوظ بالاسم، اعتمد محتواه؛ إن وُجد مرفق مُرسل هنا حلّله.
+- أولوية المهام: عالي للمراجعات المتأخرة والامتحانات القريبة، متوسط للمذاكرة العادية، عادي للتنظيم.
+- لا تخرج JSON لأسئلة نظرية أو نصائح فقط.
+- أيام الجدول يجب أن تكون بالضبط: السبت، الأحد، الإثنين، الثلاثاء، الأربعاء، الخميس، الجمعة (حتى لو الواجهة إنجليزي).`;
 
             const parts = [{ text: contextPrompt }];
             if (imagePayload) {
@@ -3219,7 +3827,14 @@
                     }
                 });
             }
-            const body = { contents: [{ parts }] };
+            const body = {
+                contents: [{ role: 'user', parts }],
+                generationConfig: {
+                    temperature: 0.4,
+                    topP: 0.85,
+                    maxOutputTokens: 2048
+                }
+            };
 
             const tried = new Set();
             const cached = localStorage.getItem('pud_gemini_working_model');
@@ -3293,6 +3908,10 @@
                 reviews: 'tab-progress',
                 grades: 'tab-progress',
                 weekly: 'tab-weekly',
+                timetable: 'tab-weekly',
+                schedule: 'tab-weekly',
+                mistakes: 'tab-mistakes',
+                errors: 'tab-mistakes',
                 monthly: 'tab-monthly',
                 notes: 'tab-notes',
                 'saved-files': 'tab-saved-files',
@@ -3309,14 +3928,47 @@
         }
 
         function handleAiActionExecution(fullText) {
-            const jsonRegex = /```json\s*([\s\S]*?)\s*```/g;
-            let match;
             let cleanText = fullText;
             const executedActions = [];
+            const actionQueue = [];
 
-            while ((match = jsonRegex.exec(fullText)) !== null) {
+            function enqueueParsed(parsed, rawChunk) {
+                if (!parsed) return;
+                if (Array.isArray(parsed)) {
+                    parsed.forEach(item => {
+                        if (item && item.action) actionQueue.push({ obj: item, raw: rawChunk });
+                    });
+                } else if (parsed.action) {
+                    actionQueue.push({ obj: parsed, raw: rawChunk });
+                } else if (Array.isArray(parsed.actions)) {
+                    parsed.actions.forEach(item => {
+                        if (item && item.action) actionQueue.push({ obj: item, raw: rawChunk });
+                    });
+                }
+            }
+
+            const fenced = /```(?:json)?\s*([\s\S]*?)\s*```/gi;
+            let match;
+            while ((match = fenced.exec(fullText)) !== null) {
                 try {
-                    const actionObj = JSON.parse(match[1]);
+                    enqueueParsed(JSON.parse(match[1]), match[0]);
+                    cleanText = cleanText.replace(match[0], '');
+                } catch (e) {}
+            }
+            // bare JSON objects with "action"
+            const bare = /\{\s*"action"\s*:[\s\S]*?\}\s*(?=\{|$)/g;
+            let bareMatch;
+            const bareSource = cleanText;
+            while ((bareMatch = bare.exec(bareSource)) !== null) {
+                try {
+                    enqueueParsed(JSON.parse(bareMatch[0]), bareMatch[0]);
+                    cleanText = cleanText.replace(bareMatch[0], '');
+                } catch (e) {}
+            }
+
+            for (const entry of actionQueue) {
+                try {
+                    const actionObj = entry.obj;
                     const action = String(actionObj.action || '').toUpperCase().trim();
                     const data = actionObj.data || {};
                     let done = false;
@@ -3457,33 +4109,109 @@
                                 done = true;
                             }
                         }
-                    } else if (action === 'ADD_WEEKLY_ITEM' && data.day && data.title) {
+                    } else if ((action === 'ADD_TIMETABLE_SLOT' || action === 'ADD_WEEKLY_ITEM') && data.day && (data.title || data.start)) {
                         const day = String(data.day).trim();
-                        if (AppState.weeklyPlanner[day]) {
-                            AppState.weeklyPlanner[day].push(String(data.title).trim());
+                        if (WEEK_DAYS.includes(day)) {
+                            if (!Array.isArray(AppState.weeklyPlanner[day])) AppState.weeklyPlanner[day] = [];
+                            let type = String(data.type || 'lecture').toLowerCase();
+                            if (!['lecture', 'section', 'lab', 'other'].includes(type)) {
+                                if (/سكشن|section/i.test(data.title || '')) type = 'section';
+                                else if (/لاب|lab/i.test(data.title || '')) type = 'lab';
+                                else type = 'lecture';
+                            }
+                            AppState.weeklyPlanner[day].push({
+                                id: createTimetableId(),
+                                start: String(data.start || '08:00').slice(0, 5),
+                                end: String(data.end || '09:30').slice(0, 5),
+                                title: String(data.title || '').trim() || '—',
+                                type,
+                                location: String(data.location || '').trim(),
+                                courseId: data.courseId ? String(data.courseId) : ''
+                            });
+                            AppState.weeklyPlanner[day].sort((a, b) => String(a.start).localeCompare(String(b.start)));
                             saveStateToStorage();
                             renderWeeklyPlanner();
+                            try { renderOpenReminders(); } catch (e) {}
                             done = true;
                         }
-                    } else if (action === 'REMOVE_WEEKLY_ITEM' && data.day) {
+                    } else if ((action === 'REMOVE_TIMETABLE_SLOT' || action === 'REMOVE_WEEKLY_ITEM') && data.day) {
                         const day = String(data.day).trim();
                         const items = AppState.weeklyPlanner[day];
                         if (Array.isArray(items)) {
-                            if (typeof data.index === 'number' && data.index >= 0 && data.index < items.length) {
+                            if (data.id) {
+                                const before = items.length;
+                                AppState.weeklyPlanner[day] = items.filter(s => String(s.id) !== String(data.id));
+                                done = AppState.weeklyPlanner[day].length !== before;
+                            } else if (typeof data.index === 'number' && data.index >= 0 && data.index < items.length) {
                                 items.splice(data.index, 1);
                                 done = true;
                             } else if (data.title) {
                                 const needle = String(data.title).toLocaleLowerCase('ar');
-                                const idx = items.findIndex(t => String(t).toLocaleLowerCase('ar').includes(needle));
-                                if (idx >= 0) {
-                                    items.splice(idx, 1);
-                                    done = true;
-                                }
+                                const idx = items.findIndex(s => String(s.title || s).toLocaleLowerCase('ar').includes(needle));
+                                if (idx >= 0) { items.splice(idx, 1); done = true; }
                             }
                             if (done) {
                                 saveStateToStorage();
                                 renderWeeklyPlanner();
+                                try { renderOpenReminders(); } catch (e) {}
                             }
+                        }
+                    } else if (action === 'SET_TIMETABLE_DAY' && data.day && Array.isArray(data.slots)) {
+                        const day = String(data.day).trim();
+                        if (WEEK_DAYS.includes(day)) {
+                            AppState.weeklyPlanner[day] = data.slots.map(s => ({
+                                id: createTimetableId(),
+                                start: String(s.start || '08:00').slice(0, 5),
+                                end: String(s.end || '09:30').slice(0, 5),
+                                title: String(s.title || '').trim() || '—',
+                                type: ['lecture', 'section', 'lab', 'other'].includes(s.type) ? s.type : 'lecture',
+                                location: String(s.location || '').trim(),
+                                courseId: s.courseId ? String(s.courseId) : ''
+                            })).sort((a, b) => String(a.start).localeCompare(String(b.start)));
+                            saveStateToStorage();
+                            renderWeeklyPlanner();
+                            try { renderOpenReminders(); } catch (e) {}
+                            done = true;
+                        }
+                    } else if (action === 'CLEAR_TIMETABLE') {
+                        if (data.day && WEEK_DAYS.includes(String(data.day).trim())) {
+                            AppState.weeklyPlanner[String(data.day).trim()] = [];
+                        } else {
+                            WEEK_DAYS.forEach(d => { AppState.weeklyPlanner[d] = []; });
+                        }
+                        saveStateToStorage();
+                        renderWeeklyPlanner();
+                        try { renderOpenReminders(); } catch (e) {}
+                        done = true;
+                    } else if (action === 'ADD_MISTAKE' && data.errorText && data.correctAnswer) {
+                        let course = null;
+                        if (data.courseId) course = AppState.studyCourses.find(c => String(c.id) === String(data.courseId));
+                        if (!course && data.courseTitle) course = findByIdOrTitle(AppState.studyCourses, { title: data.courseTitle });
+                        AppState.studyMistakes.unshift({
+                            id: `mis-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                            courseId: course ? course.id : '',
+                            courseTitle: course ? course.title : String(data.courseTitle || '').trim(),
+                            topic: String(data.topic || '').trim(),
+                            errorText: String(data.errorText).trim(),
+                            correctAnswer: String(data.correctAnswer).trim(),
+                            explanation: String(data.explanation || '').trim(),
+                            createdAt: new Date().toISOString()
+                        });
+                        saveStateToStorage();
+                        try { renderMistakes(); } catch (e) {}
+                        done = true;
+                    } else if (action === 'DELETE_MISTAKE') {
+                        const before = AppState.studyMistakes.length;
+                        if (data.id) {
+                            AppState.studyMistakes = AppState.studyMistakes.filter(m => String(m.id) !== String(data.id));
+                        } else if (data.errorText) {
+                            const needle = String(data.errorText).toLocaleLowerCase('ar');
+                            AppState.studyMistakes = AppState.studyMistakes.filter(m => !String(m.errorText || '').toLocaleLowerCase('ar').includes(needle));
+                        }
+                        if (AppState.studyMistakes.length !== before) {
+                            saveStateToStorage();
+                            try { renderMistakes(); } catch (e) {}
+                            done = true;
                         }
                     } else if (action === 'ADD_MONTHLY_GOAL' && data.title && data.date) {
                         AppState.monthlyGoals.push({
@@ -3523,10 +4251,15 @@
                             done = true;
                         }
                     } else if (action === 'ADD_SAVED_FILE' && data.title && data.content) {
+                        let courseSF = null;
+                        if (data.courseId) courseSF = AppState.studyCourses.find(c => String(c.id) === String(data.courseId));
+                        if (!courseSF && data.courseTitle) courseSF = findByIdOrTitle(AppState.studyCourses, { title: data.courseTitle });
                         AppState.savedFiles.unshift({
                             id: `saved-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                             title: String(data.title).trim(),
                             content: String(data.content).trim(),
+                            courseId: courseSF ? courseSF.id : '',
+                            courseTitle: courseSF ? courseSF.title : String(data.courseTitle || '').trim(),
                             createdAt: new Date().toISOString()
                         });
                         saveStateToStorage();
@@ -3598,15 +4331,15 @@
                             renderProgressModule();
                             done = true;
                         }
-                    } else if (action === 'BUILD_EXAM_PLAN') {
-                        // Soft action: AI should emit ADD_DAILY_TASK blocks; we just acknowledge
+                    } else if (action === 'BUILD_EXAM_PLAN' || action === 'PLAN_TODAY') {
                         done = true;
                     }
 
                     if (done) executedActions.push(action);
-                    cleanText = cleanText.replace(match[0], '').trim();
                 } catch (e) {}
             }
+            cleanText = cleanText.replace(/```(?:json)?\s*[\s\S]*?```/gi, '').trim();
+            cleanText = cleanText.replace(/\n{3,}/g, '\n\n').trim();
             return cleanText;
         }
 
@@ -4127,7 +4860,7 @@
         var I18N = {
             ar: {
                 nav_sections: 'أقسام اللوحة', nav_daily: 'المهام اليومية', nav_courses: 'المواد والدروس',
-                nav_history: 'سجل الإنجاز', nav_progress: 'جلسات · مراجعات · درجات', nav_weekly: 'خطة الأسبوع',
+                nav_history: 'سجل الإنجاز', nav_progress: 'جلسات · مراجعات · درجات', nav_weekly: 'جدول المحاضرات', nav_mistakes: 'بنك الأخطاء',
                 nav_monthly: 'خطة الشهر والامتحانات', nav_notes: 'الملاحظات السريعة', nav_files: 'الملفات المحفوظة',
                 nav_ai: 'التحدث مع مساعدك الذكي', focus_mode: 'وضع التركيز', theme_light: 'فاتح', theme_dark: 'داكن',
                 export_backup: 'تصدير النسخة', import_backup: 'استعادة البيانات', ai_settings: 'إعدادات الـ AI والمفتاح',
@@ -4156,7 +4889,22 @@
                 reviews_scheduled: 'المراجعات المستحقة والمجدولة',
                 reviews_hint: 'تُجدول تلقائيًا عند تحديد درس كمُذاكر: بعد 1 · 3 · 7 · 14 يوم',
                 grades_title: 'الدرجات والمعدل المتوقع', grades_sub: 'أدخل درجاتك وأوزانها. يُحسب المعدل تلقائيًا.',
-                weekly_title: 'خطة الأسبوع', weekly_sub: 'وزّع موادك على أيام الأسبوع لتقليل الضغط',
+                weekly_title: 'جدول المحاضرات الأسبوعي', weekly_sub: 'سجّل محاضراتك وسكاشنك باليوم والساعة. يمكن للـ AI قراءة جدولك وملء هذا القسم.',
+                tt_add_slot: 'إضافة حصة', tt_day: 'اليوم', tt_start: 'من', tt_end: 'إلى', tt_title: 'المادة / العنوان',
+                tt_type: 'النوع', tt_type_lecture: 'محاضرة', tt_type_section: 'سكشن', tt_type_lab: 'لاب', tt_type_other: 'أخرى',
+                tt_location: 'القاعة (اختياري)', tt_ai_hint: 'نصيحة: الصق جدولك في محادثة الـ AI واطلب «املأ جدول المحاضرات».',
+                ph_tt_title: 'مثال: رياضيات 1', ph_tt_location: 'A-12',
+                mistakes_title: 'بنك الأخطاء', mistakes_sub: 'سجّل الأخطاء المتكررة والإجابات الصحيحة. يمكن للـ AI تحليل ملف أخطاء وملء هذا القسم.',
+                mistakes_add: 'إضافة خطأ', mistakes_course: 'المادة (اختياري)', mistakes_topic: 'الشابتر / الدرس (من محاضرات المادة)',
+                mistakes_error: 'الخطأ / السؤال', mistakes_correct: 'الإجابة الصحيحة', mistakes_explain: 'شرح مختصر (اختياري)',
+                mistakes_list: 'سجل الأخطاء', mistakes_ai_hint: 'ارفع ملف أخطاء أو الصقه في الـ AI واطلب وضعها في بنك الأخطاء.',
+                ph_mistake_topic: 'مثال: تكامل بالتجزئة', ph_mistake_error: 'وصّف الخطأ أو الصق السؤال...',
+                ph_mistake_correct: 'الإجابة الصحيحة...', ph_mistake_explain: 'ليش كانت الغلطة؟', ph_mistake_search: 'بحث...',
+                no_mistakes: 'لا توجد أخطاء مسجّلة بعد.',
+                mistakes_filter_course: 'فلترة بالمادة',
+                mistakes_filter_topic: 'فلترة بالشابتر / الدرس',
+                mistakes_filter_search: 'بحث نصي (اختياري)',
+                reminders_title: 'تذكير عند الفتح', ph_course_opt: 'المادة (اختياري)',
                 monthly_title: 'خطة الشهر والامتحانات', monthly_sub: 'سجّل الامتحانات والمشاريع والأهداف الكبيرة',
                 add_event: 'إضافة موعد', planned_goals: 'الأهداف والمواعيد المخططة',
                 notes_title: 'الملاحظات السريعة', notes_sub: 'اكتب أفكارك وروابطك وملاحظات المحاضرات',
@@ -4189,10 +4937,12 @@
                 ph_note_title: 'عنوان الملاحظة...', ph_note_body: 'تفاصيل الملاحظة...',
                 ph_lecture: 'اسم المحاضرة...', ph_lecture_opt: 'الدرس (اختياري)',
                 ph_score: 'درجة', all_months: 'كل الشهور',
-                qp1: '📋 حلل مهامي واقترح جدولاً لليوم',
-                qp2: '⚡ أضف 3 مهام مراجعة بأولوية عالية',
-                qp3: '⏱ شغل مؤقت البومودورو للمذاكرة',
-                qp4: '💡 اعطني نصيحة لتركيز المذاكرة',
+                qp1: '📋 خطط يومي من الجدول والمراجعات وأضف مهام',
+                qp2: '⚡ أضف مهام للمراجعات المستحقة بأولوية عالية',
+                qp3: '📅 هذا جدولي (الصق الجدول بعد الرسالة) املأ جدول المحاضرات',
+                qp4: '📚 اعمل overview لأول مادة مسجّلة عندي',
+                qp5: '🧠 لخّص بنك الأخطاء واقترح مراجعة مركّزة',
+                qp6: '⏱ شغّل مؤقت البومودورو للمذاكرة',
                 choose_file: 'اختيار ملف أو أكثر', files_types: 'PDF، صور، أو أنواع ملفات أخرى',
                 files_note: 'تُحفظ المرفقات على هذا المتصفح. عند سؤال Gemini عن مرفق، يُرسل إليه لتحليله.',
                 save_settings: 'حفظ الإعدادات', cancel_btn: 'إلغاء',
@@ -4216,16 +4966,17 @@
                 about_courses: 'أضف موادك ومحاضراتك، ابدأ تركيزًا من أي درس، وعلّم ما ذاكرته.',
                 about_history: 'يعرض الأيام التي أنجزت فيها مهامًا أو ذاكرت دروسًا مع ملخص الأسبوع.',
                 about_progress: 'جلسات المذاكرة، المراجعات المتباعدة، والدرجات والمعدل المتوقع.',
-                about_weekly: 'وزّع محاضراتك ومهامك على أيام الأسبوع لتفادي الضغط.',
+                about_weekly: 'جدول محاضراتك الأسبوعي بالساعات. اربطه بالمواد ودع الـ AI يملأه من نص أو صورة الجدول.',
+                about_mistakes: 'خزّن أخطاءك المتكررة مع الإجابة والشرح، وراجعها قبل الامتحان. الـ AI يقدر يملأها من ملف.',
                 about_monthly: 'سجّل الامتحانات والمواعيد الكبيرة وأهداف الشهر.',
                 about_notes: 'ملاحظات سريعة وروابط وأفكار تحت يدك أثناء المذاكرة.',
                 about_files: 'احفظ نصوصًا أو ملفات؛ ويمكن للـ AI الرجوع إليها عند السؤال.',
                 about_ai: 'اطلب تنظيم يومك أو إضافة مهام أو نصائح مذاكرة بلغة طبيعية.',
                 resume_sessions: 'استكمال الجلسة',
                 ai_how_title: 'طريقة استخدام الـ AI',
-                ai_how_1: '• اطلب إضافة مهام أو تنظيم يومك بجملة واضحة.',
-                ai_how_2: '• اسأله عن ملف محفوظ بالاسم الذي حفظته به.',
-                ai_how_3: '• يمكنه اقتراح جدول مراجعة أو أولويات للدراسة.',
+                ai_how_1: '• اطلب تنظيم يومك أو إضافة مهام بجملة واضحة — ينفّذ على اللوحة.',
+                ai_how_2: '• الصق جدول المحاضرات أو ارفع صورته واطلب ملء جدول الحصص.',
+                ai_how_3: '• اطلب overview لمادة، أو حلّل ملف أخطاء ليضيفها لبنك الأخطاء.',
                 footer_about: 'P.U.D — لوحة تخطيط جامعي شخصية. بياناتك تُحفظ محليًا على جهازك.',
 
                 week_n: 'الأسبوع', achievements: 'إنجاز', new_conversation: 'محادثة جديدة',
@@ -4239,7 +4990,7 @@
             },
             en: {
                 nav_sections: 'Sections', nav_daily: 'Daily Tasks', nav_courses: 'Courses & Lectures',
-                nav_history: 'Progress Log', nav_progress: 'Sessions · Reviews · Grades', nav_weekly: 'Weekly Plan',
+                nav_history: 'Progress Log', nav_progress: 'Sessions · Reviews · Grades', nav_weekly: 'Timetable', nav_mistakes: 'Mistake bank',
                 nav_monthly: 'Monthly & Exams', nav_notes: 'Quick Notes', nav_files: 'Saved Files',
                 nav_ai: 'AI Study Assistant', focus_mode: 'Focus Mode', theme_light: 'Light', theme_dark: 'Dark',
                 export_backup: 'Export Backup', import_backup: 'Restore Data', ai_settings: 'AI & API Key',
@@ -4268,7 +5019,22 @@
                 reviews_scheduled: 'Due & scheduled reviews',
                 reviews_hint: 'Auto-scheduled when you mark a lecture studied: after 1 · 3 · 7 · 14 days',
                 grades_title: 'Grades & expected score', grades_sub: 'Enter scores and weights. Expected average is calculated automatically.',
-                weekly_title: 'Weekly plan', weekly_sub: 'Spread courses across the week to reduce pressure',
+                weekly_title: 'Weekly lecture timetable', weekly_sub: 'Log lectures and sections by day and time. AI can read your schedule and fill this section.',
+                tt_add_slot: 'Add slot', tt_day: 'Day', tt_start: 'From', tt_end: 'To', tt_title: 'Course / title',
+                tt_type: 'Type', tt_type_lecture: 'Lecture', tt_type_section: 'Section', tt_type_lab: 'Lab', tt_type_other: 'Other',
+                tt_location: 'Room (optional)', tt_ai_hint: 'Tip: paste your schedule in AI chat and ask to fill the timetable.',
+                ph_tt_title: 'e.g. Calculus 1', ph_tt_location: 'A-12',
+                mistakes_title: 'Mistake bank', mistakes_sub: 'Log recurring mistakes with correct answers. AI can parse an error file into this section.',
+                mistakes_add: 'Add mistake', mistakes_course: 'Course (optional)', mistakes_topic: 'Chapter / lecture (from course lectures)',
+                mistakes_error: 'Mistake / question', mistakes_correct: 'Correct answer', mistakes_explain: 'Short explanation (optional)',
+                mistakes_list: 'Mistake log', mistakes_ai_hint: 'Upload or paste an error sheet in AI and ask to add them to the mistake bank.',
+                ph_mistake_topic: 'e.g. Integration by parts', ph_mistake_error: 'Describe the mistake or paste the question...',
+                ph_mistake_correct: 'Correct answer...', ph_mistake_explain: 'Why was it wrong?', ph_mistake_search: 'Search...',
+                no_mistakes: 'No mistakes logged yet.',
+                mistakes_filter_course: 'Filter by course',
+                mistakes_filter_topic: 'Filter by chapter / lecture',
+                mistakes_filter_search: 'Text search (optional)',
+                reminders_title: 'On-open reminders', ph_course_opt: 'Course (optional)',
                 monthly_title: 'Monthly plan & exams', monthly_sub: 'Log exams, project deadlines, and big goals',
                 add_event: 'Add event', planned_goals: 'Planned goals & dates',
                 notes_title: 'Quick notes', notes_sub: 'Write ideas, links, and lecture notes',
@@ -4301,10 +5067,12 @@
                 ph_note_title: 'Note title...', ph_note_body: 'Note details...',
                 ph_lecture: 'Lecture name...', ph_lecture_opt: 'Lecture (optional)',
                 ph_score: 'Score', all_months: 'All months',
-                qp1: '📋 Analyze my tasks and suggest a plan for today',
-                qp2: '⚡ Add 3 high-priority review tasks',
-                qp3: '⏱ Start the Pomodoro timer for studying',
-                qp4: '💡 Give me a tip for focused studying',
+                qp1: '📋 Plan my day from timetable + reviews and add tasks',
+                qp2: '⚡ Add high-priority tasks for due reviews',
+                qp3: '📅 Here is my schedule (paste after this) — fill the timetable',
+                qp4: '📚 Give an overview of my first registered course',
+                qp5: '🧠 Summarize my mistake bank and suggest focused review',
+                qp6: '⏱ Start the Pomodoro timer for studying',
                 choose_file: 'Choose file(s)', files_types: 'PDF, images, or other files',
                 files_note: 'Attachments stay in this browser. When you ask Gemini about one, it is sent for analysis.',
                 save_settings: 'Save settings', cancel_btn: 'Cancel',
@@ -4327,16 +5095,17 @@
                 about_courses: 'Add courses and lectures, start Focus from a lesson, and mark what you studied.',
                 about_history: 'Shows days with completed tasks or studied lectures, plus a weekly summary.',
                 about_progress: 'Study sessions, spaced reviews, grades, and expected average.',
-                about_weekly: 'Spread lectures and tasks across the week to reduce pressure.',
+                about_weekly: 'Your weekly lecture timetable by hour. Link courses and let AI fill it from text or a photo of the schedule.',
+                about_mistakes: 'Store recurring mistakes with answers and notes; review before exams. AI can fill from a file.',
                 about_monthly: 'Log exams, big deadlines, and monthly goals.',
                 about_notes: 'Quick notes, links, and ideas while you study.',
                 about_files: 'Save text or files; the AI can use them when you ask.',
                 about_ai: 'Ask to organize your day, add tasks, or get study tips in natural language.',
                 resume_sessions: 'Resume session',
                 ai_how_title: 'How to use the AI',
-                ai_how_1: '• Ask to add tasks or plan your day in a clear sentence.',
-                ai_how_2: '• Ask about a saved file by the name you gave it.',
-                ai_how_3: '• It can suggest a review schedule or study priorities.',
+                ai_how_1: '• Ask to plan your day or add tasks — it edits the board.',
+                ai_how_2: '• Paste your schedule or upload a photo to fill the timetable.',
+                ai_how_3: '• Ask for a course overview or analyze errors into the mistake bank.',
                 footer_about: 'P.U.D — Personal University Dashboard. Your data stays locally on your device.',
                 celeb_title: 'Legend! You crushed it 🚀🔥',
                 celeb_body: 'You completed all daily tasks at 100%!',
@@ -4468,6 +5237,10 @@
             try { renderDailyTasks(); } catch (e) {}
             try { renderCourses(); } catch (e) {}
             try { renderWeeklyPlanner(); } catch (e) {}
+            try { renderMistakes(); } catch (e) {}
+            try { populateSavedFileCourseSelect(); } catch (e) {}
+            try { populateMistakeCourseSelect(); } catch (e) {}
+            try { renderOpenReminders(); } catch (e) {}
             try { renderStudyHistory(); } catch (e) {}
             try { renderMonthlyPlanner(); } catch (e) {}
             try { renderQuickNotes(); } catch (e) {}
@@ -4482,10 +5255,9 @@
             try { if (typeof FocusMode !== "undefined") FocusMode.updateActionLabels(); } catch (e) {}
 
             // Quick prompts
-            const qps = document.querySelectorAll('.quick-prompt-btn');
-            const qpKeys = ['qp1', 'qp2', 'qp3', 'qp4'];
-            qps.forEach((btn, i) => {
-                if (qpKeys[i]) btn.textContent = t(qpKeys[i]);
+            document.querySelectorAll('.quick-prompt-btn').forEach((btn) => {
+                const key = btn.getAttribute('data-qp');
+                if (key) btn.textContent = t(key);
             });
 
             // Saved files helper labels
@@ -5169,6 +5941,8 @@
             initProgressModule();
             initThemeLangToday();
             initWeeklyPlanner();
+            initMistakesModule();
+            initOpenReminders();
             initMonthlyPlanner();
             initQuickNotes();
             initSavedFilesModule();
