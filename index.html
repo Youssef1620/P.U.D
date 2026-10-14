@@ -435,7 +435,142 @@
             border-color: #0891b2 !important;
         }
 
-    </style>
+
+        /* Rocket faces RIGHT-UP and flies RIGHT-UP (same direction) */
+        #motivRocketCard {
+            cursor: pointer;
+            user-select: none;
+            transition: border-color 0.25s ease, box-shadow 0.25s ease;
+            overflow: hidden;
+        }
+        #motivRocketCard:hover {
+            border-color: rgba(34, 211, 238, 0.4);
+            box-shadow: 0 0 24px rgba(6, 182, 212, 0.14);
+        }
+        #motivRocketStage {
+            height: 2.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin-bottom: 0.15rem;
+        }
+        #motivRocketBtn {
+            width: 2.5rem; height: 2.5rem;
+            border-radius: 9999px;
+            background: rgba(6, 182, 212, 0.12);
+            color: #22d3ee;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.15rem;
+            position: relative;
+            z-index: 2;
+            will-change: transform, opacity;
+            /* Default pose: nose points to the right-up (NE) */
+            transform: rotate(-45deg);
+            transition: background 0.2s ease, box-shadow 0.2s ease;
+        }
+        #motivRocketCard:hover #motivRocketBtn:not(.flying) {
+            background: rgba(6, 182, 212, 0.2);
+            box-shadow: 0 0 14px rgba(34, 211, 238, 0.22);
+        }
+        #motivRocketBtn i {
+            display: inline-block;
+            line-height: 1;
+            /* no extra rotate — parent already -45deg */
+            transform: none;
+        }
+        #motivRocketBtn.flying {
+            animation: rocketFlyRightUp 0.95s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+        }
+        /*
+          Keep rotate(-45deg) on every keyframe so it STAYS facing right-up
+          while translating more to the RIGHT than pure vertical.
+        */
+        @keyframes rocketFlyRightUp {
+            0% {
+                transform: rotate(-45deg) translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            18% {
+                transform: rotate(-45deg) translate(12px, -8px) scale(1.06);
+                opacity: 1;
+            }
+            55% {
+                transform: rotate(-45deg) translate(48px, -30px) scale(1.05);
+                opacity: 0.92;
+            }
+            100% {
+                transform: rotate(-45deg) translate(110px, -58px) scale(0.72);
+                opacity: 0;
+            }
+        }
+        /* Trail behind, opposite the flight (toward bottom-left of the icon) */
+        #motivRocketBtn .rocket-trail {
+            position: absolute;
+            left: 50%;
+            top: 58%;
+            width: 3px;
+            height: 0;
+            border-radius: 9999px;
+            background: linear-gradient(to bottom, rgba(165, 243, 252, 0.95), rgba(6, 182, 212, 0.2), transparent);
+            transform: translateX(-50%);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+        #motivRocketBtn.flying .rocket-trail {
+            animation: rocketTrailRightUp 0.95s ease-out forwards;
+        }
+        @keyframes rocketTrailRightUp {
+            0%   { height: 0; opacity: 0; }
+            22%  { height: 14px; opacity: 0.85; }
+            100% { height: 36px; opacity: 0; }
+        }
+        #motivRocketGlow {
+            position: absolute;
+            width: 2.25rem; height: 2.25rem;
+            border-radius: 9999px;
+            background: radial-gradient(circle, rgba(34, 211, 238, 0.32) 0%, transparent 70%);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+        #motivRocketStage.launching #motivRocketGlow {
+            animation: rocketGlowRightUp 0.95s ease-out forwards;
+        }
+        @keyframes rocketGlowRightUp {
+            0%   { opacity: 0; transform: scale(0.7); }
+            20%  { opacity: 0.75; transform: scale(1.1); }
+            100% { opacity: 0; transform: scale(1.5); }
+        }
+        #motivQuote, #motivQuoteSub {
+            transition: opacity 0.28s ease, transform 0.28s ease;
+        }
+        #motivQuote.quote-out, #motivQuoteSub.quote-out {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+        #motivQuote.quote-in, #motivQuoteSub.quote-in {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        #motivRocketHint {
+            font-size: 9px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        html:not(.dark) #motivRocketBtn {
+            background: #ecfeff;
+            color: #0e7490;
+        }
+        html:not(.dark) #motivRocketCard:hover {
+            border-color: #67e8f9;
+        }
+        html:not(.dark) #motivRocketGlow {
+            background: radial-gradient(circle, rgba(8, 145, 178, 0.25) 0%, transparent 70%);
+        }
+
+</style>
 </head>
 <body class="min-h-screen flex flex-col antialiased text-slate-100 overflow-x-hidden selection:bg-cyan-500 selection:text-slate-900">
 
@@ -650,12 +785,17 @@
                 </nav>
             </div>
 
-            <div class="glass-panel rounded-2xl p-4 border border-slate-800 hidden md:block text-center space-y-2">
-                <div class="w-10 h-10 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center mx-auto text-lg">
-                    <i class="fa-solid fa-rocket"></i>
+            <div id="motivRocketCard" class="glass-panel rounded-2xl p-4 border border-slate-800 hidden md:block text-center space-y-2" role="button" tabindex="0" title="اضغط لصاروخ جديد">
+                <div id="motivRocketStage">
+                    <span id="motivRocketGlow" aria-hidden="true"></span>
+                    <div id="motivRocketBtn" aria-hidden="true">
+                        <i class="fa-solid fa-rocket"></i>
+                        <span class="rocket-trail"></span>
+                    </div>
                 </div>
                 <p class="text-xs font-bold text-slate-200"><span id="motivQuote">"الاستمرارية هي سر التميز"</span></p>
                 <p class="text-[11px] text-slate-400 leading-relaxed"><span id="motivQuoteSub">خطوة صغيرة كل يوم تقربك من هدفك الجامعي النهائي.</span></p>
+                <p id="motivRocketHint" data-i18n-static="rocket_hint">اضغط على الصاروخ لجملة جديدة 🚀</p>
             </div>
         </aside>
 
@@ -5051,6 +5191,7 @@ ${JSON.stringify(recentChat)}
                 ai_how_2: '• الصق جدول المحاضرات أو ارفع صورته واطلب ملء جدول الحصص.',
                 ai_how_3: '• اطلب overview لمادة، أو حلّل ملف أخطاء ليضيفها لبنك الأخطاء.',
                 footer_about: 'P.U.D — لوحة تخطيط جامعي شخصية. بياناتك تُحفظ محليًا على جهازك.',
+                rocket_hint: 'اضغط على الصاروخ لجملة جديدة 🚀',
 
                 week_n: 'الأسبوع', achievements: 'إنجاز', new_conversation: 'محادثة جديدة',
                 files_count: 'ملفات', ask_ai_file: 'اسأل AI عن هذا الملف',
@@ -5180,6 +5321,7 @@ ${JSON.stringify(recentChat)}
                 ai_how_2: '• Paste your schedule or upload a photo to fill the timetable.',
                 ai_how_3: '• Ask for a course overview or analyze errors into the mistake bank.',
                 footer_about: 'P.U.D — Personal University Dashboard. Your data stays locally on your device.',
+                rocket_hint: 'Tap the rocket for a new quote 🚀',
                 celeb_title: 'Legend! You crushed it 🚀🔥',
                 celeb_body: 'You completed all daily tasks at 100%!',
                 celeb_btn: 'Keep going ⚡',
@@ -5239,7 +5381,15 @@ ${JSON.stringify(recentChat)}
         function pickMotivationalQuote(forceNew) {
             let idx = parseInt(sessionStorage.getItem('pud_quote_idx') || '-1', 10);
             if (forceNew || idx < 0 || idx >= MOTIV_QUOTES.length) {
-                idx = Math.floor(Math.random() * MOTIV_QUOTES.length);
+                const prev = idx;
+                // avoid same quote when shuffling
+                if (MOTIV_QUOTES.length > 1) {
+                    do {
+                        idx = Math.floor(Math.random() * MOTIV_QUOTES.length);
+                    } while (idx === prev);
+                } else {
+                    idx = 0;
+                }
                 sessionStorage.setItem('pud_quote_idx', String(idx));
             }
             const pack = MOTIV_QUOTES[idx];
@@ -5248,6 +5398,61 @@ ${JSON.stringify(recentChat)}
             const sEl = document.getElementById('motivQuoteSub');
             if (qEl) qEl.textContent = pack[lang].q;
             if (sEl) sEl.textContent = pack[lang].s;
+            return idx;
+        }
+
+        function launchMotivRocket() {
+            const rocket = document.getElementById('motivRocketBtn');
+            const stage = document.getElementById('motivRocketStage');
+            const qEl = document.getElementById('motivQuote');
+            const sEl = document.getElementById('motivQuoteSub');
+            if (!rocket || !qEl || rocket.classList.contains('flying')) return;
+
+            rocket.classList.add('flying');
+            if (stage) stage.classList.add('launching');
+            qEl.classList.add('quote-out');
+            if (sEl) sEl.classList.add('quote-out');
+
+            setTimeout(() => {
+                pickMotivationalQuote(true);
+                qEl.classList.remove('quote-out');
+                if (sEl) sEl.classList.remove('quote-out');
+                qEl.classList.add('quote-in');
+                if (sEl) sEl.classList.add('quote-in');
+
+                rocket.classList.remove('flying');
+                if (stage) stage.classList.remove('launching');
+                // Come back from bottom-left, still facing right-up (-45deg)
+                rocket.style.transition = 'none';
+                rocket.style.transform = 'rotate(-45deg) translate(-18px, 12px) scale(0.9)';
+                rocket.style.opacity = '0';
+                requestAnimationFrame(() => {
+                    rocket.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.4s ease';
+                    rocket.style.transform = 'rotate(-45deg)';
+                    rocket.style.opacity = '1';
+                    setTimeout(() => {
+                        rocket.style.transition = '';
+                        rocket.style.transform = '';
+                        rocket.style.opacity = '';
+                        qEl.classList.remove('quote-in');
+                        if (sEl) sEl.classList.remove('quote-in');
+                    }, 420);
+                });
+            }, 480);
+        }
+
+        function initMotivRocket() {
+            const card = document.getElementById('motivRocketCard');
+            if (!card || card.dataset.bound) return;
+            card.dataset.bound = '1';
+            card.addEventListener('click', launchMotivRocket);
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    launchMotivRocket();
+                }
+            });
+            pickMotivationalQuote(false);
         }
 
 
@@ -6013,6 +6218,7 @@ ${JSON.stringify(recentChat)}
             initStudyModules();
             initProgressModule();
             initThemeLangToday();
+            initMotivRocket();
             initWeeklyPlanner();
             initMistakesModule();
             initOpenReminders();
