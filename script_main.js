@@ -1,0 +1,4797 @@
+       if (localStorage.getItem('pud_gemini_model')) {
+            localStorage.removeItem('pud_gemini_model');
+        }
+
+        const AppState = {
+            userName: localStorage.getItem('pud_user_name') || 'Champion',
+            geminiApiKey: localStorage.getItem('pud_gemini_api_key') || '',
+            dailyTasks: JSON.parse(localStorage.getItem('pud_daily_tasks')) || [
+                { id: 1, title: 'Attend Math lecture 1', priority: 'عالي', completed: false },
+                { id: 2, title: 'Submit Physics section sheet', priority: 'متوسط', completed: false }
+            ],
+            studyCourses: JSON.parse(localStorage.getItem('pud_study_courses')) || [],
+            studyHistory: JSON.parse(localStorage.getItem('pud_study_history')) || [],
+            weeklyPlanner: JSON.parse(localStorage.getItem('pud_weekly_planner')) || {
+                'السبت': [],
+                'الأحد': [],
+                'الإثنين': [],
+                'الثلاثاء': [],
+                'الأربعاء': [],
+                'الخميس': [],
+                'الجمعة': []
+            },
+            studyMistakes: JSON.parse(localStorage.getItem('pud_study_mistakes')) || [],
+            monthlyGoals: JSON.parse(localStorage.getItem('pud_monthly_goals')) || [
+                { id: 1, title: 'Physics midterm exam', date: '2026-11-15' }
+            ],
+            quickNotes: JSON.parse(localStorage.getItem('pud_quick_notes')) || [
+                { id: 1, title: 'Course registration link', body: 'Official college site -> E-services', color: 'cyan' }
+            ],
+            savedFiles: JSON.parse(localStorage.getItem('pud_saved_files')) || [],
+            chatHistory: JSON.parse(localStorage.getItem('pud_chat_history')) || [
+                {
+                    sender: 'ai',
+                    text: 'Welcome! I am your AI study assistant. I can read your schedule, suggest daily plans, and even add tasks and notes to your board. How can I help you today? 🚀'
+                }
+            ],
+            aiConversations: JSON.parse(localStorage.getItem('pud_ai_conversations')) || [],
+            activeAiConversationId: localStorage.getItem('pud_active_ai_conversation') || '',
+            selectedTaskToComplete: null,
+            activeNoteColor: 'cyan',
+            attachedImageData: null,
+            pendingSavedFileIds: [],
+            studySessions: JSON.parse(localStorage.getItem('pud_study_sessions')) || [],
+            studyReviews: JSON.parse(localStorage.getItem('pud_study_reviews')) || [],
+            dailyMinutesGoal: Number(localStorage.getItem('pud_daily_minutes_goal')) || 90,
+            uiLang: localStorage.getItem('pud_ui_lang') || 'ar',
+            uiTheme: localStorage.getItem('pud_ui_theme') || 'dark'
+        };
+
+        AppState.studyCourses = Array.isArray(AppState.studyCourses)
+            ? AppState.studyCourses.map(course => ({
+                ...course,
+                lectures: Array.isArray(course.lectures) ? course.lectures : [],
+                grades: course.grades && typeof course.grades === 'object' ? course.grades : {
+                    coursework: '', midterm: '', final: '',
+                    courseworkWeight: 20, midtermWeight: 30, finalWeight: 50
+                },
+                resources: Array.isArray(course.resources) ? course.resources : []
+            }))
+            : [];
+        AppState.studySessions = Array.isArray(AppState.studySessions) ? AppState.studySessions : [];
+        AppState.studyReviews = Array.isArray(AppState.studyReviews) ? AppState.studyReviews : [];
+        AppState.studyMistakes = Array.isArray(AppState.studyMistakes) ? AppState.studyMistakes : [];
+
+        const WEEK_DAYS = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+        function createTimetableId() {
+            return `tt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        }
+        function normalizeWeeklyPlanner(raw) {
+            const out = {};
+            WEEK_DAYS.forEach(day => {
+                const items = (raw && Array.isArray(raw[day])) ? raw[day] : [];
+                out[day] = items.map((item, idx) => {
+                    if (item && typeof item === 'object' && (item.title || item.start)) {
+                        return {
+                            id: item.id || createTimetableId(),
+                            start: String(item.start || '08:00').slice(0, 5),
+                            end: String(item.end || '09:00').slice(0, 5),
+                            title: String(item.title || '').trim() || '—',
+                            type: ['lecture', 'section', 'lab', 'holiday', 'other'].includes(item.type) ? item.type : (isHolidaySlot(item) ? 'holiday' : 'lecture'),
+                            location: String(item.location || '').trim(),
+                            courseId: item.courseId ? String(item.courseId) : ''
+                        };
+                    }
+                    const s = String(item || '').trim();
+                    let start = '08:00', end = '09:30', title = s;
+                    const m = s.match(/(\d{1,2})[:.](\d{2})\s*(AM|PM|ص|م)?/i);
+                    if (m) {
+                        let h = parseInt(m[1], 10);
+                        const min = m[2];
+                        const ap = (m[3] || '').toUpperCase();
+                        if (ap === 'PM' && h < 12) h += 12;
+                        if (ap === 'AM' && h === 12) h = 0;
+                        if (ap === 'م' && h < 12) h += 12;
+                        start = String(h).padStart(2, '0') + ':' + min;
+                        const endH = Math.min(23, h + 1);
+                        end = String(endH).padStart(2, '0') + ':' + min;
+                        title = s.replace(m[0], '').replace(/[()]/g, '').trim() || s;
+                    }
+                    let type = 'lecture';
+                    if (/إجازة|اجازة|holiday|day\s*off/i.test(s)) type = 'holiday';
+                    else if (/سكشن|section|تمرين/i.test(s)) type = 'section';
+                    else if (/لاب|معمل|lab/i.test(s)) type = 'lab';
+                    return { id: createTimetableId() + '-' + idx, start, end, title: title || s || '—', type, location: '', courseId: '' };
+                }).sort((a, b) => String(a.start).localeCompare(String(b.start)));
+            });
+            return out;
+        }
+        AppState.weeklyPlanner = normalizeWeeklyPlanner(AppState.weeklyPlanner);
+        AppState.studyHistory = Array.isArray(AppState.studyHistory)
+            ? AppState.studyHistory.filter(day => day && /^\d{4}-\d{2}-\d{2}$/.test(String(day.date || '')))
+                .map(day => ({ ...day, tasks: Array.isArray(day.tasks) ? day.tasks : [], lectures: Array.isArray(day.lectures) ? day.lectures : [] }))
+            : [];
+
+        AppState.aiConversations = Array.isArray(AppState.aiConversations)
+            ? AppState.aiConversations.filter(conversation => conversation && conversation.id)
+            : [];
+        if (AppState.aiConversations.length === 0) {
+            const firstUserMessage = AppState.chatHistory.find(message => message.sender === 'user' && message.text);
+            const migratedConversation = {
+                id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                title: firstUserMessage ? firstUserMessage.text.slice(0, 36) : 'New chat',
+                messages: AppState.chatHistory,
+                updatedAt: new Date().toISOString()
+            };
+            AppState.aiConversations = [migratedConversation];
+            AppState.activeAiConversationId = migratedConversation.id;
+        } else {
+            const activeConversation = AppState.aiConversations.find(conversation => String(conversation.id) === String(AppState.activeAiConversationId))
+                || AppState.aiConversations[0];
+            activeConversation.messages = Array.isArray(activeConversation.messages) ? activeConversation.messages : AppState.chatHistory;
+            AppState.activeAiConversationId = activeConversation.id;
+            AppState.chatHistory = activeConversation.messages;
+        }
+
+        function openSavedAttachmentDatabase() {
+            return new Promise((resolve, reject) => {
+                if (!window.indexedDB) {
+                    reject(new Error('تخزين المرفقات غير مدعوم في هذا المتصفح.'));
+                    return;
+                }
+                const request = indexedDB.open('PUDSavedAttachments', 1);
+                request.onupgradeneeded = () => {
+                    if (!request.result.objectStoreNames.contains('attachments')) {
+                        request.result.createObjectStore('attachments');
+                    }
+                };
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error || new Error('تعذر فتح مساحة تخزين المرفقات.'));
+            });
+        }
+
+        async function saveSavedAttachment(id, file) {
+            const db = await openSavedAttachmentDatabase();
+            await new Promise((resolve, reject) => {
+                const transaction = db.transaction('attachments', 'readwrite');
+                transaction.objectStore('attachments').put(file, String(id));
+                transaction.oncomplete = resolve;
+                transaction.onerror = () => reject(transaction.error || new Error('تعذر حفظ المرفق.'));
+                transaction.onabort = () => reject(transaction.error || new Error('تم إلغاء حفظ المرفق.'));
+            }).finally(() => db.close());
+        }
+
+        async function getSavedAttachment(id) {
+            const db = await openSavedAttachmentDatabase();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction('attachments', 'readonly');
+                const request = transaction.objectStore('attachments').get(String(id));
+                request.onsuccess = () => {
+                    const result = request.result || null;
+                    db.close();
+                    resolve(result);
+                };
+                request.onerror = () => {
+                    db.close();
+                    reject(request.error || new Error('تعذر قراءة المرفق المحفوظ.'));
+                };
+            });
+        }
+
+        async function deleteSavedAttachment(id) {
+            const db = await openSavedAttachmentDatabase();
+            await new Promise((resolve, reject) => {
+                const transaction = db.transaction('attachments', 'readwrite');
+                transaction.objectStore('attachments').delete(String(id));
+                transaction.oncomplete = resolve;
+                transaction.onerror = () => reject(transaction.error || new Error('تعذر حذف المرفق.'));
+                transaction.onabort = () => reject(transaction.error || new Error('تم إلغاء حذف المرفق.'));
+            }).finally(() => db.close());
+        }
+
+        async function downloadSavedAttachment(savedFile) {
+            try {
+                const blob = await getSavedAttachment(savedFile.id);
+                if (!blob) {
+                    alert('لم يتم العثور على نسخة المرفق في مساحة التخزين بهذا المتصفح.');
+                    return;
+                }
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = savedFile.attachment?.name || savedFile.title || 'saved-file';
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch (error) {
+                alert(`تعذر تنزيل المرفق: ${error.message}`);
+            }
+        }
+
+        async function savedAttachmentToBase64(blob) {
+            const bytes = new Uint8Array(await blob.arrayBuffer());
+            let binary = '';
+            const chunkSize = 0x8000;
+            for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+                binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+            }
+            return btoa(binary);
+        }
+
+        async function savedAttachmentToDataUrl(blob) {
+            const mimeType = blob.type || 'application/octet-stream';
+            return `data:${mimeType};base64,${await savedAttachmentToBase64(blob)}`;
+        }
+
+        function savedAttachmentFromDataUrl(dataUrl) {
+            const [header, encoded = ''] = String(dataUrl).split(',');
+            const mimeType = (header.match(/^data:([^;]+)/) || [])[1] || 'application/octet-stream';
+            const binary = atob(encoded);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            return new Blob([bytes], { type: mimeType });
+        }
+
+        function savedAttachmentsForPrompt(userPrompt, pendingIds = []) {
+            const entries = AppState.savedFiles.filter(entry => entry.attachment);
+            const selectedIds = new Set(pendingIds.map(String));
+            if (selectedIds.size) return entries.filter(entry => selectedIds.has(String(entry.id)));
+
+            const query = String(userPrompt || '').toLocaleLowerCase('ar');
+            const asksForAll = /(كل|جميع)/.test(query) && /(الملف|ملفات|محفوظ|مرفق)/.test(query);
+            if (asksForAll) return entries;
+
+            return entries.filter(entry => {
+                const title = String(entry.title || '').toLocaleLowerCase('ar');
+                const name = String(entry.attachment.name || '').toLocaleLowerCase('ar');
+                return (title.length > 1 && query.includes(title)) || (name.length > 1 && query.includes(name));
+            });
+        }
+
+        function saveStateToStorage() {
+            localStorage.setItem('pud_user_name', AppState.userName);
+            localStorage.setItem('pud_gemini_api_key', AppState.geminiApiKey);
+            localStorage.setItem('pud_daily_tasks', JSON.stringify(AppState.dailyTasks));
+            localStorage.setItem('pud_study_courses', JSON.stringify(AppState.studyCourses));
+            localStorage.setItem('pud_study_history', JSON.stringify(AppState.studyHistory));
+            localStorage.setItem('pud_weekly_planner', JSON.stringify(AppState.weeklyPlanner));
+            localStorage.setItem('pud_study_mistakes', JSON.stringify(AppState.studyMistakes || []));
+            localStorage.setItem('pud_monthly_goals', JSON.stringify(AppState.monthlyGoals));
+            localStorage.setItem('pud_quick_notes', JSON.stringify(AppState.quickNotes));
+            localStorage.setItem('pud_saved_files', JSON.stringify(AppState.savedFiles));
+            localStorage.setItem('pud_study_sessions', JSON.stringify(AppState.studySessions));
+            localStorage.setItem('pud_study_reviews', JSON.stringify(AppState.studyReviews));
+            localStorage.setItem('pud_daily_minutes_goal', String(AppState.dailyMinutesGoal || 90));
+            localStorage.setItem('pud_ui_lang', AppState.uiLang || 'ar');
+            localStorage.setItem('pud_ui_theme', AppState.uiTheme || 'dark');
+            localStorage.setItem('pud_chat_history', JSON.stringify(AppState.chatHistory));
+            localStorage.setItem('pud_ai_conversations', JSON.stringify(AppState.aiConversations));
+            localStorage.setItem('pud_active_ai_conversation', String(AppState.activeAiConversationId || ''));
+        }
+
+        function initBackupSystem() {
+            const exportBtn = document.getElementById('exportBackupBtn');
+            const importBtn = document.getElementById('importBackupBtn');
+            const importInput = document.getElementById('importBackupInput');
+
+            exportBtn.addEventListener('click', async () => {
+                try {
+                    const savedFilesForBackup = await Promise.all(AppState.savedFiles.map(async entry => {
+                        if (!entry.attachment) return entry;
+                        const binary = await getSavedAttachment(entry.id);
+                        return binary
+                            ? { ...entry, attachmentBackupData: await savedAttachmentToDataUrl(binary) }
+                            : entry;
+                    }));
+                    const backupData = {
+                        pud_user_name: AppState.userName,
+                        pud_gemini_api_key: AppState.geminiApiKey,
+                        pud_daily_tasks: AppState.dailyTasks,
+                        pud_study_courses: AppState.studyCourses,
+                        pud_study_history: AppState.studyHistory,
+                        pud_weekly_planner: AppState.weeklyPlanner,
+                        pud_study_mistakes: AppState.studyMistakes,
+                        pud_monthly_goals: AppState.monthlyGoals,
+                        pud_quick_notes: AppState.quickNotes,
+                        pud_saved_files: savedFilesForBackup,
+                        pud_study_sessions: AppState.studySessions,
+                        pud_study_reviews: AppState.studyReviews,
+                        pud_chat_history: AppState.chatHistory,
+                        pud_ai_conversations: AppState.aiConversations,
+                        pud_active_ai_conversation: AppState.activeAiConversationId,
+                        backup_date: new Date().toISOString()
+                    };
+
+                    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `PUD_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } catch (error) {
+                    alert(`تعذر تصدير النسخة الاحتياطية: ${error.message}`);
+                }
+            });
+
+            importBtn.addEventListener('click', () => importInput.click());
+
+            importInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const importedData = JSON.parse(event.target.result);
+                        if (importedData.pud_daily_tasks) {
+                            if (importedData.pud_user_name) AppState.userName = importedData.pud_user_name;
+                            if (importedData.pud_gemini_api_key) AppState.geminiApiKey = importedData.pud_gemini_api_key;
+                            if (importedData.pud_daily_tasks) AppState.dailyTasks = importedData.pud_daily_tasks;
+                            if (Array.isArray(importedData.pud_study_courses)) {
+                                AppState.studyCourses = importedData.pud_study_courses.map(course => ({ ...course, lectures: Array.isArray(course.lectures) ? course.lectures : [] }));
+                            }
+                            if (Array.isArray(importedData.pud_study_history)) {
+                                AppState.studyHistory = importedData.pud_study_history
+                                    .filter(day => day && /^\d{4}-\d{2}-\d{2}$/.test(String(day.date || '')))
+                                    .map(day => ({ ...day, tasks: Array.isArray(day.tasks) ? day.tasks : [], lectures: Array.isArray(day.lectures) ? day.lectures : [] }));
+                            }
+                            if (importedData.pud_weekly_planner) AppState.weeklyPlanner = normalizeWeeklyPlanner(importedData.pud_weekly_planner);
+                            if (Array.isArray(importedData.pud_study_mistakes)) AppState.studyMistakes = importedData.pud_study_mistakes;
+                            if (importedData.pud_monthly_goals) AppState.monthlyGoals = importedData.pud_monthly_goals;
+                            if (importedData.pud_quick_notes) AppState.quickNotes = importedData.pud_quick_notes;
+                            if (Array.isArray(importedData.pud_study_sessions)) AppState.studySessions = importedData.pud_study_sessions;
+                            if (Array.isArray(importedData.pud_study_reviews)) AppState.studyReviews = importedData.pud_study_reviews;
+                            if (Array.isArray(importedData.pud_saved_files)) {
+                                const restoredSavedFiles = [];
+                                for (const entry of importedData.pud_saved_files) {
+                                    const { attachmentBackupData, ...savedEntry } = entry;
+                                    if (attachmentBackupData && savedEntry.attachment) {
+                                        await saveSavedAttachment(savedEntry.id, savedAttachmentFromDataUrl(attachmentBackupData));
+                                    }
+                                    restoredSavedFiles.push(savedEntry);
+                                }
+                                AppState.savedFiles = restoredSavedFiles;
+                            }
+                            AppState.pendingSavedFileIds = [];
+                            if (Array.isArray(importedData.pud_ai_conversations) && importedData.pud_ai_conversations.length) {
+                                AppState.aiConversations = importedData.pud_ai_conversations;
+                                AppState.activeAiConversationId = importedData.pud_active_ai_conversation || AppState.aiConversations[0].id;
+                                const importedActive = AppState.aiConversations.find(conversation => String(conversation.id) === String(AppState.activeAiConversationId))
+                                    || AppState.aiConversations[0];
+                                AppState.activeAiConversationId = importedActive.id;
+                                AppState.chatHistory = Array.isArray(importedActive.messages)
+                                    ? importedActive.messages
+                                    : (importedData.pud_chat_history || []);
+                            } else if (importedData.pud_chat_history) {
+                                AppState.chatHistory = importedData.pud_chat_history;
+                                const activeConversation = AppState.aiConversations.find(conversation => String(conversation.id) === String(AppState.activeAiConversationId));
+                                if (activeConversation) activeConversation.messages = AppState.chatHistory;
+                            }
+
+                            saveStateToStorage();
+                            document.getElementById('displayUserName').textContent = AppState.userName;
+                            renderDailyTasks();
+                            renderCourses();
+                            renderStudyHistory();
+                            updateStudyDashboardStats();
+                            renderWeeklyPlanner();
+                            try { renderMistakes(); } catch (e) {}
+                            renderMonthlyPlanner();
+                            renderQuickNotes();
+                            renderSavedFiles();
+                            renderProgressModule();
+                            renderAiConversationList();
+                            renderChatMessages();
+                            alert("تم استعادة النسخة الاحتياطية بنجاح! 🚀");
+                        }
+                    } catch (err) {
+                        alert(`فشل استعادة الملف: ${err.message || 'النسخة الاحتياطية غير صالحة.'}`);
+                    }
+                };
+                reader.readAsText(file);
+                importInput.value = '';
+            });
+        }
+
+        const AudioSynth = {
+            ctx: null,
+            init() {
+                if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            },
+            playBeep() {
+                this.init();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.5);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.5);
+            },
+            playCelebration() {
+                this.init();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + (idx * 0.12));
+                    gain.gain.setValueAtTime(0.15, this.ctx.currentTime + (idx * 0.12));
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + (idx * 0.12) + 0.4);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + (idx * 0.12));
+                    osc.stop(this.ctx.currentTime + (idx * 0.12) + 0.4);
+                });
+            }
+        };
+
+        const TimerModule = {
+            mode: 'pomodoro',
+            secondsRemaining: 25 * 60,
+            stopwatchSeconds: 0,
+            interval: null,
+            isRunning: false,
+
+            init() {
+                this.updateDisplay();
+                document.getElementById('modePomoBtn').addEventListener('click', () => this.setMode('pomodoro'));
+                document.getElementById('modeStopwatchBtn').addEventListener('click', () => this.setMode('stopwatch'));
+                document.getElementById('startTimerBtn').addEventListener('click', () => this.toggleTimer());
+                document.getElementById('resetTimerBtn').addEventListener('click', () => this.resetTimer());
+            },
+
+            setMode(newMode) {
+                if (this.mode === newMode) return;
+                this.pauseTimer();
+                this.mode = newMode;
+                const pomoBtn = document.getElementById('modePomoBtn');
+                const swBtn = document.getElementById('modeStopwatchBtn');
+
+                if (newMode === 'pomodoro') {
+                    pomoBtn.className = 'px-2.5 py-1 rounded-lg bg-cyan-500 text-slate-950 font-bold transition-all';
+                    swBtn.className = 'px-2.5 py-1 rounded-lg text-slate-400 hover:text-slate-200 transition-all';
+                    this.secondsRemaining = 25 * 60;
+                } else {
+                    swBtn.className = 'px-2.5 py-1 rounded-lg bg-cyan-500 text-slate-950 font-bold transition-all';
+                    pomoBtn.className = 'px-2.5 py-1 rounded-lg text-slate-400 hover:text-slate-200 transition-all';
+                    this.stopwatchSeconds = 0;
+                }
+                this.updateDisplay();
+            },
+
+            toggleTimer() {
+                if (this.isRunning) this.pauseTimer();
+                else this.startTimer();
+            },
+
+            startTimer() {
+                this.isRunning = true;
+                const startBtn = document.getElementById('startTimerBtn');
+                startBtn.innerHTML = '<i class="fa-solid fa-pause text-xs"></i>';
+                startBtn.className = 'w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-slate-950 flex items-center justify-center transition-all';
+
+                this.interval = setInterval(() => {
+                    if (this.mode === 'pomodoro') {
+                        if (this.secondsRemaining > 0) {
+                            this.secondsRemaining--;
+                            this.updateDisplay();
+                        } else {
+                            this.pauseTimer();
+                            AudioSynth.playBeep();
+                            alertModal("انتهت جلسة البومودورو 25 دقيقة! خذ استراحة قصيرة ☕");
+                        }
+                    } else {
+                        this.stopwatchSeconds++;
+                        this.updateDisplay();
+                    }
+                }, 1000);
+            },
+
+            pauseTimer() {
+                this.isRunning = false;
+                clearInterval(this.interval);
+                const startBtn = document.getElementById('startTimerBtn');
+                startBtn.innerHTML = '<i class="fa-solid fa-play text-xs"></i>';
+                startBtn.className = 'w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 flex items-center justify-center transition-all';
+            },
+
+            resetTimer() {
+                this.pauseTimer();
+                if (this.mode === 'pomodoro') this.secondsRemaining = 25 * 60;
+                else this.stopwatchSeconds = 0;
+                this.updateDisplay();
+            },
+
+            updateDisplay() {
+                const totalSecs = this.mode === 'pomodoro' ? this.secondsRemaining : this.stopwatchSeconds;
+                const mins = Math.floor(totalSecs / 60);
+                const secs = totalSecs % 60;
+                document.getElementById('timerDisplay').textContent = 
+                    `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+        };
+
+        function initNavigation() {
+            const navButtons = document.querySelectorAll('.nav-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            navButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetTabId = btn.getAttribute('data-tab');
+                    const alreadyActive = btn.classList.contains('active');
+
+                    navButtons.forEach(b => {
+                        b.classList.remove('active', 'bg-gradient-to-r', 'from-cyan-500/20', 'to-transparent', 'text-cyan-400', 'border-r-4', 'border-cyan-400', 'font-semibold');
+                        b.classList.add('text-slate-400', 'font-medium');
+                    });
+                    btn.classList.add('active', 'bg-gradient-to-r', 'from-cyan-500/20', 'to-transparent', 'text-cyan-400', 'border-r-4', 'border-cyan-400', 'font-semibold');
+                    btn.classList.remove('text-slate-400', 'font-medium');
+
+                    tabContents.forEach(content => {
+                        content.classList.remove('tab-enter');
+                        if (content.id === targetTabId) {
+                            content.classList.remove('hidden');
+                            if (!alreadyActive) {
+                                // restart fade animation
+                                void content.offsetWidth;
+                                content.classList.add('tab-enter');
+                            }
+                        } else {
+                            content.classList.add('hidden');
+                        }
+                    });
+                });
+            });
+
+            document.getElementById('sidebarToggleBtn').addEventListener('click', () => {
+                const side = document.getElementById('sidebar');
+                if (!side) return;
+                // Soft open/close instead of instant display:none
+                if (side.classList.contains('hidden') || side.classList.contains('sidebar-anim-closed')) {
+                    side.classList.remove('hidden');
+                    // force reflow then open
+                    void side.offsetWidth;
+                    side.classList.remove('sidebar-anim-closed');
+                } else {
+                    side.classList.add('sidebar-anim-closed');
+                    const onEnd = (e) => {
+                        if (e.propertyName !== 'opacity' && e.propertyName !== 'max-height') return;
+                        side.removeEventListener('transitionend', onEnd);
+                        if (side.classList.contains('sidebar-anim-closed')) {
+                            side.classList.add('hidden');
+                        }
+                    };
+                    side.addEventListener('transitionend', onEnd);
+                    // fallback if transitionend missed
+                    setTimeout(() => {
+                        if (side.classList.contains('sidebar-anim-closed')) side.classList.add('hidden');
+                    }, 420);
+                }
+            });
+        }
+
+        function initDailyTasks() {
+            const taskForm = document.getElementById('addTaskForm');
+            const taskTitleInput = document.getElementById('taskTitleInput');
+            const taskPrioritySelect = document.getElementById('taskPrioritySelect');
+
+            taskForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const title = taskTitleInput.value.trim();
+                if (!title) return;
+
+                AppState.dailyTasks.push({
+                    id: Date.now(),
+                    title: title,
+                    priority: taskPrioritySelect.value,
+                    completed: false
+                });
+
+                saveStateToStorage();
+                renderDailyTasks();
+                taskTitleInput.value = '';
+            });
+
+            document.getElementById('clearCompletedTasksBtn').addEventListener('click', () => {
+                AppState.dailyTasks = AppState.dailyTasks.filter(t => !t.completed);
+                saveStateToStorage();
+                renderDailyTasks();
+            });
+
+            document.getElementById('confirmYesBtn').addEventListener('click', () => {
+                const taskId = AppState.selectedTaskToComplete;
+                closeModal('confirmTaskModal');
+                if (!taskId) return;
+                const task = AppState.dailyTasks.find(t => t.id === taskId);
+                if (!task || task.completed) return;
+
+                const cb = document.querySelector(`.task-checkbox[data-id="${taskId}"]`);
+                if (cb) {
+                    cb.checked = true;
+                    cb.classList.remove('anim-complete');
+                    // reflow so animation restarts
+                    void cb.offsetWidth;
+                    cb.classList.add('anim-complete');
+                }
+
+                setTimeout(() => {
+                    task.completed = true;
+                    try { recordStudyActivity('task', task); } catch (e) {}
+                    saveStateToStorage();
+                    renderDailyTasks();
+                    try { renderStudyHistory(); } catch (e) {}
+                    try { renderTodayBoard(); } catch (e) {}
+                    checkAllTasksCompleted();
+                    AppState.selectedTaskToComplete = null;
+                }, 620);
+            });
+
+            document.getElementById('confirmNoBtn').addEventListener('click', () => {
+                AppState.selectedTaskToComplete = null;
+                closeModal('confirmTaskModal');
+                renderDailyTasks();
+            });
+
+            document.getElementById('closeCelebrationBtn').addEventListener('click', () => closeModal('celebrationModal'));
+            renderDailyTasks();
+        }
+
+        function renderDailyTasks() {
+            const container = document.getElementById('dailyTasksList');
+            container.innerHTML = '';
+
+            if (AppState.dailyTasks.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-slate-400 space-y-2"><i class="fa-solid fa-list-check text-2xl text-slate-500"></i><p class="text-xs">${t('no_tasks')}</p></div>`;
+                updateTaskProgress(0, 0);
+                return;
+            }
+
+            let completedCount = 0;
+            AppState.dailyTasks.forEach(task => {
+                if (task.completed) completedCount++;
+
+                const taskEl = document.createElement('div');
+                taskEl.className = `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 p-3.5 rounded-xl border transition-all ${task.completed ? 'bg-slate-900/40 border-slate-800/50 opacity-60' : 'bg-slate-800/40 border-slate-700/60'}`;
+
+                let priorityBadge = task.priority === 'عالي' ? `<span class="text-[10px] px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-400 font-bold border border-rose-500/30">${t('prio_high')}</span>` : task.priority === 'متوسط' ? `<span class="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30">${t('prio_med')}</span>` : `<span class="text-[10px] px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-400 font-bold border border-cyan-500/30">${t('prio_low')}</span>`;
+
+                const locked = typeof isTaskInFocusSession === 'function' && isTaskInFocusSession(task.id);
+                taskEl.innerHTML = `
+                    <div class="flex items-start gap-3 min-w-0 w-full">
+                        <input type="checkbox" ${task.completed ? 'checked disabled' : (locked ? 'disabled' : '')} class="mt-0.5 task-checkbox ${locked && !task.completed ? 'opacity-40' : ''}" data-id="${task.id}" title="${locked ? (AppState.uiLang==='en'?'Finish Focus first':'أنهِ التركيز أولًا') : ''}">
+                        <span class="text-sm text-slate-200 min-w-0 flex-1 break-words leading-snug ${task.completed ? 'line-through text-slate-400' : ''}">${escapeHTML(task.title)}${locked ? ` <span class="text-[10px] text-emerald-400 font-bold whitespace-nowrap">(${AppState.uiLang==='en'?'in focus':'في التركيز'})</span>` : ''}</span>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0 flex-wrap ps-7 sm:ps-0">
+                        ${priorityBadge}
+                        ${!task.completed ? `<button type="button" class="focus-task-btn text-xs ${locked ? 'text-emerald-300 bg-emerald-500/20 ring-1 ring-emerald-400/50' : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'} transition-colors p-1.5 rounded-lg" data-id="${task.id}" title="${locked ? (AppState.uiLang==='en'?'Resume Focus':'استكمال التركيز') : 'Focus'}"><i class="fa-solid fa-bullseye"></i></button>` : ''}
+                        <button class="edit-task-btn text-xs text-slate-400 ${locked ? 'opacity-30 pointer-events-none' : 'hover:text-cyan-400'} transition-colors p-1" data-id="${task.id}" title="تعديل الاسم"><i class="fa-solid fa-pen"></i></button>
+                        <button class="delete-task-btn text-xs text-slate-400 ${locked ? 'opacity-30 pointer-events-none' : 'hover:text-rose-400'} transition-colors p-1" data-id="${task.id}" title="حذف"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                `;
+                container.appendChild(taskEl);
+            });
+
+            document.querySelectorAll('.task-checkbox').forEach(cb => {
+                cb.addEventListener('change', (e) => {
+                    AppState.selectedTaskToComplete = parseInt(e.target.getAttribute('data-id'));
+                    const task = AppState.dailyTasks.find(t => t.id === AppState.selectedTaskToComplete);
+                    document.getElementById('confirmTaskText').textContent = AppState.uiLang==='en'
+                        ? `Confirm completing: "${task.title}"?`
+                        : `هل أنت متأكد من إتمام المهمة: "${task.title}"؟`;
+                    openModal('confirmTaskModal');
+                });
+            });
+
+            document.querySelectorAll('.edit-task-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const task = AppState.dailyTasks.find(t => t.id === parseInt(btn.getAttribute('data-id')));
+                    if (!task) return;
+                    const next = prompt('تعديل اسم المهمة:', task.title);
+                    if (next == null) return;
+                    const trimmed = next.trim();
+                    if (!trimmed || trimmed === task.title) return;
+                    task.title = trimmed;
+                    saveStateToStorage();
+                    renderDailyTasks();
+                });
+            });
+
+            document.querySelectorAll('.delete-task-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    AppState.dailyTasks = AppState.dailyTasks.filter(t => t.id !== parseInt(btn.getAttribute('data-id')));
+                    saveStateToStorage();
+                    renderDailyTasks();
+                });
+            });
+
+            document.querySelectorAll('.focus-task-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = parseInt(btn.getAttribute('data-id'), 10);
+                    if (typeof FocusMode !== 'undefined') FocusMode.openForTask(id);
+                });
+            });
+
+            updateTaskProgress(completedCount, AppState.dailyTasks.length);
+            if (typeof renderTodayBoard === 'function') renderTodayBoard();
+        }
+
+        function updateTaskProgress(completed, total) {
+            const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
+            document.getElementById('taskProgressText').textContent = `${completed} / ${total} (${percentage}%)`;
+            const circle = document.getElementById('progressCircle');
+            circle.style.strokeDashoffset = 113.09 - (percentage / 100) * 113.09;
+        }
+
+        function checkAllTasksCompleted() {
+            if (AppState.dailyTasks.length > 0 && AppState.dailyTasks.every(t => t.completed)) {
+                AudioSynth.playCelebration();
+                triggerConfetti();
+                openModal('celebrationModal');
+            }
+        }
+
+        function createLocalDateKey(date = new Date()) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function createStudyId() {
+            return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        }
+
+        function recordStudyActivity(type, item) {
+            const date = createLocalDateKey();
+            let dayRecord = AppState.studyHistory.find(day => day.date === date);
+            if (!dayRecord) {
+                dayRecord = { date, tasks: [], lectures: [] };
+                AppState.studyHistory.push(dayRecord);
+            }
+
+            if (type === 'task') {
+                if (!dayRecord.tasks.some(task => String(task.id) === String(item.id))) {
+                    dayRecord.tasks.push({ id: item.id, title: item.title });
+                }
+            } else if (type === 'lecture') {
+                const key = `${item.courseId}:${item.id}`;
+                if (!dayRecord.lectures.some(lecture => `${lecture.courseId}:${lecture.id}` === key)) {
+                    dayRecord.lectures.push({
+                        id: item.id,
+                        courseId: item.courseId,
+                        courseTitle: item.courseTitle,
+                        title: item.title
+                    });
+                }
+            }
+            saveStateToStorage();
+        }
+
+        function initStudyModules() {
+            document.getElementById('addCourseForm').addEventListener('submit', event => {
+                event.preventDefault();
+                const input = document.getElementById('courseTitleInput');
+                const title = input.value.trim();
+                if (!title) return;
+                AppState.studyCourses.push({ id: createStudyId(), title, lectures: [] });
+                saveStateToStorage();
+                renderCourses();
+                updateStudyDashboardStats();
+                renderProgressModule();
+                input.value = '';
+                input.focus();
+            });
+
+            document.getElementById('coursesList').addEventListener('submit', event => {
+                const form = event.target.closest('.add-lecture-form');
+                if (!form) return;
+                event.preventDefault();
+                const course = AppState.studyCourses.find(item => String(item.id) === form.dataset.courseId);
+                const input = form.querySelector('.lecture-title-input');
+                const title = input.value.trim();
+                if (!course || !title) return;
+                course.lectures.push({ id: createStudyId(), title, studied: false });
+                saveStateToStorage();
+                renderCourses();
+                updateStudyDashboardStats();
+            });
+
+            document.getElementById('coursesList').addEventListener('change', event => {
+                const checkbox = event.target.closest('.lecture-studied-checkbox');
+                if (!checkbox) return;
+                const course = AppState.studyCourses.find(item => String(item.id) === checkbox.dataset.courseId);
+                const lecture = course?.lectures.find(item => String(item.id) === checkbox.dataset.lectureId);
+                if (!course || !lecture) return;
+
+                const willStudy = checkbox.checked;
+                if (willStudy) {
+                    // play animation, then commit
+                    checkbox.classList.remove('anim-complete');
+                    void checkbox.offsetWidth;
+                    checkbox.classList.add('anim-complete');
+                    setTimeout(() => {
+                        lecture.studied = true;
+                        try {
+                            recordStudyActivity('lecture', {
+                                id: lecture.id,
+                                courseId: course.id,
+                                courseTitle: course.title,
+                                title: lecture.title
+                            });
+                            scheduleReviewsForLecture(course, lecture);
+                        } catch (e) {}
+                        renderCourses();
+                        updateStudyDashboardStats();
+                        try { renderStudyHistory(); } catch (e) {}
+                        try { renderProgressModule(); } catch (e) {}
+                        try { renderTodayBoard(); } catch (e) {}
+                    }, 620);
+                } else {
+                    lecture.studied = false;
+                    saveStateToStorage();
+                    renderCourses();
+                    updateStudyDashboardStats();
+                    try { renderStudyHistory(); } catch (e) {}
+                    try { renderProgressModule(); } catch (e) {}
+                }
+            });
+
+            document.getElementById('coursesList').addEventListener('click', event => {
+                const focusLectureButton = event.target.closest('.focus-lecture-btn');
+                if (focusLectureButton) {
+                    event.preventDefault();
+                    const courseId = focusLectureButton.dataset.courseId;
+                    const lectureId = focusLectureButton.dataset.lectureId;
+                    if (typeof FocusMode !== 'undefined') FocusMode.openForLecture(courseId, lectureId);
+                    return;
+                }
+
+                const editCourseButton = event.target.closest('.edit-course-btn');
+                if (editCourseButton) {
+                    const course = AppState.studyCourses.find(item => String(item.id) === editCourseButton.dataset.courseId);
+                    if (!course) return;
+                    const next = prompt('تعديل اسم المادة:', course.title);
+                    if (next == null) return;
+                    const trimmed = next.trim();
+                    if (!trimmed || trimmed === course.title) return;
+                    course.title = trimmed;
+                    // sync related reviews/sessions titles lightly
+                    AppState.studyReviews.forEach(r => { if (String(r.courseId) === String(course.id)) r.courseTitle = trimmed; });
+                    AppState.studySessions.forEach(s => { if (String(s.courseId) === String(course.id)) s.courseTitle = trimmed; });
+                    saveStateToStorage();
+                    renderCourses();
+                    updateStudyDashboardStats();
+                    renderProgressModule();
+                    return;
+                }
+
+                const editLectureButton = event.target.closest('.edit-lecture-btn');
+                if (editLectureButton) {
+                    const course = AppState.studyCourses.find(item => String(item.id) === editLectureButton.dataset.courseId);
+                    const lecture = course?.lectures.find(item => String(item.id) === editLectureButton.dataset.lectureId);
+                    if (!course || !lecture) return;
+                    const next = prompt('تعديل اسم الدرس:', lecture.title);
+                    if (next == null) return;
+                    const trimmed = next.trim();
+                    if (!trimmed || trimmed === lecture.title) return;
+                    lecture.title = trimmed;
+                    AppState.studyReviews.forEach(r => {
+                        if (String(r.courseId) === String(course.id) && String(r.lectureId) === String(lecture.id)) r.lectureTitle = trimmed;
+                    });
+                    AppState.studySessions.forEach(s => {
+                        if (String(s.courseId) === String(course.id) && String(s.lectureId) === String(lecture.id)) s.lectureTitle = trimmed;
+                    });
+                    saveStateToStorage();
+                    renderCourses();
+                    updateStudyDashboardStats();
+                    renderProgressModule();
+                    return;
+                }
+
+                const deleteCourseButton = event.target.closest('.delete-course-btn');
+                if (deleteCourseButton) {
+                    const course = AppState.studyCourses.find(item => String(item.id) === deleteCourseButton.dataset.courseId);
+                    if (!course || !confirm(AppState.uiLang==='en'
+                        ? `Delete course "${course.title}" and all its lectures? Past progress log will be kept.`
+                        : `هل تريد حذف مادة "${course.title}" وكل محاضراتها؟ سيبقى سجل الإنجاز السابق محفوظًا.`)) return;
+                    AppState.studyCourses = AppState.studyCourses.filter(item => String(item.id) !== String(course.id));
+                    saveStateToStorage();
+                    renderCourses();
+                    updateStudyDashboardStats();
+                    renderProgressModule();
+                    return;
+                }
+
+                const deleteLectureButton = event.target.closest('.delete-lecture-btn');
+                if (deleteLectureButton) {
+                    const course = AppState.studyCourses.find(item => String(item.id) === deleteLectureButton.dataset.courseId);
+                    if (!course) return;
+                    course.lectures = course.lectures.filter(item => String(item.id) !== deleteLectureButton.dataset.lectureId);
+                    saveStateToStorage();
+                    renderCourses();
+                    updateStudyDashboardStats();
+                    renderProgressModule();
+                }
+            });
+
+            document.getElementById('historyYearSelect').addEventListener('change', renderStudyHistory);
+            document.getElementById('historyMonthSelect').addEventListener('change', renderStudyHistory);
+            renderCourses();
+            renderStudyHistory();
+            updateStudyDashboardStats();
+        }
+
+        function renderCourses() {
+            const container = document.getElementById('coursesList');
+            if (!container) return;
+            if (!AppState.studyCourses.length) {
+                container.innerHTML = `<div class="glass-panel rounded-2xl p-8 border border-slate-800 text-center text-slate-400 xl:col-span-2"><i class="fa-solid fa-book-open text-2xl text-slate-500 mb-3"></i><p class="text-sm">${t('no_courses_yet')}</p></div>`;
+                return;
+            }
+
+            container.innerHTML = AppState.studyCourses.map(course => {
+                const lectures = Array.isArray(course.lectures) ? course.lectures : [];
+                const studiedCount = lectures.filter(lecture => lecture.studied).length;
+                const percentage = lectures.length ? Math.round((studiedCount / lectures.length) * 100) : 0;
+                const lectureList = lectures.length
+                    ? lectures.map(lecture => `
+                        <div class="flex items-center justify-between gap-3 rounded-xl bg-slate-900/60 border border-slate-800 px-3 py-2.5">
+                            <label class="flex min-w-0 items-center gap-3 cursor-pointer">
+                                <input type="checkbox" class="lecture-studied-checkbox" data-course-id="${escapeHTML(String(course.id))}" data-lecture-id="${escapeHTML(String(lecture.id))}" ${lecture.studied ? 'checked' : ''}>
+                                <span class="min-w-0">
+                                    <span class="block text-sm ${lecture.studied ? 'text-slate-400 line-through' : 'text-slate-200'}">${escapeHTML(String(lecture.title || (AppState.uiLang==='en'?'Untitled lecture':'درس بدون عنوان')))}</span>
+                                    <span class="text-[10px] text-slate-500">${lecture.studied ? t('studied') : t('not_studied')}</span>
+                                </span>
+                            </label>
+                            <div class="flex items-center gap-1 shrink-0">
+                                ${!lecture.studied ? `<button type="button" class="focus-lecture-btn text-xs text-emerald-400 hover:text-emerald-300 p-1.5 rounded-lg hover:bg-emerald-500/10" data-course-id="${escapeHTML(String(course.id))}" data-lecture-id="${escapeHTML(String(lecture.id))}" title="Focus"><i class="fa-solid fa-bullseye"></i></button>` : ''}
+                                <button type="button" class="edit-lecture-btn text-xs text-slate-500 hover:text-cyan-400 p-1" data-course-id="${escapeHTML(String(course.id))}" data-lecture-id="${escapeHTML(String(lecture.id))}" title="تعديل اسم الدرس"><i class="fa-solid fa-pen"></i></button>
+                                <button type="button" class="delete-lecture-btn text-xs text-slate-500 hover:text-rose-400 p-1" data-course-id="${escapeHTML(String(course.id))}" data-lecture-id="${escapeHTML(String(lecture.id))}" title="حذف الدرس"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                        </div>
+                    `).join('')
+                    : `<p class="text-xs text-slate-500 text-center py-3">${t('no_lectures')}</p>`;
+
+                return `
+                    <article class="glass-panel rounded-2xl p-4 border border-slate-800 space-y-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <h3 class="text-base font-bold text-slate-100 break-words">${escapeHTML(String(course.title || (AppState.uiLang==='en'?'Untitled course':'مادة بدون اسم')))}</h3>
+                                <p class="text-[11px] text-slate-400 mt-1">${AppState.uiLang==='en' ? `${studiedCount} of ${lectures.length} studied · ${percentage}%` : `${studiedCount} من ${lectures.length} درسًا تمت مذاكرته · ${percentage}%`}</p>
+                            </div>
+                            <div class="flex items-center gap-1 shrink-0">
+                                <button type="button" class="edit-course-btn text-xs text-slate-500 hover:text-cyan-400 p-2" data-course-id="${escapeHTML(String(course.id))}" title="تعديل اسم المادة"><i class="fa-solid fa-pen"></i></button>
+                                <button type="button" class="delete-course-btn text-xs text-slate-500 hover:text-rose-400 p-2" data-course-id="${escapeHTML(String(course.id))}" title="حذف المادة"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                        </div>
+                        <div class="h-1.5 rounded-full bg-slate-800 overflow-hidden"><div class="h-full rounded-full bg-gradient-to-l from-cyan-400 to-emerald-400 transition-all" style="width:${percentage}%"></div></div>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2 text-xs font-bold text-indigo-300"><i class="fa-solid fa-book"></i><span>${t('course_lectures')}</span><span class="text-slate-500 font-normal">(${lectures.length})</span></div>
+                            <div class="space-y-2">${lectureList}</div>
+                        </div>
+                        <form class="add-lecture-form flex gap-2" data-course-id="${escapeHTML(String(course.id))}">
+                            <input type="text" class="lecture-title-input min-w-0 flex-1 glass-input px-3 py-2 rounded-xl text-xs" placeholder="Lecture or lesson name..." data-i18n-placeholder="ph_lecture" maxlength="120" required>
+                            <button type="submit" class="px-3 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 text-xs font-bold whitespace-nowrap"><i class="fa-solid fa-plus ml-1"></i>${t('add_lecture')}</button>
+                        </form>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        function updateStudyDashboardStats() {
+            const courses = Array.isArray(AppState.studyCourses) ? AppState.studyCourses : [];
+            const lectures = courses.flatMap(course => Array.isArray(course.lectures) ? course.lectures : []);
+            const studiedCount = lectures.filter(lecture => lecture.studied).length;
+            const percentage = lectures.length ? Math.round((studiedCount / lectures.length) * 100) : 0;
+            document.getElementById('dashboardCourseCount').textContent = String(courses.length);
+            document.getElementById('dashboardLectureCount').textContent = String(lectures.length);
+            document.getElementById('dashboardStudiedCount').textContent = String(studiedCount);
+            document.getElementById('dashboardStudyProgress').textContent = `${percentage}%`;
+        }
+
+        function monthLabel(year, month) {
+            return formatUiDate(new Date(Number(year), Number(month) - 1, 1, 12), { month: 'long', year: 'numeric' });
+        }
+
+        function renderStudyHistory() {
+            const container = document.getElementById('studyHistoryList');
+            const yearSelect = document.getElementById('historyYearSelect');
+            const monthSelect = document.getElementById('historyMonthSelect');
+            if (!container || !yearSelect || !monthSelect) return;
+
+            const currentYear = new Date().getFullYear();
+            const previousYear = yearSelect.value;
+            const availableYears = [...new Set([currentYear, ...AppState.studyHistory.map(day => Number(day.date.slice(0, 4)))])]
+                .filter(Number.isFinite)
+                .sort((a, b) => b - a);
+            yearSelect.innerHTML = availableYears.map(year => `<option value="${year}">${year}</option>`).join('');
+            yearSelect.value = availableYears.includes(Number(previousYear)) ? previousYear : String(currentYear);
+
+            const monthNames = Array.from({ length: 12 }, (_, index) => ({
+                value: String(index + 1).padStart(2, '0'),
+                label: formatUiDate(new Date(2026, index, 1, 12), { month: 'long' })
+            }));
+            const previousMonth = monthSelect.value || 'all';
+            monthSelect.innerHTML = `<option value="all">${t('all_months')}</option>` + monthNames
+                .map(month => `<option value="${month.value}">${month.label}</option>`).join('');
+            monthSelect.value = monthNames.some(month => month.value === previousMonth) || previousMonth === 'all' ? previousMonth : 'all';
+
+            const filteredDays = AppState.studyHistory
+                .filter(day => day.date.slice(0, 4) === yearSelect.value)
+                .filter(day => monthSelect.value === 'all' || day.date.slice(5, 7) === monthSelect.value)
+                .filter(day => day.tasks.length || day.lectures.length)
+                .sort((a, b) => b.date.localeCompare(a.date));
+
+            if (!filteredDays.length) {
+                container.innerHTML = `<div class="glass-panel rounded-2xl p-8 border border-slate-800 text-center"><i class="fa-regular fa-calendar-xmark text-2xl text-slate-500 mb-3"></i><p class="text-sm text-slate-300">${t('no_history')}</p><p class="text-xs text-slate-500 mt-1">${AppState.uiLang==='en' ? 'When you complete a task or mark a lecture studied, the day appears here automatically.' : 'عند إتمام مهمة أو تحديد درس بأنه تمت مذاكرته، سيظهر اليوم هنا تلقائيًا.'}</p></div>`;
+                return;
+            }
+
+            const months = new Map();
+            filteredDays.forEach(day => {
+                const [year, month, dayOfMonth] = day.date.split('-').map(Number);
+                const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+                if (!months.has(monthKey)) months.set(monthKey, []);
+                months.get(monthKey).push({ ...day, year, month, dayOfMonth });
+            });
+
+            container.innerHTML = [...months.entries()].map(([monthKey, days]) => {
+                const [year, month] = monthKey.split('-');
+                const weeks = new Map();
+                days.forEach(day => {
+                    const weekNumber = Math.ceil(day.dayOfMonth / 7);
+                    if (!weeks.has(weekNumber)) weeks.set(weekNumber, []);
+                    weeks.get(weekNumber).push(day);
+                });
+                const weekContent = [...weeks.entries()].sort((a, b) => b[0] - a[0]).map(([weekNumber, weekDays]) => `
+                    <section class="space-y-2">
+                        <h4 class="text-xs font-bold text-indigo-300">${t("week_n")} ${weekNumber}</h4>
+                        <div class="space-y-2">
+                            ${weekDays.map(day => {
+                                const readableDate = formatUiDate(new Date(day.year, day.month - 1, day.dayOfMonth, 12), { weekday: 'long', day: 'numeric', month: 'long' });
+                                const taskItems = day.tasks.map(task => `<li class="flex items-start gap-2 text-xs text-slate-300"><i class="fa-solid fa-circle-check text-cyan-400 mt-0.5"></i><span>${AppState.uiLang==="en"?"Task":"مهمة"}: ${escapeHTML(String(task.title || (AppState.uiLang==="en"?"Done":"مهمة مكتملة")))}</span></li>`).join('');
+                                const lectureItems = day.lectures.map(lecture => `<li class="flex items-start gap-2 text-xs text-slate-300"><i class="fa-solid fa-book-open text-emerald-400 mt-0.5"></i><span>${escapeHTML(String(lecture.courseTitle || (AppState.uiLang==='en'?'Course':'مادة')))} — ${escapeHTML(String(lecture.title || (AppState.uiLang==='en'?'Lecture':'درس')))}</span></li>`).join('');
+                                return `
+                                    <article class="rounded-xl bg-slate-900/50 border border-slate-800 p-3">
+                                        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                            <h5 class="text-sm font-bold text-slate-100">${readableDate}</h5>
+                                            <span class="text-[10px] text-slate-500">${day.tasks.length + day.lectures.length} ${t("achievements")}</span>
+                                        </div>
+                                        <ul class="space-y-1.5">${taskItems}${lectureItems}</ul>
+                                    </article>
+                                `;
+                            }).join('')}
+                        </div>
+                    </section>
+                `).join('');
+
+                return `
+                    <div class="glass-panel rounded-2xl p-4 sm:p-5 border border-slate-800 space-y-4">
+                        <h3 class="text-base font-bold text-cyan-300 flex items-center gap-2"><i class="fa-regular fa-calendar"></i>${monthLabel(year, month)}</h3>
+                        ${weekContent}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function isHolidaySlot(item) {
+            if (!item) return false;
+            if (item.type === 'holiday') return true;
+            const title = String(item.title || '');
+            return /إجازة|اجازة|holiday|day\s*off|off\s*day/i.test(title);
+        }
+
+        function timetableTypeLabel(type) {
+            const map = {
+                lecture: t('tt_type_lecture'), section: t('tt_type_section'), lab: t('tt_type_lab'),
+                holiday: t('tt_type_holiday'), other: t('tt_type_other')
+            };
+            return map[type] || map.lecture;
+        }
+
+        function timetableTypeClass(type) {
+            if (type === 'section') return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
+            if (type === 'lab') return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
+            if (type === 'holiday') return 'border-rose-500/30 bg-rose-500/10 text-rose-300';
+            if (type === 'other') return 'border-slate-600 bg-slate-800/60 text-slate-300';
+            return 'border-indigo-500/30 bg-indigo-500/10 text-indigo-300';
+        }
+
+        function syncTimetableFormByType() {
+            const type = document.getElementById('ttTypeSelect')?.value || 'lecture';
+            const isHol = type === 'holiday';
+            ['ttStartWrap', 'ttEndWrap', 'ttLocationWrap'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.toggle('hidden', isHol);
+            });
+            const start = document.getElementById('ttStartInput');
+            const end = document.getElementById('ttEndInput');
+            const title = document.getElementById('ttTitleInput');
+            if (start) start.required = !isHol;
+            if (end) end.required = !isHol;
+            if (isHol && title && !title.value.trim()) {
+                title.value = AppState.uiLang === 'en' ? 'Day off' : 'إجازة';
+            }
+        }
+
+        function getTodayWeekdayKey() {
+            // JS: 0 Sun .. 6 Sat — Arabic week keys start Saturday
+            const map = { 6: 'السبت', 0: 'الأحد', 1: 'الإثنين', 2: 'الثلاثاء', 3: 'الأربعاء', 4: 'الخميس', 5: 'الجمعة' };
+            return map[new Date().getDay()] || 'السبت';
+        }
+
+        function getTodayTimetableSlots() {
+            const day = getTodayWeekdayKey();
+            return (AppState.weeklyPlanner[day] || []).slice().sort((a, b) => String(a.start).localeCompare(String(b.start)));
+        }
+
+        function initWeeklyPlanner() {
+            const daySel = document.getElementById('ttDaySelect');
+            if (daySel) {
+                const labels = {
+                    'السبت': t('day_sat'), 'الأحد': t('day_sun'), 'الإثنين': t('day_mon'),
+                    'الثلاثاء': t('day_tue'), 'الأربعاء': t('day_wed'), 'الخميس': t('day_thu'), 'الجمعة': t('day_fri')
+                };
+                daySel.innerHTML = WEEK_DAYS.map(d => `<option value="${d}">${labels[d] || d}</option>`).join('');
+                daySel.value = getTodayWeekdayKey();
+            }
+            const form = document.getElementById('addTimetableForm');
+            if (form && !form.dataset.bound) {
+                form.dataset.bound = '1';
+                document.getElementById('ttTypeSelect')?.addEventListener('change', syncTimetableFormByType);
+                syncTimetableFormByType();
+                form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const day = document.getElementById('ttDaySelect').value;
+                    const type = document.getElementById('ttTypeSelect').value || 'lecture';
+                    const isHol = type === 'holiday';
+                    let start = document.getElementById('ttStartInput').value;
+                    let end = document.getElementById('ttEndInput').value;
+                    let title = document.getElementById('ttTitleInput').value.trim();
+                    const location = isHol ? '' : document.getElementById('ttLocationInput').value.trim();
+                    if (isHol) {
+                        start = '';
+                        end = '';
+                        if (!title) title = AppState.uiLang === 'en' ? 'Day off' : 'إجازة';
+                    }
+                    if (!day || !title) return;
+                    if (!isHol && (!start || !end)) return;
+                    if (!Array.isArray(AppState.weeklyPlanner[day])) AppState.weeklyPlanner[day] = [];
+                    AppState.weeklyPlanner[day].push({
+                        id: createTimetableId(), start, end, title, type, location, courseId: ''
+                    });
+                    AppState.weeklyPlanner[day].sort((a, b) => {
+                        if (!a.start && b.start) return -1;
+                        if (a.start && !b.start) return 1;
+                        return String(a.start || '').localeCompare(String(b.start || ''));
+                    });
+                    saveStateToStorage();
+                    document.getElementById('ttTitleInput').value = '';
+                    document.getElementById('ttLocationInput').value = '';
+                    document.getElementById('ttTypeSelect').value = 'lecture';
+                    syncTimetableFormByType();
+                    renderWeeklyPlanner();
+                    try { renderOpenReminders(); } catch (err) {}
+                });
+            }
+            renderWeeklyPlanner();
+        }
+
+        function renderWeeklyPlanner() {
+            const container = document.getElementById('weeklyDaysContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const dayLabel = {
+                'السبت': t('day_sat'), 'الأحد': t('day_sun'), 'الإثنين': t('day_mon'),
+                'الثلاثاء': t('day_tue'), 'الأربعاء': t('day_wed'), 'الخميس': t('day_thu'), 'الجمعة': t('day_fri')
+            };
+            const todayKey = getTodayWeekdayKey();
+
+            WEEK_DAYS.forEach(day => {
+                const items = (AppState.weeklyPlanner[day] || []).slice().sort((a, b) => String(a.start).localeCompare(String(b.start)));
+                const dayCard = document.createElement('div');
+                const isToday = day === todayKey;
+                dayCard.className = 'glass-panel rounded-2xl p-4 border flex flex-col space-y-3 ' + (isToday ? 'border-indigo-500/40' : 'border-slate-800');
+
+                let itemsHTML = items.map((item) => {
+                    const hol = isHolidaySlot(item) || item.type === 'holiday';
+                    const typeKey = hol ? 'holiday' : (item.type || 'lecture');
+                    if (hol) {
+                        return `
+                    <div class="rounded-xl border border-rose-500/25 bg-rose-500/5 p-2.5 space-y-1.5" data-slot-id="${escapeHTML(String(item.id))}">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[9px] px-1.5 py-0.5 rounded-md border font-bold ${timetableTypeClass('holiday')}">${escapeHTML(timetableTypeLabel('holiday'))}</span>
+                            <div class="flex items-center gap-1">
+                                <button type="button" class="edit-tt-btn text-[10px] text-slate-400 hover:text-cyan-400 px-1.5 py-0.5" data-day="${escapeHTML(day)}" data-id="${escapeHTML(String(item.id))}" title="${t('edit')}"><i class="fa-solid fa-pen"></i></button>
+                                <button type="button" class="remove-tt-btn text-[10px] text-slate-400 hover:text-rose-400 px-1.5 py-0.5" data-day="${escapeHTML(day)}" data-id="${escapeHTML(String(item.id))}" title="${t('del')}"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                        </div>
+                        <p class="text-sm text-rose-200 font-bold leading-snug text-center py-1"><i class="fa-solid fa-umbrella-beach ml-1 opacity-80"></i>${escapeHTML(item.title || timetableTypeLabel('holiday'))}</p>
+                    </div>`;
+                    }
+                    const time = (item.start || item.end) ? `${escapeHTML(item.start || '')}${item.start && item.end ? '–' : ''}${escapeHTML(item.end || '')}` : '';
+                    const loc = item.location ? escapeHTML(item.location) : '';
+                    return `
+                    <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-2.5 space-y-1.5" data-slot-id="${escapeHTML(String(item.id))}">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[11px] font-mono font-bold text-cyan-300">${time}</span>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded-md border font-bold ${timetableTypeClass(typeKey)}">${escapeHTML(timetableTypeLabel(typeKey))}</span>
+                        </div>
+                        <p class="text-xs text-slate-100 font-bold leading-snug">${escapeHTML(item.title)}</p>
+                        ${loc ? `<p class="text-[10px] text-slate-500"><i class="fa-solid fa-location-dot ml-1"></i>${loc}</p>` : ''}
+                        <div class="flex items-center gap-1 pt-0.5">
+                            <button type="button" class="edit-tt-btn text-[10px] text-slate-400 hover:text-cyan-400 px-1.5 py-0.5" data-day="${escapeHTML(day)}" data-id="${escapeHTML(String(item.id))}" title="${t('edit')}"><i class="fa-solid fa-pen"></i></button>
+                            <button type="button" class="remove-tt-btn text-[10px] text-slate-400 hover:text-rose-400 px-1.5 py-0.5" data-day="${escapeHTML(day)}" data-id="${escapeHTML(String(item.id))}" title="${t('del')}"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                if (!items.length) itemsHTML = `<p class="text-[11px] text-slate-400 italic text-center py-3">${t('no_items')}</p>`;
+
+                dayCard.innerHTML = `
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <h4 class="text-sm font-bold ${isToday ? 'text-indigo-300' : 'text-cyan-400'}">${dayLabel[day] || day}${isToday ? ' · ' + (AppState.uiLang === 'en' ? 'Today' : 'اليوم') : ''}</h4>
+                        <span class="text-[10px] text-slate-400 font-bold bg-slate-800 px-2 py-0.5 rounded-md">${items.length}</span>
+                    </div>
+                    <div class="space-y-2 flex-1">${itemsHTML}</div>
+                `;
+                container.appendChild(dayCard);
+            });
+
+            container.querySelectorAll('.remove-tt-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const day = btn.getAttribute('data-day');
+                    const id = btn.getAttribute('data-id');
+                    AppState.weeklyPlanner[day] = (AppState.weeklyPlanner[day] || []).filter(s => String(s.id) !== String(id));
+                    saveStateToStorage();
+                    renderWeeklyPlanner();
+                    try { renderOpenReminders(); } catch (e) {}
+                });
+            });
+            container.querySelectorAll('.edit-tt-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const day = btn.getAttribute('data-day');
+                    const id = btn.getAttribute('data-id');
+                    const slot = (AppState.weeklyPlanner[day] || []).find(s => String(s.id) === String(id));
+                    if (!slot) return;
+                    const title = prompt(AppState.uiLang === 'en' ? 'Title:' : 'العنوان:', slot.title);
+                    if (title == null) return;
+                    slot.title = title.trim() || slot.title;
+                    if (isHolidaySlot(slot) || slot.type === 'holiday') {
+                        slot.type = 'holiday';
+                        slot.start = '';
+                        slot.end = '';
+                        slot.location = '';
+                    } else {
+                        const start = prompt(AppState.uiLang === 'en' ? 'Start (HH:MM):' : 'من (س:د):', slot.start || '08:00');
+                        if (start == null) return;
+                        const end = prompt(AppState.uiLang === 'en' ? 'End (HH:MM):' : 'إلى (س:د):', slot.end || '09:30');
+                        if (end == null) return;
+                        const location = prompt(AppState.uiLang === 'en' ? 'Room (optional):' : 'القاعة (اختياري):', slot.location || '');
+                        if (location == null) return;
+                        slot.start = String(start).slice(0, 5);
+                        slot.end = String(end).slice(0, 5);
+                        slot.location = String(location).trim();
+                    }
+                    AppState.weeklyPlanner[day].sort((a, b) => {
+                        if (!a.start && b.start) return -1;
+                        if (a.start && !b.start) return 1;
+                        return String(a.start || '').localeCompare(String(b.start || ''));
+                    });
+                    saveStateToStorage();
+                    renderWeeklyPlanner();
+                    try { renderOpenReminders(); } catch (e) {}
+                });
+            });
+
+            // refresh day select labels on re-render language
+            const daySel = document.getElementById('ttDaySelect');
+            if (daySel) {
+                const cur = daySel.value;
+                const labels = {
+                    'السبت': t('day_sat'), 'الأحد': t('day_sun'), 'الإثنين': t('day_mon'),
+                    'الثلاثاء': t('day_tue'), 'الأربعاء': t('day_wed'), 'الخميس': t('day_thu'), 'الجمعة': t('day_fri')
+                };
+                daySel.innerHTML = WEEK_DAYS.map(d => `<option value="${d}">${labels[d] || d}</option>`).join('');
+                if (WEEK_DAYS.includes(cur)) daySel.value = cur;
+            }
+        }
+
+        function getCourseByFilterId(courseKey) {
+            if (!courseKey) return null;
+            if (String(courseKey).startsWith('title:')) {
+                const title = String(courseKey).slice(6);
+                return (AppState.studyCourses || []).find(c => c.title === title) || null;
+            }
+            return (AppState.studyCourses || []).find(c => String(c.id) === String(courseKey)) || null;
+        }
+
+        function getLectureTitlesForCourse(courseKey) {
+            const course = getCourseByFilterId(courseKey);
+            const titles = [];
+            if (course && Array.isArray(course.lectures)) {
+                course.lectures.forEach(l => {
+                    const t = String(l.title || '').trim();
+                    if (t) titles.push(t);
+                });
+            }
+            // also include topics already used on mistakes for this course
+            (AppState.studyMistakes || []).forEach(m => {
+                const topic = String(m.topic || '').trim();
+                if (!topic) return;
+                if (courseKey) {
+                    if (String(courseKey).startsWith('title:')) {
+                        if (String(m.courseTitle || '') !== String(courseKey).slice(6)) return;
+                    } else if (String(m.courseId || '') !== String(courseKey)) {
+                        return;
+                    }
+                }
+                if (!titles.includes(topic)) titles.push(topic);
+            });
+            return titles;
+        }
+
+        function populateMistakeTopicSelect(courseId, selectedTopic) {
+            const sel = document.getElementById('mistakeTopicInput');
+            if (!sel) return;
+            const none = AppState.uiLang === 'en' ? '— Select lecture / chapter —' : '— اختر درس / شابتر —';
+            const pickFirst = AppState.uiLang === 'en' ? '— Select a course first —' : '— اختر المادة أولاً —';
+            const cur = selectedTopic != null ? selectedTopic : sel.value;
+            if (!courseId) {
+                sel.innerHTML = `<option value="">${pickFirst}</option>`;
+                return;
+            }
+            const titles = getLectureTitlesForCourse(courseId);
+            if (!titles.length) {
+                const empty = AppState.uiLang === 'en'
+                    ? '— No lectures in this course yet —'
+                    : '— لا توجد محاضرات لهذه المادة بعد —';
+                sel.innerHTML = `<option value="">${empty}</option>`;
+                return;
+            }
+            sel.innerHTML = `<option value="">${none}</option>` + titles.map(t =>
+                `<option value="${escapeHTML(t)}">${escapeHTML(t)}</option>`
+            ).join('');
+            if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+        }
+
+        function populateMistakeCourseSelect() {
+            const sel = document.getElementById('mistakeCourseSelect');
+            if (!sel) return;
+            const cur = sel.value;
+            const none = AppState.uiLang === 'en' ? '— No course —' : '— بدون مادة —';
+            sel.innerHTML = `<option value="">${none}</option>` + (AppState.studyCourses || []).map(c =>
+                `<option value="${escapeHTML(String(c.id))}">${escapeHTML(c.title)}</option>`
+            ).join('');
+            if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+            else sel.value = '';
+            populateMistakeTopicSelect(sel.value);
+            if (!sel.dataset.topicBound) {
+                sel.dataset.topicBound = '1';
+                sel.addEventListener('change', () => populateMistakeTopicSelect(sel.value));
+            }
+        }
+
+        function populateSavedFileCourseSelect() {
+            const sel = document.getElementById('savedFileCourseSelect');
+            if (!sel) return;
+            const cur = sel.value;
+            const none = t('ph_course_opt');
+            sel.innerHTML = `<option value="">${none}</option>` + (AppState.studyCourses || []).map(c =>
+                `<option value="${escapeHTML(String(c.id))}">${escapeHTML(c.title)}</option>`
+            ).join('');
+            if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+        }
+
+        function initMistakesModule() {
+            const form = document.getElementById('addMistakeForm');
+            if (form && !form.dataset.bound) {
+                form.dataset.bound = '1';
+                form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const courseId = document.getElementById('mistakeCourseSelect').value;
+                    const course = AppState.studyCourses.find(c => String(c.id) === String(courseId));
+                    const topic = document.getElementById('mistakeTopicInput').value.trim();
+                    const errorText = document.getElementById('mistakeErrorInput').value.trim();
+                    const correctAnswer = document.getElementById('mistakeCorrectInput').value.trim();
+                    const explanation = document.getElementById('mistakeExplainInput').value.trim();
+                    if (!errorText || !correctAnswer) return;
+                    AppState.studyMistakes.unshift({
+                        id: `mis-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                        courseId: course ? course.id : '',
+                        courseTitle: course ? course.title : '',
+                        topic,
+                        errorText,
+                        correctAnswer,
+                        explanation,
+                        createdAt: new Date().toISOString()
+                    });
+                    saveStateToStorage();
+                    form.reset();
+                    populateMistakeCourseSelect();
+                    populateMistakeTopicSelect('');
+                    renderMistakes();
+                });
+            }
+            const search = document.getElementById('mistakesSearchInput');
+            if (search && !search.dataset.bound) {
+                search.dataset.bound = '1';
+                search.addEventListener('input', () => renderMistakes());
+            }
+            const fCourse = document.getElementById('mistakesFilterCourse');
+            const fTopic = document.getElementById('mistakesFilterTopic');
+            if (fCourse && !fCourse.dataset.bound) {
+                fCourse.dataset.bound = '1';
+                fCourse.addEventListener('change', () => {
+                    // reset topic when course changes
+                    const tSel = document.getElementById('mistakesFilterTopic');
+                    if (tSel) tSel.value = '';
+                    renderMistakes();
+                });
+            }
+            if (fTopic && !fTopic.dataset.bound) {
+                fTopic.dataset.bound = '1';
+                fTopic.addEventListener('change', () => renderMistakes());
+            }
+            populateMistakeCourseSelect();
+            renderMistakes();
+        }
+
+        function getMistakeFilterValues() {
+            return {
+                courseId: document.getElementById('mistakesFilterCourse')?.value || '',
+                topic: document.getElementById('mistakesFilterTopic')?.value || '',
+                search: document.getElementById('mistakesSearchInput')?.value || ''
+            };
+        }
+
+        function populateMistakesFilterControls() {
+            const courseSel = document.getElementById('mistakesFilterCourse');
+            const topicSel = document.getElementById('mistakesFilterTopic');
+            if (!courseSel || !topicSel) return;
+
+            const prevCourse = courseSel.value;
+            const prevTopic = topicSel.value;
+            const allLabel = AppState.uiLang === 'en' ? 'All courses' : 'كل المواد';
+            const allTopic = AppState.uiLang === 'en' ? 'All chapters / lectures' : 'كل الشابترات / الدروس';
+            const pickCourseFirst = AppState.uiLang === 'en' ? '— Select a course first —' : '— اختر المادة أولاً —';
+            const noLectures = AppState.uiLang === 'en' ? '— No lectures in this course —' : '— لا محاضرات لهذه المادة —';
+
+            // Prefer registered courses (with real ids) so we can load their lectures
+            const courseMap = new Map();
+            (AppState.studyCourses || []).forEach(c => courseMap.set(String(c.id), c.title));
+            (AppState.studyMistakes || []).forEach(m => {
+                if (m.courseId && !courseMap.has(String(m.courseId))) {
+                    courseMap.set(String(m.courseId), m.courseTitle || String(m.courseId));
+                } else if (!m.courseId && m.courseTitle) {
+                    const found = (AppState.studyCourses || []).find(c => c.title === m.courseTitle);
+                    if (found) courseMap.set(String(found.id), found.title);
+                    else if (![...courseMap.values()].includes(m.courseTitle)) {
+                        courseMap.set('title:' + m.courseTitle, m.courseTitle);
+                    }
+                }
+            });
+
+            courseSel.innerHTML = `<option value="">${allLabel}</option>` +
+                [...courseMap.entries()].map(([id, title]) =>
+                    `<option value="${escapeHTML(String(id))}">${escapeHTML(title)}</option>`
+                ).join('');
+            if ([...courseSel.options].some(o => o.value === prevCourse)) courseSel.value = prevCourse;
+
+            const selectedCourse = courseSel.value;
+            if (!selectedCourse) {
+                topicSel.innerHTML = `<option value="">${pickCourseFirst}</option>`;
+                return;
+            }
+
+            const titles = getLectureTitlesForCourse(selectedCourse);
+            if (!titles.length) {
+                topicSel.innerHTML = `<option value="">${noLectures}</option>`;
+                return;
+            }
+            topicSel.innerHTML = `<option value="">${allTopic}</option>` +
+                titles.map(t => `<option value="${escapeHTML(t)}">${escapeHTML(t)}</option>`).join('');
+            if ([...topicSel.options].some(o => o.value === prevTopic)) topicSel.value = prevTopic;
+            else topicSel.value = '';
+        }
+
+        function renderMistakes() {
+            const list = document.getElementById('mistakesList');
+            if (!list) return;
+            populateMistakeCourseSelect();
+            populateMistakesFilterControls();
+
+            const { courseId, topic, search } = getMistakeFilterValues();
+            const term = String(search || '').trim().toLocaleLowerCase('ar');
+
+            let items = AppState.studyMistakes || [];
+            if (courseId) {
+                if (courseId.startsWith('title:')) {
+                    const title = courseId.slice(6);
+                    items = items.filter(m => String(m.courseTitle || '') === title);
+                } else {
+                    items = items.filter(m => String(m.courseId || '') === courseId);
+                }
+            }
+            if (topic) {
+                items = items.filter(m => String(m.topic || '').trim() === topic);
+            }
+            if (term) {
+                items = items.filter(m =>
+                    `${m.courseTitle || ''} ${m.topic || ''} ${m.errorText || ''} ${m.correctAnswer || ''} ${m.explanation || ''}`.toLocaleLowerCase('ar').includes(term)
+                );
+            }
+
+            const countEl = document.getElementById('mistakesFilterCount');
+            if (countEl) {
+                const total = (AppState.studyMistakes || []).length;
+                countEl.textContent = items.length === total
+                    ? `${total}`
+                    : `${items.length} / ${total}`;
+            }
+
+            if (!items.length) {
+                list.innerHTML = `<p class="text-xs text-slate-500 text-center py-6">${t('no_mistakes')}</p>`;
+                return;
+            }
+            list.innerHTML = items.map(m => `
+                <article class="rounded-2xl border border-rose-500/20 bg-slate-900/50 p-4 space-y-2" data-id="${escapeHTML(String(m.id))}">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <p class="text-[10px] font-bold text-rose-300">${escapeHTML(m.courseTitle || (AppState.uiLang === 'en' ? 'General' : 'عام'))}${m.topic ? ' · ' + escapeHTML(m.topic) : ''}</p>
+                            <p class="text-[10px] text-slate-500 mt-0.5">${m.createdAt ? new Date(m.createdAt).toLocaleDateString(getUiLocale()) : ''}</p>
+                        </div>
+                        <button type="button" class="delete-mistake-btn text-slate-500 hover:text-rose-400 p-1" data-id="${escapeHTML(String(m.id))}"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                    </div>
+                    <div class="rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-2">
+                        <p class="text-[10px] font-bold text-rose-300 mb-0.5">${t('mistakes_error')}</p>
+                        <p class="text-sm text-slate-200 whitespace-pre-wrap">${escapeHTML(m.errorText)}</p>
+                    </div>
+                    <div class="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2">
+                        <p class="text-[10px] font-bold text-emerald-300 mb-0.5">${t('mistakes_correct')}</p>
+                        <p class="text-sm text-slate-200 whitespace-pre-wrap">${escapeHTML(m.correctAnswer)}</p>
+                    </div>
+                    ${m.explanation ? `<div class="rounded-xl bg-slate-800/60 border border-slate-700 px-3 py-2"><p class="text-[10px] font-bold text-slate-400 mb-0.5">${t('mistakes_explain')}</p><p class="text-xs text-slate-300 whitespace-pre-wrap">${escapeHTML(m.explanation)}</p></div>` : ''}
+                    <button type="button" class="edit-mistake-btn text-[11px] text-cyan-400 hover:text-cyan-300 font-bold" data-id="${escapeHTML(String(m.id))}"><i class="fa-solid fa-pen ml-1"></i>${t('edit')}</button>
+                </article>
+            `).join('');
+            list.querySelectorAll('.delete-mistake-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    AppState.studyMistakes = AppState.studyMistakes.filter(m => String(m.id) !== String(btn.dataset.id));
+                    saveStateToStorage();
+                    renderMistakes();
+                });
+            });
+            list.querySelectorAll('.edit-mistake-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const m = AppState.studyMistakes.find(x => String(x.id) === String(btn.dataset.id));
+                    if (!m) return;
+                    const err = prompt(t('mistakes_error'), m.errorText);
+                    if (err == null) return;
+                    const cor = prompt(t('mistakes_correct'), m.correctAnswer);
+                    if (cor == null) return;
+                    const exp = prompt(t('mistakes_explain'), m.explanation || '');
+                    if (exp == null) return;
+                    const top = prompt(AppState.uiLang === 'en' ? 'Chapter / topic (optional):' : 'الشابتر / الموضوع (اختياري):', m.topic || '');
+                    if (top == null) return;
+                    m.errorText = err.trim() || m.errorText;
+                    m.correctAnswer = cor.trim() || m.correctAnswer;
+                    m.explanation = exp.trim();
+                    m.topic = top.trim();
+                    saveStateToStorage();
+                    renderMistakes();
+                });
+            });
+        }
+
+        function renderOpenReminders() {
+            const banner = document.getElementById('openRemindersBanner');
+            const list = document.getElementById('openRemindersList');
+            if (!banner || !list) return;
+            if (sessionStorage.getItem('pud_reminders_dismissed') === createLocalDateKey()) {
+                banner.classList.add('hidden');
+                return;
+            }
+            const tips = [];
+            const slots = getTodayTimetableSlots();
+            if (slots.length) {
+                const names = slots.slice(0, 4).map(s => `${s.start} ${s.title}`).join(' · ');
+                tips.push((AppState.uiLang === 'en' ? 'Today\'s classes: ' : 'محاضرات اليوم: ') + names);
+            }
+            const due = typeof getReviewsDueToday === 'function' ? getReviewsDueToday() : [];
+            if (due.length) {
+                tips.push((AppState.uiLang === 'en' ? `${due.length} review(s) due — start with: ` : `${due.length} مراجعة مستحقة — ابدأ بـ: `) + (due[0].lectureTitle || ''));
+            }
+            const openTasks = (AppState.dailyTasks || []).filter(tk => !tk.completed).length;
+            if (openTasks) {
+                tips.push(AppState.uiLang === 'en' ? `${openTasks} open daily task(s)` : `${openTasks} مهمة يومية مفتوحة`);
+            }
+            const goal = Number(AppState.dailyMinutesGoal) || 90;
+            const done = typeof getTodayMinutes === 'function' ? getTodayMinutes() : 0;
+            if (done < goal) {
+                tips.push(AppState.uiLang === 'en'
+                    ? `Study goal: ${done}/${goal} min — suggested focus now`
+                    : `هدف المذاكرة: ${done}/${goal} د — رشّح جلسة تركيز الآن`);
+            }
+            if (!tips.length) {
+                banner.classList.add('hidden');
+                return;
+            }
+            list.innerHTML = tips.map(t => `<li class="leading-relaxed">• ${escapeHTML(t)}</li>`).join('');
+            banner.classList.remove('hidden');
+        }
+
+        function initOpenReminders() {
+            document.getElementById('dismissRemindersBtn')?.addEventListener('click', () => {
+                sessionStorage.setItem('pud_reminders_dismissed', createLocalDateKey());
+                document.getElementById('openRemindersBanner')?.classList.add('hidden');
+            });
+            renderOpenReminders();
+        }
+
+        function initMonthlyPlanner() {
+            document.getElementById('addMonthlyForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const title = document.getElementById('monthlyTitleInput').value.trim();
+                const date = document.getElementById('monthlyDateInput').value;
+                if (!title || !date) return;
+
+                AppState.monthlyGoals.push({ id: Date.now(), title, date });
+                saveStateToStorage();
+                renderMonthlyPlanner();
+                document.getElementById('monthlyTitleInput').value = '';
+                document.getElementById('monthlyDateInput').value = '';
+            });
+            renderMonthlyPlanner();
+        }
+
+        function renderMonthlyPlanner() {
+            const container = document.getElementById('monthlyList');
+            container.innerHTML = '';
+            if (AppState.monthlyGoals.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 col-span-2 text-center py-4">${t('no_events')}</p>`;
+                return;
+            }
+
+            AppState.monthlyGoals.forEach(goal => {
+                const card = document.createElement('div');
+                card.className = 'flex items-center justify-between p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 text-xs';
+                card.innerHTML = `
+                    <div class="space-y-1 min-w-0"><p class="font-bold text-slate-200 text-sm break-words">${escapeHTML(goal.title)}</p><p class="text-purple-400 font-mono"><i class="fa-regular fa-clock ml-1"></i> ${goal.date}</p></div>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button class="edit-monthly-btn text-slate-400 hover:text-cyan-400 p-2" data-id="${goal.id}" title="تعديل"><i class="fa-solid fa-pen"></i></button>
+                        <button class="delete-monthly-btn text-slate-400 hover:text-rose-400 p-2" data-id="${goal.id}" title="حذف"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            document.querySelectorAll('.edit-monthly-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const goal = AppState.monthlyGoals.find(g => g.id === parseInt(btn.getAttribute('data-id')));
+                    if (!goal) return;
+                    const nextTitle = prompt('تعديل عنوان الموعد:', goal.title);
+                    if (nextTitle == null) return;
+                    const trimmed = nextTitle.trim();
+                    if (!trimmed) return;
+                    const nextDate = prompt('تعديل التاريخ (YYYY-MM-DD):', goal.date);
+                    if (nextDate == null) return;
+                    const dateTrim = nextDate.trim();
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateTrim)) {
+                        alert('صيغة التاريخ غير صحيحة. استخدم YYYY-MM-DD');
+                        return;
+                    }
+                    goal.title = trimmed;
+                    goal.date = dateTrim;
+                    saveStateToStorage();
+                    renderMonthlyPlanner();
+                });
+            });
+
+            document.querySelectorAll('.delete-monthly-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    AppState.monthlyGoals = AppState.monthlyGoals.filter(g => g.id !== parseInt(btn.getAttribute('data-id')));
+                    saveStateToStorage();
+                    renderMonthlyPlanner();
+                });
+            });
+        }
+
+        function initQuickNotes() {
+            document.getElementById('openNewNoteModalBtn').addEventListener('click', () => {
+                document.getElementById('noteTitleInput').value = '';
+                document.getElementById('noteBodyInput').value = '';
+                openModal('noteModal');
+            });
+            document.getElementById('cancelNoteBtn').addEventListener('click', () => closeModal('noteModal'));
+
+            const colorBtns = document.querySelectorAll('#noteColorPicker button');
+            colorBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    colorBtns.forEach(b => b.classList.remove('ring-2', 'ring-white'));
+                    btn.classList.add('ring-2', 'ring-white');
+                    AppState.activeNoteColor = btn.getAttribute('data-color');
+                });
+            });
+
+            document.getElementById('saveNoteBtn').addEventListener('click', () => {
+                const title = document.getElementById('noteTitleInput').value.trim();
+                const body = document.getElementById('noteBodyInput').value.trim();
+                if (!title || !body) return;
+
+                AppState.quickNotes.push({ id: Date.now(), title, body, color: AppState.activeNoteColor });
+                saveStateToStorage();
+                renderQuickNotes();
+                closeModal('noteModal');
+            });
+            renderQuickNotes();
+        }
+
+        function renderQuickNotes() {
+            const container = document.getElementById('notesGrid');
+            container.innerHTML = '';
+            if (AppState.quickNotes.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 col-span-3 text-center py-6">${t('no_notes')}</p>`;
+                return;
+            }
+
+            const colorClasses = {
+                cyan: 'from-cyan-500/10 to-transparent border-cyan-500/30 text-cyan-300',
+                purple: 'from-purple-500/10 to-transparent border-purple-500/30 text-purple-300',
+                amber: 'from-amber-500/10 to-transparent border-amber-500/30 text-amber-300',
+                emerald: 'from-emerald-500/10 to-transparent border-emerald-500/30 text-emerald-300'
+            };
+
+            AppState.quickNotes.forEach(note => {
+                const card = document.createElement('div');
+                card.className = `glass-panel rounded-2xl p-4 border bg-gradient-to-br ${colorClasses[note.color] || colorClasses.cyan} flex flex-col justify-between space-y-3`;
+                card.innerHTML = `
+                    <div class="space-y-2"><h4 class="font-bold text-sm text-slate-100 border-b border-slate-800/80 pb-2">${escapeHTML(note.title)}</h4><p class="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">${escapeHTML(note.body)}</p></div>
+                    <div class="flex items-center justify-end gap-2 pt-2">
+                        <button class="edit-note-btn text-xs text-slate-400 hover:text-cyan-400 p-1" data-id="${note.id}" title="تعديل"><i class="fa-solid fa-pen"></i></button>
+                        <button class="delete-note-btn text-xs text-slate-400 hover:text-rose-400 p-1" data-id="${note.id}" title="حذف"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            document.querySelectorAll('.edit-note-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const note = AppState.quickNotes.find(n => n.id === parseInt(btn.getAttribute('data-id')));
+                    if (!note) return;
+                    const nextTitle = prompt('تعديل عنوان الملاحظة:', note.title);
+                    if (nextTitle == null) return;
+                    const t = nextTitle.trim();
+                    if (!t) return;
+                    const nextBody = prompt('تعديل محتوى الملاحظة:', note.body);
+                    if (nextBody == null) return;
+                    const b = nextBody.trim();
+                    if (!b) return;
+                    note.title = t;
+                    note.body = b;
+                    saveStateToStorage();
+                    renderQuickNotes();
+                });
+            });
+
+            document.querySelectorAll('.delete-note-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    AppState.quickNotes = AppState.quickNotes.filter(n => n.id !== parseInt(btn.getAttribute('data-id')));
+                    saveStateToStorage();
+                    renderQuickNotes();
+                });
+            });
+        }
+
+        function initSavedFilesModule() {
+            const form = document.getElementById('savedFileForm');
+            const titleInput = document.getElementById('savedFileTitleInput');
+            const contentInput = document.getElementById('savedFileContentInput');
+            const searchInput = document.getElementById('savedFilesSearchInput');
+            const attachmentInput = document.getElementById('savedFileAttachmentInput');
+            const attachmentNames = document.getElementById('savedFileAttachmentNames');
+            populateSavedFileCourseSelect();
+
+            attachmentInput.addEventListener('change', () => {
+                const selectedFiles = Array.from(attachmentInput.files || []);
+                attachmentNames.textContent = selectedFiles.length
+                    ? selectedFiles.map(file => file.name).join('، ')
+                    : 'PDF، صور، أو أنواع ملفات أخرى';
+            });
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const title = titleInput.value.trim();
+                const content = contentInput.value.trim();
+                const selectedFiles = Array.from(attachmentInput.files || []);
+                if (!selectedFiles.length && (!title || !content)) {
+                    alert('اكتب اسمًا ومحتوى، أو اختر ملفًا واحدًا على الأقل للحفظ.');
+                    return;
+                }
+
+                if (selectedFiles.length) {
+                    for (const file of selectedFiles) {
+                        const id = `saved-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                        try {
+                            await saveSavedAttachment(id, file);
+                        } catch (error) {
+                            alert(`تعذر حفظ المرفق «${file.name}»: ${error.message}`);
+                            break;
+                        }
+                        const savedTitle = title
+                            ? (selectedFiles.length === 1 ? title : `${title} - ${file.name}`)
+                            : file.name;
+                        const courseIdSF = document.getElementById('savedFileCourseSelect')?.value || '';
+                        const courseSF = AppState.studyCourses.find(c => String(c.id) === String(courseIdSF));
+                        AppState.savedFiles.unshift({
+                            id,
+                            title: savedTitle,
+                            content,
+                            courseId: courseSF ? courseSF.id : '',
+                            courseTitle: courseSF ? courseSF.title : '',
+                            attachment: { name: file.name, type: file.type || 'application/octet-stream', size: file.size },
+                            createdAt: new Date().toISOString()
+                        });
+                    }
+                } else {
+                    const courseIdSF2 = document.getElementById('savedFileCourseSelect')?.value || '';
+                    const courseSF2 = AppState.studyCourses.find(c => String(c.id) === String(courseIdSF2));
+                    AppState.savedFiles.unshift({
+                        id: `saved-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                        title,
+                        content,
+                        courseId: courseSF2 ? courseSF2.id : '',
+                        courseTitle: courseSF2 ? courseSF2.title : '',
+                        createdAt: new Date().toISOString()
+                    });
+                }
+                saveStateToStorage();
+                form.reset();
+                attachmentNames.textContent = 'PDF، صور، أو أنواع ملفات أخرى';
+                renderSavedFiles(searchInput.value);
+            });
+
+            searchInput.addEventListener('input', () => renderSavedFiles(searchInput.value));
+            renderSavedFiles();
+        }
+
+        function renderSavedFiles(searchTerm = '') {
+            const container = document.getElementById('savedFilesList');
+            if (!container) return;
+
+            const files = Array.isArray(AppState.savedFiles) ? AppState.savedFiles : [];
+            const term = searchTerm.trim().toLocaleLowerCase('ar');
+            const filteredFiles = files.filter(file =>
+                `${file.title || ''} ${file.content || ''} ${file.attachment?.name || ''} ${file.courseTitle || ''}`.toLocaleLowerCase('ar').includes(term)
+            );
+
+            document.getElementById('savedFilesCount').textContent = `${files.length} ${t('files_count')}`;
+            container.innerHTML = '';
+
+            if (filteredFiles.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 col-span-2 text-center py-8">${term ? (AppState.uiLang==='en' ? 'No matching results.' : 'لا توجد نتائج مطابقة للبحث.') : t('no_files')}</p>`;
+                return;
+            }
+
+            filteredFiles.forEach(file => {
+                const card = document.createElement('article');
+                const date = file.createdAt ? new Date(file.createdAt) : null;
+                const dateLabel = date && !Number.isNaN(date.getTime())
+                    ? date.toLocaleDateString(getUiLocale(), { year: 'numeric', month: 'short', day: 'numeric' })
+                    : '';
+                card.className = 'glass-panel rounded-2xl p-4 border border-emerald-500/20 flex flex-col gap-3';
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <h4 class="font-bold text-sm text-slate-100 break-words">${escapeHTML(String(file.title || 'ملف بدون اسم'))}</h4>
+                            ${file.courseTitle ? `<p class="text-[10px] text-indigo-300 font-bold mt-0.5"><i class="fa-solid fa-book ml-1"></i>${escapeHTML(file.courseTitle)}</p>` : ''}
+                            ${dateLabel ? `<p class="text-[10px] text-slate-500 mt-1">${escapeHTML(dateLabel)}</p>` : ''}
+                        </div>
+                        <i class="fa-solid fa-file-lines text-emerald-400 mt-1"></i>
+                    </div>
+                    ${file.attachment ? `<div class="flex items-center gap-2 rounded-xl bg-slate-900/60 border border-slate-700/70 p-2.5 min-w-0"><i class="fa-solid ${String(file.attachment.type || '').startsWith('image/') ? 'fa-image' : 'fa-paperclip'} text-emerald-400"></i><div class="min-w-0 flex-1"><p class="text-xs text-slate-200 truncate">${escapeHTML(String(file.attachment.name || 'مرفق'))}</p><p class="text-[10px] text-slate-500">${(Number(file.attachment.size || 0) / (1024 * 1024)).toFixed(2)} MB · ${escapeHTML(String(file.attachment.type || 'نوع غير معروف'))}</p></div><button type="button" class="saved-file-download-btn text-slate-400 hover:text-cyan-300 p-1" data-id="${escapeHTML(String(file.id))}" title="تنزيل الملف"><i class="fa-solid fa-download"></i></button></div>` : ''}
+                    ${file.content ? `<p class="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-words max-h-48 overflow-y-auto">${escapeHTML(String(file.content))}</p>` : ''}
+                    <div class="flex items-center justify-between gap-2 border-t border-slate-800 pt-3">
+                        <button type="button" class="saved-file-ask-btn text-xs text-cyan-300 hover:text-cyan-200 font-bold flex items-center gap-1.5" data-id="${escapeHTML(String(file.id))}">
+                            <i class="fa-solid fa-robot"></i><span>${t('ask_ai_file')}</span>
+                        </button>
+                        <button type="button" class="saved-file-delete-btn text-xs text-slate-400 hover:text-rose-400 p-1" data-id="${escapeHTML(String(file.id))}" title="حذف الملف">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            container.querySelectorAll('.saved-file-ask-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const file = files.find(item => String(item.id) === button.dataset.id);
+                    if (!file) return;
+                    AppState.pendingSavedFileIds = [file.id];
+                    document.querySelector('[data-tab="tab-ai-chat"]').click();
+                    const chatInput = document.getElementById('chatTextInput');
+                    chatInput.value = `استخدم الملف المحفوظ «${file.title}» للإجابة عن سؤالي: `;
+                    chatInput.focus();
+                });
+            });
+
+            container.querySelectorAll('.saved-file-download-btn').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const file = files.find(item => String(item.id) === button.dataset.id);
+                    if (file) await downloadSavedAttachment(file);
+                });
+            });
+
+            container.querySelectorAll('.saved-file-delete-btn').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const file = files.find(item => String(item.id) === button.dataset.id);
+                    if (!file || !confirm(`هل تريد حذف الملف المحفوظ «${file.title}»؟`)) return;
+                    if (file.attachment) {
+                        try {
+                            await deleteSavedAttachment(file.id);
+                        } catch (error) {
+                            alert(`تعذر حذف المرفق: ${error.message}`);
+                            return;
+                        }
+                    }
+                    AppState.savedFiles = files.filter(item => String(item.id) !== button.dataset.id);
+                    saveStateToStorage();
+                    renderSavedFiles(searchTerm);
+                });
+            });
+        }
+
+        function createNewAiConversation() {
+            const conversation = {
+                id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                title: t('new_chat'),
+                messages: [{ sender: 'ai', text: 'Hi! How can I help you today? 🚀' }],
+                updatedAt: new Date().toISOString()
+            };
+            AppState.aiConversations.unshift(conversation);
+            AppState.activeAiConversationId = conversation.id;
+            AppState.chatHistory = conversation.messages;
+            saveStateToStorage();
+            renderChatMessages();
+            renderAiConversationList();
+            document.getElementById('chatTextInput').focus();
+        }
+
+        function syncActiveAiConversation() {
+            let conversation = AppState.aiConversations.find(item => String(item.id) === String(AppState.activeAiConversationId));
+            if (!conversation) {
+                conversation = {
+                    id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    title: t('new_chat'),
+                    messages: [],
+                    updatedAt: new Date().toISOString()
+                };
+                AppState.aiConversations.unshift(conversation);
+                AppState.activeAiConversationId = conversation.id;
+            }
+
+            conversation.messages = AppState.chatHistory;
+            conversation.updatedAt = new Date().toISOString();
+            const firstUserMessage = conversation.messages.find(message => message.sender === 'user' && message.text);
+            if (firstUserMessage && (!conversation.title || conversation.title === t('new_conversation') || conversation.title === 'محادثة جديدة' || conversation.title === 'New chat' || conversation.title === 'محادثة سابقة')) {
+                const cleanTitle = String(firstUserMessage.text).replace(/\s+/g, ' ').trim();
+                conversation.title = cleanTitle.length > 38 ? `${cleanTitle.slice(0, 38)}…` : cleanTitle;
+            }
+            saveStateToStorage();
+            renderAiConversationList();
+            return conversation;
+        }
+
+        function appendMessageToAiConversation(conversationId, message) {
+            const conversation = AppState.aiConversations.find(item => String(item.id) === String(conversationId));
+            if (!conversation) return;
+            if (!Array.isArray(conversation.messages)) conversation.messages = [];
+            conversation.messages.push(message);
+            conversation.updatedAt = new Date().toISOString();
+            if (String(AppState.activeAiConversationId) === String(conversationId)) {
+                AppState.chatHistory = conversation.messages;
+                renderChatMessages();
+            }
+            saveStateToStorage();
+            renderAiConversationList();
+        }
+
+        function renderAiConversationList() {
+            const container = document.getElementById('aiConversationList');
+            const count = document.getElementById('aiConversationCount');
+            if (!container || !count) return;
+
+            const conversations = Array.isArray(AppState.aiConversations) ? AppState.aiConversations : [];
+            count.textContent = `${conversations.length} محفوظة`;
+            container.innerHTML = '';
+
+            if (conversations.length === 0) {
+                container.innerHTML = `<p class="text-[11px] text-slate-500 px-2 py-2">${AppState.uiLang==='en'?'No previous chats.':'لا توجد محادثات سابقة.'}</p>`;
+                return;
+            }
+
+            [...conversations]
+                .sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime())
+                .forEach(conversation => {
+                    const isActive = String(conversation.id) === String(AppState.activeAiConversationId);
+                    const lastUserMessage = [...(Array.isArray(conversation.messages) ? conversation.messages : [])]
+                        .reverse()
+                        .find(message => message.sender === 'user' && message.text);
+                    const preview = lastUserMessage ? String(lastUserMessage.text).replace(/\s+/g, ' ').trim() : 'ابدأ بكتابة رسالتك';
+                    const date = conversation.updatedAt ? new Date(conversation.updatedAt) : null;
+                    const dateLabel = date && !Number.isNaN(date.getTime())
+                        ? date.toLocaleDateString(getUiLocale(), { month: 'short', day: 'numeric' })
+                        : '';
+                    const item = document.createElement('div');
+                    item.className = `flex-none w-56 rounded-xl border ${isActive ? 'border-cyan-400/60 bg-cyan-500/10' : 'border-slate-700/70 bg-slate-900/40'} flex items-stretch overflow-hidden`;
+                    item.innerHTML = `
+                        <button type="button" class="ai-conversation-select min-w-0 flex-1 text-right px-3 py-2 hover:bg-slate-800/60 transition-colors" data-id="${escapeHTML(String(conversation.id))}" title="${escapeHTML(String(conversation.title || 'محادثة بدون اسم'))}">
+                            <span class="block text-xs font-bold text-slate-200 truncate">${escapeHTML(String(conversation.title || 'محادثة بدون اسم'))}</span>
+                            <span class="block text-[10px] text-slate-500 truncate mt-1">${escapeHTML(preview)}${dateLabel ? ` · ${escapeHTML(dateLabel)}` : ''}</span>
+                        </button>
+                        <button type="button" class="ai-conversation-delete px-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors" data-id="${escapeHTML(String(conversation.id))}" title="حذف المحادثة">
+                            <i class="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                    `;
+                    container.appendChild(item);
+                });
+
+            container.querySelectorAll('.ai-conversation-select').forEach(button => {
+                button.addEventListener('click', () => {
+                    const conversation = conversations.find(item => String(item.id) === button.dataset.id);
+                    if (!conversation) return;
+                    AppState.activeAiConversationId = conversation.id;
+                    AppState.chatHistory = Array.isArray(conversation.messages) ? conversation.messages : [];
+                    document.getElementById('chatSearchInput').value = '';
+                    saveStateToStorage();
+                    renderChatMessages();
+                    renderAiConversationList();
+                });
+            });
+
+            container.querySelectorAll('.ai-conversation-delete').forEach(button => {
+                button.addEventListener('click', () => {
+                    const conversation = conversations.find(item => String(item.id) === button.dataset.id);
+                    if (!conversation || !confirm(`هل تريد حذف المحادثة «${conversation.title}»؟`)) return;
+                    AppState.aiConversations = AppState.aiConversations.filter(item => String(item.id) !== button.dataset.id);
+
+                    if (String(AppState.activeAiConversationId) === button.dataset.id) {
+                        const nextConversation = AppState.aiConversations[0];
+                        if (nextConversation) {
+                            AppState.activeAiConversationId = nextConversation.id;
+                            AppState.chatHistory = Array.isArray(nextConversation.messages) ? nextConversation.messages : [];
+                            renderChatMessages();
+                        } else {
+                            createNewAiConversation();
+                            return;
+                        }
+                    }
+
+                    saveStateToStorage();
+                    renderAiConversationList();
+                });
+            });
+        }
+
+        function initAiChatModule() {
+            const chatForm = document.getElementById('chatForm');
+            const chatInput = document.getElementById('chatTextInput');
+            const chatImageInput = document.getElementById('chatImageInput');
+            const triggerImageBtn = document.getElementById('triggerImageBtn');
+            const voiceBtn = document.getElementById('voiceRecordBtn');
+
+            triggerImageBtn.addEventListener('click', () => chatImageInput.click());
+            chatImageInput.addEventListener('change', handleImageSelection);
+            document.getElementById('removeImageBtn').addEventListener('click', clearAttachedImage);
+
+            document.querySelectorAll('.quick-prompt-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const key = btn.getAttribute('data-qp');
+                    const promptText = (key && typeof t === 'function') ? t(key) : btn.textContent.trim();
+                    chatInput.value = String(promptText || '').trim();
+                    chatForm.dispatchEvent(new Event('submit'));
+                });
+            });
+
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.maxAlternatives = 1;
+
+                let isRecording = false;
+                let voiceBaseText = '';
+                let voiceFinalText = '';
+                let silenceTimer = null;
+                let restartTimer = null;
+                let maxTimer = null;
+
+                const updateVoiceButton = () => {
+                    if (!voiceBtn) return;
+                    voiceBtn.classList.toggle('recording-pulse', isRecording);
+                    voiceBtn.title = isRecording
+                        ? (AppState.uiLang === 'en' ? 'Recording… tap to stop' : 'جاري التسجيل… اضغط للإيقاف')
+                        : (AppState.uiLang === 'en' ? 'Voice input' : 'التحدث بالصوت');
+                    voiceBtn.setAttribute('aria-label', voiceBtn.title);
+                    voiceBtn.innerHTML = `<i class="fa-solid ${isRecording ? 'fa-microphone-slash' : 'fa-microphone'} text-sm"></i>`;
+                };
+
+                const armSilenceTimer = () => {
+                    clearTimeout(silenceTimer);
+                    // stop after 12s silence only (not mid-sentence pauses)
+                    silenceTimer = setTimeout(() => {
+                        if (isRecording) stopVoiceRecording();
+                    }, 12000);
+                };
+
+                const stopVoiceRecording = () => {
+                    isRecording = false;
+                    clearTimeout(silenceTimer);
+                    clearTimeout(restartTimer);
+                    clearTimeout(maxTimer);
+                    updateVoiceButton();
+                    try { recognition.stop(); } catch (err) {}
+                };
+
+                voiceBtn.addEventListener('click', () => {
+                    if (isRecording) {
+                        stopVoiceRecording();
+                        return;
+                    }
+                    voiceBaseText = (chatInput.value || '').trim();
+                    voiceFinalText = '';
+                    isRecording = true;
+                    recognition.lang = (AppState.uiLang === 'en') ? 'en-US' : 'ar-EG';
+                    updateVoiceButton();
+                    armSilenceTimer();
+                    clearTimeout(maxTimer);
+                    maxTimer = setTimeout(() => { if (isRecording) stopVoiceRecording(); }, 180000); // 3 min max
+                    try {
+                        recognition.start();
+                    } catch (err) {
+                        // already started — ignore
+                        try { recognition.stop(); } catch (e2) {}
+                        setTimeout(() => {
+                            if (!isRecording) return;
+                            try { recognition.start(); } catch (e3) {
+                                isRecording = false;
+                                updateVoiceButton();
+                            }
+                        }, 300);
+                    }
+                });
+                recognition.onstart = () => { updateVoiceButton(); };
+                recognition.onend = () => {
+                    if (!isRecording) {
+                        updateVoiceButton();
+                        return;
+                    }
+                    clearTimeout(restartTimer);
+                    restartTimer = setTimeout(() => {
+                        if (!isRecording) return;
+                        try {
+                            recognition.lang = (AppState.uiLang === 'en') ? 'en-US' : 'ar-EG';
+                            recognition.start();
+                        } catch (err) {}
+                    }, 200);
+                };
+                recognition.onresult = (e) => {
+                    let interimText = '';
+                    let receivedSpeech = false;
+                    for (let i = e.resultIndex; i < e.results.length; i++) {
+                        const segment = (e.results[i][0].transcript || '').trim();
+                        if (!segment) continue;
+                        receivedSpeech = true;
+                        if (e.results[i].isFinal) voiceFinalText += segment + ' ';
+                        else interimText += segment + ' ';
+                    }
+                    const recognizedText = (voiceFinalText + interimText).trim();
+                    chatInput.value = [voiceBaseText, recognizedText].filter(Boolean).join(' ');
+                    if (receivedSpeech) armSilenceTimer();
+                };
+                recognition.onerror = (e) => {
+                    // ignore benign errors so recording keeps going
+                    if (e.error === 'no-speech' || e.error === 'aborted' || e.error === 'network') return;
+                    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+                        stopVoiceRecording();
+                        alert(AppState.uiLang === 'en'
+                            ? 'Microphone permission denied. Allow mic access in the browser.'
+                            : 'تم رفض إذن الميكروفون. اسمح بالوصول من إعدادات المتصفح.');
+                    }
+                };
+                updateVoiceButton();
+            } else {
+                voiceBtn.addEventListener('click', () => {
+                    alert(AppState.uiLang === 'en'
+                        ? 'Speech recognition is not supported. Try Chrome or Edge.'
+                        : 'التعرف على الصوت غير مدعوم. جرّب Chrome أو Edge.');
+                });
+            }
+
+            chatForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const text = chatInput.value.trim();
+                if (!text && !AppState.attachedImageData) return;
+
+                const submittedConversationId = AppState.activeAiConversationId;
+                const selectedSavedFiles = savedAttachmentsForPrompt(text, AppState.pendingSavedFileIds);
+                AppState.pendingSavedFileIds = [];
+                AppState.chatHistory.push({ sender: 'user', text, image: AppState.attachedImageData?.previewUrl });
+                renderChatMessages();
+                syncActiveAiConversation();
+                chatInput.value = '';
+                try { autoResizeChatInput(); } catch (e) {}
+                const imagePayload = AppState.attachedImageData;
+                clearAttachedImage();
+
+                showAiTypingIndicator();
+
+                try {
+                    const aiReply = await callGeminiApi(text, imagePayload, selectedSavedFiles);
+                    removeAiTypingIndicator();
+                    const processedText = handleAiActionExecution(aiReply);
+                    appendMessageToAiConversation(submittedConversationId, { sender: 'ai', text: processedText });
+                } catch (err) {
+                    removeAiTypingIndicator();
+                    appendMessageToAiConversation(submittedConversationId, { sender: 'ai', text: `⚠️ ${err.message}` });
+                }
+            });
+
+            document.getElementById('newAiChatBtn').addEventListener('click', createNewAiConversation);
+
+            document.getElementById('clearChatBtn').addEventListener('click', () => {
+                if (confirm("هل تريد مسح سجل المحادثة؟")) {
+                    AppState.chatHistory = [{ sender: 'ai', text: AppState.uiLang === 'en' ? 'Hi! How can I help you today? 🚀' : 'مرحباً! كيف يمكنني مساعدتك اليوم؟ 🚀' }];
+                    const activeConversation = AppState.aiConversations.find(item => String(item.id) === String(AppState.activeAiConversationId));
+                    if (activeConversation) {
+                        activeConversation.title = t('new_conversation');
+                        activeConversation.messages = AppState.chatHistory;
+                        activeConversation.updatedAt = new Date().toISOString();
+                    }
+                    saveStateToStorage();
+                    renderChatMessages();
+                    renderAiConversationList();
+                }
+            });
+
+            document.getElementById('chatSearchInput').addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                document.querySelectorAll('.chat-bubble-wrapper').forEach(m => {
+                    m.style.display = m.textContent.toLowerCase().includes(term) ? 'flex' : 'none';
+                });
+            });
+
+            renderChatMessages();
+            renderAiConversationList();
+        }
+
+        function handleImageSelection(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                AppState.attachedImageData = { mimeType: file.type, base64: event.target.result.split(',')[1], previewUrl: event.target.result };
+                document.getElementById('imagePreview').src = event.target.result;
+                document.getElementById('imagePreviewContainer').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearAttachedImage() {
+            AppState.attachedImageData = null;
+            document.getElementById('chatImageInput').value = '';
+            document.getElementById('imagePreviewContainer').classList.add('hidden');
+        }
+
+        function renderChatMessages() {
+            const container = document.getElementById('chatMessagesContainer');
+            container.innerHTML = '';
+            AppState.chatHistory.forEach(msg => {
+                const wrapper = document.createElement('div');
+                wrapper.className = `chat-bubble-wrapper flex items-start gap-2.5 ${msg.sender === 'user' ? 'flex-row-reverse' : ''}`;
+                const avatar = msg.sender === 'user' ? `<div class="w-8 h-8 rounded-xl bg-cyan-500 text-slate-950 font-bold flex items-center justify-center shrink-0 text-xs"><i class="fa-solid fa-user"></i></div>` : `<div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 to-indigo-500 text-slate-950 font-bold flex items-center justify-center shrink-0 text-xs"><i class="fa-solid fa-robot"></i></div>`;
+                const imgHTML = msg.image ? `<img src="${msg.image}" class="w-32 h-32 object-cover rounded-xl mb-2 border border-slate-700">` : '';
+                const bubbleClass = msg.sender === 'user' ? 'bg-cyan-500/25 border-cyan-500/40 text-slate-100 rounded-2xl rounded-tr-none' : 'bg-slate-800/80 border-slate-700/80 text-slate-200 rounded-2xl rounded-tl-none';
+
+                wrapper.innerHTML = `${avatar}<div class="chat-bubble max-w-[80%] p-3.5 border ${bubbleClass} text-xs leading-relaxed space-y-1">${imgHTML}<div class="chat-bubble-text">${escapeHTML(msg.text)}</div></div>`;
+                container.appendChild(wrapper);
+            });
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function showAiTypingIndicator() {
+            const container = document.getElementById('chatMessagesContainer');
+            const wrapper = document.createElement('div');
+            wrapper.id = 'aiTypingIndicator';
+            wrapper.className = 'flex items-start gap-2.5';
+            wrapper.innerHTML = `<div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 to-indigo-500 text-slate-950 font-bold flex items-center justify-center shrink-0 text-xs"><i class="fa-solid fa-robot"></i></div><div class="p-3.5 bg-slate-800/80 border border-slate-700/80 rounded-2xl rounded-tl-none text-xs text-cyan-400 flex items-center gap-2"><i class="fa-solid fa-circle-notch animate-spin"></i><span>جاري المعالجة...</span></div>`;
+            container.appendChild(wrapper);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function removeAiTypingIndicator() {
+            const el = document.getElementById('aiTypingIndicator');
+            if (el) el.remove();
+        }
+
+        // ===== Gemini API (auto-selects a working model) =====
+        const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+        // Order: auto-updating alias first, then explicit fallbacks
+        const GEMINI_MODEL_CANDIDATES = ['gemini-flash-lite-latest', 'gemini-2.0-flash-lite', 'gemini-flash-latest', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+
+        async function geminiGenerate(model, apiKey, body) {
+            return fetch(`${GEMINI_BASE}/models/${model}:generateContent`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+                body: JSON.stringify(body)
+            });
+        }
+
+        // Asks Google which models this key can actually use
+        async function discoverGeminiModels(apiKey) {
+            try {
+                const res = await fetch(`${GEMINI_BASE}/models?pageSize=200`, { headers: { 'x-goog-api-key': apiKey } });
+                if (!res.ok) return [];
+                const data = await res.json();
+                return (data.models || [])
+                    .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+                    .map(m => m.name.replace('models/', ''))
+                    .filter(n => /flash/i.test(n) && !/image|tts|live|audio|embedding|robotics|computer-use|lite-preview/i.test(n))
+                    .sort((a, b) => (/preview|exp/i.test(a) ? 1 : 0) - (/preview|exp/i.test(b) ? 1 : 0))
+                    .slice(0, 5);
+            } catch (e) { return []; }
+        }
+
+        function friendlyGeminiError(status, message) {
+            const msg = message || '';
+            if (/api key not valid|API_KEY_INVALID|invalid api key/i.test(msg)) return t('api_key_invalid');
+            if (status === 403) return 'المفتاح مش مسموح له يستخدم الخدمة دي (403). جرب تعمل مفتاح جديد من Google AI Studio.';
+            if (status === 429) return 'خلصت الحصة المجانية مؤقتاً (429). استنى دقيقة وجرب تاني.';
+            return msg || 'خطأ غير معروف في الاتصال بخدمة جوجل.';
+        }
+
+        async function callGeminiApi(userPrompt, imagePayload, savedAttachmentsToSend = []) {
+            let apiKey = AppState.geminiApiKey;
+            if (!apiKey || apiKey.trim() === '') {
+                apiKey = prompt("أدخل مفتاح Google Gemini API:");
+                if (apiKey && apiKey.trim() !== '') {
+                    AppState.geminiApiKey = apiKey.trim();
+                    saveStateToStorage();
+                } else {
+                    throw new Error(t("api_key_required"));
+                }
+            }
+            apiKey = apiKey.trim();
+
+            const isEn = AppState.uiLang === 'en';
+            const todayKey = (typeof createLocalDateKey === 'function') ? createLocalDateKey() : new Date().toISOString().slice(0, 10);
+            const todayWeekday = (typeof getTodayWeekdayKey === 'function') ? getTodayWeekdayKey() : '';
+            const todaySlots = (typeof getTodayTimetableSlots === 'function') ? getTodayTimetableSlots() : [];
+            const dueReviews = (typeof getReviewsDueToday === 'function') ? getReviewsDueToday() : [];
+            const openTasks = (AppState.dailyTasks || []).filter(tk => !tk.completed);
+            const todayMins = (typeof getTodayMinutes === 'function') ? getTodayMinutes() : 0;
+            const streak = (typeof computeStreak === 'function') ? computeStreak() : 0;
+            const goal = Number(AppState.dailyMinutesGoal) || 90;
+
+            const savedFilesContext = JSON.stringify(
+                (AppState.savedFiles || []).slice(0, 15).map(({ id, title, content, courseTitle, courseId, attachment }) => ({
+                    id, title,
+                    content: String(content || '').slice(0, 200),
+                    courseTitle: courseTitle || '',
+                    courseId: courseId || '',
+                    hasAttachment: !!(attachment)
+                }))
+            );
+            const coursesContext = JSON.stringify(
+                (AppState.studyCourses || []).map(c => {
+                    const lectures = c.lectures || [];
+                    const studied = lectures.filter(l => l.studied).length;
+                    return {
+                        id: c.id,
+                        title: c.title,
+                        lectureCount: lectures.length,
+                        studiedCount: studied,
+                        lectures: lectures.map(l => ({ id: l.id, title: l.title, studied: !!l.studied })),
+                        grades: c.grades || null
+                    };
+                })
+            );
+            const notesContext = JSON.stringify(
+                (AppState.quickNotes || []).slice(0, 12).map(n => ({ id: n.id, title: n.title, body: String(n.body || '').slice(0, 120) }))
+            );
+            const monthlyContext = JSON.stringify(AppState.monthlyGoals || []);
+            const mistakesContext = JSON.stringify((AppState.studyMistakes || []).slice(0, 12).map(m => ({
+                id: m.id, courseTitle: m.courseTitle, topic: m.topic,
+                errorText: String(m.errorText || '').slice(0, 120),
+                correctAnswer: String(m.correctAnswer || '').slice(0, 80)
+            })));
+            const sessionsContext = JSON.stringify((AppState.studySessions || []).slice(0, 8).map(s => ({
+                courseTitle: s.courseTitle, minutes: s.minutes, date: s.date
+            })));
+            const reviewsContext = JSON.stringify((AppState.studyReviews || []).filter(r => !r.completed).slice(0, 12).map(r => ({
+                id: r.id, lectureTitle: r.lectureTitle, dueDate: r.dueDate
+            })));
+            const recentChat = (AppState.chatHistory || []).slice(-4).map(m => ({
+                role: m.sender === 'user' ? 'user' : 'assistant',
+                text: String(m.text || '').slice(0, 280)
+            }));
+
+            const langInstruction = isEn
+                ? 'Respond in clear, encouraging English. Keep answers concise unless the user asks for detail.'
+                : 'رد بالعربية الفصحى المبسطة بأسلوب مشجع وواضح ومختصر. استخدم الإنجليزية فقط إذا كتب المستخدم بالإنجليزية أو طلب ذلك.';
+
+            const contextPrompt = `LANGUAGE RULE: Always reply in the same language the user is writing in (if they write English, reply in English; if Arabic, reply in Arabic; same for any other language).
+
+أنت P.U.D AI — مساعد الدراسة الجامعية داخل لوحة Personal University Dashboard.
+اختصر الرد: جمل قليلة واضحة، بدون حشو. نفّذ الأوامر بسرعة ودقة.
+${langInstruction}
+أنت تنفّذ أوامر حقيقية على بيانات اللوحة (مهام، مواد، جدول محاضرات، أخطاء، مراجعات…). لست مجرد شات.
+
+طلب المستخدم الآن:
+"""
+${userPrompt}
+"""
+
+=== لقطة سريعة لليوم (${todayKey}) ===
+- يوم الأسبوع في الجدول: ${todayWeekday || '—'}
+- حصص اليوم: ${JSON.stringify(todaySlots)}
+- مراجعات مستحقة الآن: ${dueReviews.length} → ${JSON.stringify(dueReviews.slice(0, 8).map(r => r.lectureTitle))}
+- مهام يومية مفتوحة: ${openTasks.length}
+- دقائق المذاكرة اليوم: ${todayMins} / هدف ${goal}
+- سلسلة الأيام النشطة: ${streak}
+
+=== بيانات اللوحة ===
+- الاسم: ${AppState.userName}
+- المهام اليومية: ${JSON.stringify(AppState.dailyTasks || [])}
+- المواد والمحاضرات: ${coursesContext}
+- جدول المحاضرات الأسبوعي (مفاتيح الأيام عربية ثابتة: السبت، الأحد، الإثنين، الثلاثاء، الأربعاء، الخميس، الجمعة؛ الوقت 24 ساعة HH:MM): ${JSON.stringify(AppState.weeklyPlanner || {})}
+- بنك الأخطاء: ${mistakesContext}
+- مواعيد/امتحانات الشهر: ${monthlyContext}
+- ملاحظات سريعة: ${notesContext}
+- ملفات محفوظة: ${savedFilesContext}
+- جلسات مذاكرة أخيرة: ${sessionsContext}
+- مراجعات غير مكتملة: ${reviewsContext}
+
+=== آخر رسائل المحادثة (للسياق فقط) ===
+${JSON.stringify(recentChat)}
+
+=== كيفية التنفيذ ===
+عندما يحتاج الطلب تعديلاً على اللوحة، أضف في **نهاية** ردك كتلة JSON أو أكثر بهذا الشكل فقط:
+
+\`\`\`json
+{"action":"ACTION_NAME","data":{...}}
+\`\`\`
+
+أوامر متاحة:
+1) ADD_DAILY_TASK — {"title":"...","priority":"عالي|متوسط|عادي"}
+2) COMPLETE_DAILY_TASK — {"id":n} أو {"title":"جزء"}
+3) DELETE_DAILY_TASK — {"id":n} أو {"title":"جزء"}
+4) CLEAR_COMPLETED_TASKS — {}
+5) ADD_COURSE — {"title":"..."}
+6) DELETE_COURSE — {"id":"..."} أو {"title":"..."}
+7) ADD_LECTURE — {"courseTitle":"...","title":"..."} أو courseId
+8) MARK_LECTURE_STUDIED — {"courseTitle":"...","lectureTitle":"...","studied":true}
+9) DELETE_LECTURE — {"courseTitle":"...","lectureTitle":"..."}
+10) ADD_TIMETABLE_SLOT — {"day":"السبت","start":"08:00","end":"09:30","title":"...","type":"lecture|section|lab|holiday|other","location":""}
+11) SET_TIMETABLE_DAY — {"day":"السبت","slots":[{"start":"08:00","end":"09:30","title":"...","type":"lecture","location":""}]}
+12) REMOVE_TIMETABLE_SLOT — {"day":"...","title":"جزء"} أو {"day":"...","id":"..."}
+13) CLEAR_TIMETABLE — {} أو {"day":"السبت"}
+14) ADD_MISTAKE — {"errorText":"...","correctAnswer":"...","explanation":"","topic":"","courseTitle":""}
+15) DELETE_MISTAKE — {"id":"..."} أو {"errorText":"جزء"}
+16) ADD_MONTHLY_GOAL — {"title":"...","date":"YYYY-MM-DD"}
+17) DELETE_MONTHLY_GOAL — {"id":n} أو {"title":"جزء"}
+18) ADD_NOTE — {"title":"...","body":"...","color":"cyan|purple|amber|emerald"}
+19) DELETE_NOTE — {"id":n} أو {"title":"جزء"}
+20) ADD_SAVED_FILE — {"title":"...","content":"...","courseTitle":"اختياري"}
+21) DELETE_SAVED_FILE — {"id":"..."} أو {"title":"جزء"}
+22) SET_USER_NAME — {"name":"..."}
+23) SWITCH_TAB — {"tab":"daily|courses|history|progress|weekly|mistakes|monthly|notes|saved-files|ai-chat"}
+24) START_TIMER — {"mode":"pomodoro|stopwatch"}
+25) RESET_TIMER — {}
+26) NEW_AI_CHAT — {}
+27) ADD_STUDY_SESSION — {"courseTitle":"...","lectureTitle":"اختياري","minutes":25,"note":""}
+28) COMPLETE_REVIEW — {"id":"..."} أو {"lectureTitle":"جزء"}
+29) SET_COURSE_GRADES — {"courseTitle":"...","coursework":0,"midterm":0,"final":0,"courseworkWeight":20,"midtermWeight":30,"finalWeight":50}
+30) BUILD_EXAM_PLAN — {"courseTitle":"...","examDate":"YYYY-MM-DD","days":7} ثم أضف مهام يومية بـ ADD_DAILY_TASK موزعة
+31) PLAN_TODAY — {} خطّط لليوم من الحصص + المراجعات المستحقة + المهام المفتوحة؛ أضف مهام يومية عملية بـ ADD_DAILY_TASK (3–7 مهام واضحة)
+
+قواعد سلوك ذكية:
+- ابدأ دائماً برد نصي مفهوم يشرح ما ستفعله أو الإجابة، ثم JSON في النهاية إن لزم.
+- لا تخترع بيانات غير موجودة في اللوحة؛ إن نقص شيء اطلبه باختصار.
+- جدول من نص/صورة: استخرج كل حصة بدقة (يوم عربي صحيح، وقت 24 ساعة) واستخدم SET_TIMETABLE_DAY لكل يوم أفضل من عشرات ADD المنفصلة.
+- ملف أخطاء: كل خطأ = ADD_MISTAKE منفصل مع correctAnswer وشرح مختصر إن وُجد.
+- «overview / ملخص مادة»: لخّص من المحاضرات (نسبة المذاكرة) + الجلسات + الدرجات + أخطاء المادة + أقرب امتحان إن وُجد. لا تحتاج JSON إلا لو طلب المستخدم تحديث شيء.
+- «خطة اليوم / نظم يومي»: استخدم PLAN_TODAY + مهام حقيقية مرتبطة بالمراجعات والحصص.
+- «خطة امتحان»: BUILD_EXAM_PLAN + مهام موزعة بأيام، أولوية عالية للمراجعة.
+- إن سأل عن ملف محفوظ بالاسم، اعتمد محتواه؛ إن وُجد مرفق مُرسل هنا حلّله.
+- أولوية المهام: عالي للمراجعات المتأخرة والامتحانات القريبة، متوسط للمذاكرة العادية، عادي للتنظيم.
+- لا تخرج JSON لأسئلة نظرية أو نصائح فقط.
+- أيام الجدول يجب أن تكون بالضبط: السبت، الأحد، الإثنين، الثلاثاء، الأربعاء، الخميس، الجمعة (حتى لو الواجهة إنجليزي).`;
+
+            const parts = [{ text: contextPrompt }];
+            if (imagePayload) {
+                parts.push({ inline_data: { mime_type: imagePayload.mimeType, data: imagePayload.base64 } });
+            }
+
+            let attachedBytes = 0;
+            for (const savedFile of savedAttachmentsToSend) {
+                const blob = await getSavedAttachment(savedFile.id);
+                if (!blob) {
+                    throw new Error(`لم أجد المرفق «${savedFile.attachment?.name || savedFile.title}» في تخزين هذا المتصفح. أعد رفعه من قسم الملفات المحفوظة.`);
+                }
+                attachedBytes += blob.size;
+                if (attachedBytes > 15 * 1024 * 1024) {
+                    throw new Error('إجمالي حجم المرفقات التي تُرسل في رسالة واحدة أكبر من 15 ميجابايت. اختر ملفات أقل أو أرسلها على رسائل منفصلة.');
+                }
+
+                const fileName = savedFile.attachment?.name || savedFile.title || 'مرفق';
+                const mimeType = blob.type || savedFile.attachment?.type || 'application/octet-stream';
+                parts.push({ text: `مرفق محفوظ للمستخدم: ${fileName} (العنوان: ${savedFile.title}). حلّل محتواه للإجابة عن الطلب.` });
+
+                const isTextFile = mimeType.startsWith('text/')
+                    || /json|xml|javascript|yaml/.test(mimeType)
+                    || /\.(txt|md|csv|json|xml|html|css|js|ts|yaml|yml)$/i.test(fileName);
+                if (isTextFile) {
+                    if (blob.size > 2 * 1024 * 1024) {
+                        throw new Error(`الملف النصي «${fileName}» أكبر من 2 ميجابايت. قلّص حجمه أو ارفع جزءًا منه.`);
+                    }
+                    parts.push({ text: `محتوى الملف ${fileName}:\n${await blob.text()}` });
+                    continue;
+                }
+
+                if (!mimeType.startsWith('image/') && mimeType !== 'application/pdf' && mimeType !== 'application/rtf') {
+                    throw new Error(`تم حفظ «${fileName}»، لكن Gemini قد لا يستطيع قراءة هذا النوع (${mimeType}). جرّب رفعه بصيغة PDF أو صورة أو ملف نصي.`);
+                }
+                parts.push({
+                    inline_data: {
+                        mime_type: mimeType,
+                        data: await savedAttachmentToBase64(blob)
+                    }
+                });
+            }
+            const body = {
+                contents: [{ role: 'user', parts }],
+                generationConfig: {
+                    temperature: 0.4,
+                    topP: 0.85,
+                    maxOutputTokens: 2048
+                }
+            };
+
+            const tried = new Set();
+            const cached = localStorage.getItem('pud_gemini_working_model');
+            let queue = [...(cached ? [cached] : []), ...GEMINI_MODEL_CANDIDATES];
+            let discovered = false;
+            let lastError = 'تعذر الوصول لأي نموذج Gemini متاح.';
+
+            while (queue.length) {
+                const model = queue.shift();
+                if (tried.has(model)) continue;
+                tried.add(model);
+
+                let res;
+                try {
+                    res = await geminiGenerate(model, apiKey, body);
+                } catch (netErr) {
+                    throw new Error('مشكلة في الاتصال بالإنترنت أو الشبكة بتمنع الوصول لجوجل.');
+                }
+
+                if (res.ok) {
+                    const data = await res.json();
+                    const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
+                    if (text) {
+                        localStorage.setItem('pud_gemini_working_model', model);
+                        return text;
+                    }
+                    lastError = 'استجابة فارغة من النموذج (ممكن اتحجبت بسبب فلتر الأمان).';
+                    continue;
+                }
+
+                let errMsg = '';
+                try { errMsg = (await res.json()).error?.message || ''; } catch (e) {}
+
+                // Model missing / retired / overloaded -> try the next one
+                if (res.status === 404 || res.status === 503 || /not found|not supported/i.test(errMsg)) {
+                    localStorage.removeItem('pud_gemini_working_model');
+                    lastError = errMsg;
+                    if (!queue.length && !discovered) {
+                        discovered = true;
+                        queue = await discoverGeminiModels(apiKey);
+                    }
+                    continue;
+                }
+
+                // Key / quota / other problems -> stop and explain
+                throw new Error(friendlyGeminiError(res.status, errMsg));
+            }
+            throw new Error(friendlyGeminiError(0, lastError));
+        }
+
+        function findByIdOrTitle(list, data, titleKey = 'title') {
+            if (!data || !Array.isArray(list)) return null;
+            if (data.id != null) {
+                const byId = list.find(item => String(item.id) === String(data.id));
+                if (byId) return byId;
+            }
+            if (data[titleKey]) {
+                const needle = String(data[titleKey]).toLocaleLowerCase('ar').trim();
+                return list.find(item => String(item[titleKey] || '').toLocaleLowerCase('ar').includes(needle)) || null;
+            }
+            return null;
+        }
+
+        function switchToTab(tabKey) {
+            const map = {
+                daily: 'tab-daily',
+                courses: 'tab-courses',
+                history: 'tab-history',
+                progress: 'tab-progress',
+                sessions: 'tab-progress',
+                reviews: 'tab-progress',
+                grades: 'tab-progress',
+                weekly: 'tab-weekly',
+                timetable: 'tab-weekly',
+                schedule: 'tab-weekly',
+                mistakes: 'tab-mistakes',
+                errors: 'tab-mistakes',
+                monthly: 'tab-monthly',
+                notes: 'tab-notes',
+                'saved-files': 'tab-saved-files',
+                savedfiles: 'tab-saved-files',
+                'ai-chat': 'tab-ai-chat',
+                aichat: 'tab-ai-chat',
+                chat: 'tab-ai-chat'
+            };
+            const target = map[String(tabKey || '').toLowerCase().trim()];
+            if (!target) return false;
+            const btn = document.querySelector(`.nav-btn[data-tab="${target}"]`);
+            if (btn) { btn.click(); return true; }
+            return false;
+        }
+
+        function handleAiActionExecution(fullText) {
+            let cleanText = fullText;
+            const executedActions = [];
+            const actionQueue = [];
+
+            function enqueueParsed(parsed, rawChunk) {
+                if (!parsed) return;
+                if (Array.isArray(parsed)) {
+                    parsed.forEach(item => {
+                        if (item && item.action) actionQueue.push({ obj: item, raw: rawChunk });
+                    });
+                } else if (parsed.action) {
+                    actionQueue.push({ obj: parsed, raw: rawChunk });
+                } else if (Array.isArray(parsed.actions)) {
+                    parsed.actions.forEach(item => {
+                        if (item && item.action) actionQueue.push({ obj: item, raw: rawChunk });
+                    });
+                }
+            }
+
+            const fenced = /```(?:json)?\s*([\s\S]*?)\s*```/gi;
+            let match;
+            while ((match = fenced.exec(fullText)) !== null) {
+                try {
+                    enqueueParsed(JSON.parse(match[1]), match[0]);
+                    cleanText = cleanText.replace(match[0], '');
+                } catch (e) {}
+            }
+            // bare JSON objects with "action"
+            const bare = /\{\s*"action"\s*:[\s\S]*?\}\s*(?=\{|$)/g;
+            let bareMatch;
+            const bareSource = cleanText;
+            while ((bareMatch = bare.exec(bareSource)) !== null) {
+                try {
+                    enqueueParsed(JSON.parse(bareMatch[0]), bareMatch[0]);
+                    cleanText = cleanText.replace(bareMatch[0], '');
+                } catch (e) {}
+            }
+
+            for (const entry of actionQueue) {
+                try {
+                    const actionObj = entry.obj;
+                    const action = String(actionObj.action || '').toUpperCase().trim();
+                    const data = actionObj.data || {};
+                    let done = false;
+
+                    if (action === 'ADD_DAILY_TASK' && data.title) {
+                        const priority = ['عالي', 'متوسط', 'عادي'].includes(data.priority) ? data.priority : 'متوسط';
+                        AppState.dailyTasks.push({
+                            id: Date.now() + Math.floor(Math.random() * 1000),
+                            title: String(data.title).trim(),
+                            priority,
+                            completed: false
+                        });
+                        saveStateToStorage();
+                        renderDailyTasks();
+                        done = true;
+                    } else if (action === 'COMPLETE_DAILY_TASK') {
+                        const task = findByIdOrTitle(AppState.dailyTasks, data);
+                        if (task && !task.completed) {
+                            task.completed = true;
+                            recordStudyActivity('task', task);
+                            saveStateToStorage();
+                            renderDailyTasks();
+                            renderStudyHistory();
+                            checkAllTasksCompleted();
+                            done = true;
+                        }
+                    } else if (action === 'DELETE_DAILY_TASK') {
+                        const task = findByIdOrTitle(AppState.dailyTasks, data);
+                        if (task) {
+                            AppState.dailyTasks = AppState.dailyTasks.filter(t => t.id !== task.id);
+                            saveStateToStorage();
+                            renderDailyTasks();
+                            done = true;
+                        }
+                    } else if (action === 'CLEAR_COMPLETED_TASKS') {
+                        const before = AppState.dailyTasks.length;
+                        AppState.dailyTasks = AppState.dailyTasks.filter(t => !t.completed);
+                        if (AppState.dailyTasks.length !== before) {
+                            saveStateToStorage();
+                            renderDailyTasks();
+                            done = true;
+                        }
+                    } else if (action === 'ADD_COURSE' && data.title) {
+                        AppState.studyCourses.push({
+                            id: createStudyId(),
+                            title: String(data.title).trim(),
+                            lectures: []
+                        });
+                        saveStateToStorage();
+                        renderCourses();
+                        updateStudyDashboardStats();
+                        done = true;
+                    } else if (action === 'DELETE_COURSE') {
+                        const course = findByIdOrTitle(AppState.studyCourses, data);
+                        if (course) {
+                            AppState.studyCourses = AppState.studyCourses.filter(c => String(c.id) !== String(course.id));
+                            saveStateToStorage();
+                            renderCourses();
+                            updateStudyDashboardStats();
+                            done = true;
+                        }
+                    } else if (action === 'ADD_LECTURE' && data.title) {
+                        let course = null;
+                        if (data.courseId) {
+                            course = AppState.studyCourses.find(c => String(c.id) === String(data.courseId));
+                        }
+                        if (!course && data.courseTitle) {
+                            course = findByIdOrTitle(AppState.studyCourses, { title: data.courseTitle });
+                        }
+                        if (course) {
+                            if (!Array.isArray(course.lectures)) course.lectures = [];
+                            course.lectures.push({
+                                id: createStudyId(),
+                                title: String(data.title).trim(),
+                                studied: false
+                            });
+                            saveStateToStorage();
+                            renderCourses();
+                            updateStudyDashboardStats();
+                            done = true;
+                        }
+                    } else if (action === 'MARK_LECTURE_STUDIED') {
+                        let course = null;
+                        if (data.courseId) {
+                            course = AppState.studyCourses.find(c => String(c.id) === String(data.courseId));
+                        }
+                        if (!course && data.courseTitle) {
+                            course = findByIdOrTitle(AppState.studyCourses, { title: data.courseTitle });
+                        }
+                        if (course) {
+                            let lecture = null;
+                            if (data.lectureId) {
+                                lecture = (course.lectures || []).find(l => String(l.id) === String(data.lectureId));
+                            }
+                            if (!lecture && data.lectureTitle) {
+                                lecture = findByIdOrTitle(course.lectures || [], { title: data.lectureTitle });
+                            }
+                            if (lecture) {
+                                const studied = data.studied !== false && data.studied !== 'false';
+                                lecture.studied = !!studied;
+                                if (lecture.studied) {
+                                    recordStudyActivity('lecture', {
+                                        id: lecture.id,
+                                        courseId: course.id,
+                                        courseTitle: course.title,
+                                        title: lecture.title
+                                    });
+                                    scheduleReviewsForLecture(course, lecture);
+                                }
+                                saveStateToStorage();
+                                renderCourses();
+                                updateStudyDashboardStats();
+                                renderStudyHistory();
+                                renderProgressModule();
+                                done = true;
+                            }
+                        }
+                    } else if (action === 'DELETE_LECTURE') {
+                        let course = null;
+                        if (data.courseId) {
+                            course = AppState.studyCourses.find(c => String(c.id) === String(data.courseId));
+                        }
+                        if (!course && data.courseTitle) {
+                            course = findByIdOrTitle(AppState.studyCourses, { title: data.courseTitle });
+                        }
+                        if (course) {
+                            const before = (course.lectures || []).length;
+                            if (data.lectureId) {
+                                course.lectures = (course.lectures || []).filter(l => String(l.id) !== String(data.lectureId));
+                            } else if (data.lectureTitle) {
+                                const needle = String(data.lectureTitle).toLocaleLowerCase('ar');
+                                course.lectures = (course.lectures || []).filter(l => !String(l.title || '').toLocaleLowerCase('ar').includes(needle));
+                            }
+                            if ((course.lectures || []).length !== before) {
+                                saveStateToStorage();
+                                renderCourses();
+                                updateStudyDashboardStats();
+                                done = true;
+                            }
+                        }
+                    } else if ((action === 'ADD_TIMETABLE_SLOT' || action === 'ADD_WEEKLY_ITEM') && data.day && (data.title || data.start)) {
+                        const day = String(data.day).trim();
+                        if (WEEK_DAYS.includes(day)) {
+                            if (!Array.isArray(AppState.weeklyPlanner[day])) AppState.weeklyPlanner[day] = [];
+                            let type = String(data.type || 'lecture').toLowerCase();
+                            if (!['lecture', 'section', 'lab', 'holiday', 'other'].includes(type)) {
+                                if (/سكشن|section/i.test(data.title || '')) type = 'section';
+                                else if (/لاب|lab/i.test(data.title || '')) type = 'lab';
+                                else type = 'lecture';
+                            }
+                            AppState.weeklyPlanner[day].push({
+                                id: createTimetableId(),
+                                start: String(data.start || '08:00').slice(0, 5),
+                                end: String(data.end || '09:30').slice(0, 5),
+                                title: String(data.title || '').trim() || '—',
+                                type,
+                                location: String(data.location || '').trim(),
+                                courseId: data.courseId ? String(data.courseId) : ''
+                            });
+                            AppState.weeklyPlanner[day].sort((a, b) => String(a.start).localeCompare(String(b.start)));
+                            saveStateToStorage();
+                            renderWeeklyPlanner();
+                            try { renderOpenReminders(); } catch (e) {}
+                            done = true;
+                        }
+                    } else if ((action === 'REMOVE_TIMETABLE_SLOT' || action === 'REMOVE_WEEKLY_ITEM') && data.day) {
+                        const day = String(data.day).trim();
+                        const items = AppState.weeklyPlanner[day];
+                        if (Array.isArray(items)) {
+                            if (data.id) {
+                                const before = items.length;
+                                AppState.weeklyPlanner[day] = items.filter(s => String(s.id) !== String(data.id));
+                                done = AppState.weeklyPlanner[day].length !== before;
+                            } else if (typeof data.index === 'number' && data.index >= 0 && data.index < items.length) {
+                                items.splice(data.index, 1);
+                                done = true;
+                            } else if (data.title) {
+                                const needle = String(data.title).toLocaleLowerCase('ar');
+                                const idx = items.findIndex(s => String(s.title || s).toLocaleLowerCase('ar').includes(needle));
+                                if (idx >= 0) { items.splice(idx, 1); done = true; }
+                            }
+                            if (done) {
+                                saveStateToStorage();
+                                renderWeeklyPlanner();
+                                try { renderOpenReminders(); } catch (e) {}
+                            }
+                        }
+                    } else if (action === 'SET_TIMETABLE_DAY' && data.day && Array.isArray(data.slots)) {
+                        const day = String(data.day).trim();
+                        if (WEEK_DAYS.includes(day)) {
+                            AppState.weeklyPlanner[day] = data.slots.map(s => ({
+                                id: createTimetableId(),
+                                start: String(s.start || '08:00').slice(0, 5),
+                                end: String(s.end || '09:30').slice(0, 5),
+                                title: String(s.title || '').trim() || '—',
+                                type: ['lecture', 'section', 'lab', 'holiday', 'other'].includes(s.type) ? s.type : 'lecture',
+                                location: String(s.location || '').trim(),
+                                courseId: s.courseId ? String(s.courseId) : ''
+                            })).sort((a, b) => String(a.start).localeCompare(String(b.start)));
+                            saveStateToStorage();
+                            renderWeeklyPlanner();
+                            try { renderOpenReminders(); } catch (e) {}
+                            done = true;
+                        }
+                    } else if (action === 'CLEAR_TIMETABLE') {
+                        if (data.day && WEEK_DAYS.includes(String(data.day).trim())) {
+                            AppState.weeklyPlanner[String(data.day).trim()] = [];
+                        } else {
+                            WEEK_DAYS.forEach(d => { AppState.weeklyPlanner[d] = []; });
+                        }
+                        saveStateToStorage();
+                        renderWeeklyPlanner();
+                        try { renderOpenReminders(); } catch (e) {}
+                        done = true;
+                    } else if (action === 'ADD_MISTAKE' && data.errorText && data.correctAnswer) {
+                        let course = null;
+                        if (data.courseId) course = AppState.studyCourses.find(c => String(c.id) === String(data.courseId));
+                        if (!course && data.courseTitle) course = findByIdOrTitle(AppState.studyCourses, { title: data.courseTitle });
+                        AppState.studyMistakes.unshift({
+                            id: `mis-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                            courseId: course ? course.id : '',
+                            courseTitle: course ? course.title : String(data.courseTitle || '').trim(),
+                            topic: String(data.topic || '').trim(),
+                            errorText: String(data.errorText).trim(),
+                            correctAnswer: String(data.correctAnswer).trim(),
+                            explanation: String(data.explanation || '').trim(),
+                            createdAt: new Date().toISOString()
+                        });
+                        saveStateToStorage();
+                        try { renderMistakes(); } catch (e) {}
+                        done = true;
+                    } else if (action === 'DELETE_MISTAKE') {
+                        const before = AppState.studyMistakes.length;
+                        if (data.id) {
+                            AppState.studyMistakes = AppState.studyMistakes.filter(m => String(m.id) !== String(data.id));
+                        } else if (data.errorText) {
+                            const needle = String(data.errorText).toLocaleLowerCase('ar');
+                            AppState.studyMistakes = AppState.studyMistakes.filter(m => !String(m.errorText || '').toLocaleLowerCase('ar').includes(needle));
+                        }
+                        if (AppState.studyMistakes.length !== before) {
+                            saveStateToStorage();
+                            try { renderMistakes(); } catch (e) {}
+                            done = true;
+                        }
+                    } else if (action === 'ADD_MONTHLY_GOAL' && data.title && data.date) {
+                        AppState.monthlyGoals.push({
+                            id: Date.now() + Math.floor(Math.random() * 1000),
+                            title: String(data.title).trim(),
+                            date: String(data.date).trim()
+                        });
+                        saveStateToStorage();
+                        renderMonthlyPlanner();
+                        done = true;
+                    } else if (action === 'DELETE_MONTHLY_GOAL') {
+                        const goal = findByIdOrTitle(AppState.monthlyGoals, data);
+                        if (goal) {
+                            AppState.monthlyGoals = AppState.monthlyGoals.filter(g => g.id !== goal.id);
+                            saveStateToStorage();
+                            renderMonthlyPlanner();
+                            done = true;
+                        }
+                    } else if (action === 'ADD_NOTE' && data.title && data.body) {
+                        const allowedColors = ['cyan', 'purple', 'amber', 'emerald'];
+                        const color = allowedColors.includes(data.color) ? data.color : 'cyan';
+                        AppState.quickNotes.push({
+                            id: Date.now() + Math.floor(Math.random() * 1000),
+                            title: String(data.title).trim(),
+                            body: String(data.body).trim(),
+                            color
+                        });
+                        saveStateToStorage();
+                        renderQuickNotes();
+                        done = true;
+                    } else if (action === 'DELETE_NOTE') {
+                        const note = findByIdOrTitle(AppState.quickNotes, data);
+                        if (note) {
+                            AppState.quickNotes = AppState.quickNotes.filter(n => n.id !== note.id);
+                            saveStateToStorage();
+                            renderQuickNotes();
+                            done = true;
+                        }
+                    } else if (action === 'ADD_SAVED_FILE' && data.title && data.content) {
+                        let courseSF = null;
+                        if (data.courseId) courseSF = AppState.studyCourses.find(c => String(c.id) === String(data.courseId));
+                        if (!courseSF && data.courseTitle) courseSF = findByIdOrTitle(AppState.studyCourses, { title: data.courseTitle });
+                        AppState.savedFiles.unshift({
+                            id: `saved-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                            title: String(data.title).trim(),
+                            content: String(data.content).trim(),
+                            courseId: courseSF ? courseSF.id : '',
+                            courseTitle: courseSF ? courseSF.title : String(data.courseTitle || '').trim(),
+                            createdAt: new Date().toISOString()
+                        });
+                        saveStateToStorage();
+                        renderSavedFiles();
+                        done = true;
+                    } else if (action === 'DELETE_SAVED_FILE') {
+                        const file = findByIdOrTitle(AppState.savedFiles, data);
+                        if (file) {
+                            AppState.savedFiles = AppState.savedFiles.filter(f => String(f.id) !== String(file.id));
+                            saveStateToStorage();
+                            renderSavedFiles();
+                            done = true;
+                        }
+                    } else if (action === 'SET_USER_NAME' && data.name) {
+                        const newName = String(data.name).trim();
+                        if (newName) {
+                            AppState.userName = newName;
+                            document.getElementById('displayUserName').textContent = newName;
+                            saveStateToStorage();
+                            done = true;
+                        }
+                    } else if (action === 'SWITCH_TAB' && data.tab) {
+                        done = switchToTab(data.tab);
+                    } else if (action === 'START_TIMER') {
+                        const mode = data.mode === 'stopwatch' ? 'stopwatch' : 'pomodoro';
+                        TimerModule.setMode(mode);
+                        if (!TimerModule.isRunning) TimerModule.startTimer();
+                        done = true;
+                    } else if (action === 'RESET_TIMER') {
+                        TimerModule.resetTimer();
+                        done = true;
+                    } else if (action === 'NEW_AI_CHAT') {
+                        createNewAiConversation();
+                        done = true;
+                    } else if (action === 'ADD_STUDY_SESSION') {
+                        let course = null;
+                        if (data.courseId) course = AppState.studyCourses.find(c => String(c.id) === String(data.courseId));
+                        if (!course && data.courseTitle) course = findByIdOrTitle(AppState.studyCourses, { title: data.courseTitle });
+                        if (course) {
+                            let lectureId = data.lectureId || '';
+                            if (!lectureId && data.lectureTitle) {
+                                const lec = findByIdOrTitle(course.lectures || [], { title: data.lectureTitle });
+                                if (lec) lectureId = lec.id;
+                            }
+                            const minutes = Number(data.minutes) || 25;
+                            done = addStudySession({ courseId: course.id, lectureId, minutes, note: data.note || '' });
+                        }
+                    } else if (action === 'COMPLETE_REVIEW') {
+                        let review = null;
+                        if (data.id) review = AppState.studyReviews.find(r => String(r.id) === String(data.id));
+                        if (!review && data.lectureTitle) {
+                            const needle = String(data.lectureTitle).toLocaleLowerCase('ar');
+                            review = AppState.studyReviews.find(r => !r.completed && String(r.lectureTitle || '').toLocaleLowerCase('ar').includes(needle));
+                        }
+                        if (review) {
+                            completeReview(review.id);
+                            done = true;
+                        }
+                    } else if (action === 'SET_COURSE_GRADES' && (data.courseTitle || data.courseId)) {
+                        let course = null;
+                        if (data.courseId) course = AppState.studyCourses.find(c => String(c.id) === String(data.courseId));
+                        if (!course && data.courseTitle) course = findByIdOrTitle(AppState.studyCourses, { title: data.courseTitle });
+                        if (course) {
+                            if (!course.grades) course.grades = { coursework: '', midterm: '', final: '', courseworkWeight: 20, midtermWeight: 30, finalWeight: 50 };
+                            ['coursework', 'midterm', 'final', 'courseworkWeight', 'midtermWeight', 'finalWeight'].forEach(k => {
+                                if (data[k] !== undefined && data[k] !== null && data[k] !== '') course.grades[k] = Number(data[k]);
+                            });
+                            saveStateToStorage();
+                            renderProgressModule();
+                            done = true;
+                        }
+                    } else if (action === 'BUILD_EXAM_PLAN' || action === 'PLAN_TODAY') {
+                        done = true;
+                    }
+
+                    if (done) executedActions.push(action);
+                } catch (e) {}
+            }
+            cleanText = cleanText.replace(/```(?:json)?\s*[\s\S]*?```/gi, '').trim();
+            cleanText = cleanText.replace(/\n{3,}/g, '\n\n').trim();
+            return cleanText;
+        }
+
+        function initNameEditor() {
+            document.getElementById('displayUserName').textContent = AppState.userName;
+            document.getElementById('editNameBtn').addEventListener('click', () => {
+                document.getElementById('userNameInput').value = AppState.userName;
+                openModal('editNameModal');
+            });
+            document.getElementById('cancelNameBtn').addEventListener('click', () => closeModal('editNameModal'));
+            document.getElementById('saveNameBtn').addEventListener('click', () => {
+                const newName = document.getElementById('userNameInput').value.trim();
+                if (newName) {
+                    AppState.userName = newName;
+                    document.getElementById('displayUserName').textContent = newName;
+                    saveStateToStorage();
+                }
+                closeModal('editNameModal');
+            });
+        }
+
+        function initApiKeyModal() {
+            document.getElementById('openApiKeyModalBtn').addEventListener('click', () => {
+                document.getElementById('apiKeyInput').value = AppState.geminiApiKey;
+                openModal('apiKeyModal');
+            });
+            document.getElementById('closeApiKeyBtn').addEventListener('click', () => closeModal('apiKeyModal'));
+            document.getElementById('saveApiKeyBtn').addEventListener('click', () => {
+                const val = document.getElementById('apiKeyInput').value.trim();
+                if (val) {
+                    AppState.geminiApiKey = val;
+                    saveStateToStorage();
+                    closeModal('apiKeyModal');
+                    alert(t("api_key_saved"));
+                } else {
+                    alert("أدخل مفتاحاً صحيحاً.");
+                }
+            });
+        }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        function alertModal(msg) { alert(msg); }
+        function escapeHTML(str) { return String(str ?? '').replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
+        function setCurrentDateText() {
+            const locale = AppState.uiLang === 'en' ? 'en-US' : getUiLocale();
+            const el = document.getElementById('currentDateText');
+            if (el) el.textContent = new Date().toLocaleDateString(locale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        }
+
+        function triggerConfetti() {
+            const canvas = document.getElementById('confettiCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            const particles = [];
+            const colors = ['#06b6d4', '#38bdf8', '#a855f7', '#34d399', '#f43f5e'];
+            for (let i = 0; i < 100; i++) {
+                particles.push({ x: canvas.width / 2, y: canvas.height / 2, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.7) * 10, size: Math.random() * 6 + 3, color: colors[Math.floor(Math.random() * colors.length)], life: 80 });
+            }
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let alive = false;
+                particles.forEach(p => {
+                    if (p.life > 0) {
+                        alive = true;
+                        p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life--;
+                        ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+                    }
+                });
+                if (alive) requestAnimationFrame(animate);
+                else ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            animate();
+        }
+
+
+        // ===== Study Sessions · Reviews · Grades =====
+        const REVIEW_INTERVALS_DAYS = [1, 3, 7, 14];
+
+        function addDaysToDateKey(dateKey, days) {
+            const [y, m, d] = dateKey.split('-').map(Number);
+            const dt = new Date(y, m - 1, d, 12);
+            dt.setDate(dt.getDate() + days);
+            return createLocalDateKey(dt);
+        }
+
+        function scheduleReviewsForLecture(course, lecture) {
+            const today = createLocalDateKey();
+            const existing = AppState.studyReviews.filter(r =>
+                String(r.courseId) === String(course.id) && String(r.lectureId) === String(lecture.id) && !r.completed
+            );
+            if (existing.length) return; // already scheduled
+
+            REVIEW_INTERVALS_DAYS.forEach((days, idx) => {
+                AppState.studyReviews.push({
+                    id: `rev-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
+                    courseId: course.id,
+                    courseTitle: course.title,
+                    lectureId: lecture.id,
+                    lectureTitle: lecture.title,
+                    dueDate: addDaysToDateKey(today, days),
+                    intervalDays: days,
+                    completed: false,
+                    createdAt: new Date().toISOString()
+                });
+            });
+            saveStateToStorage();
+        }
+
+        function getReviewsDueToday() {
+            const today = createLocalDateKey();
+            return AppState.studyReviews
+                .filter(r => !r.completed && r.dueDate <= today)
+                .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+        }
+
+        function completeReview(reviewId) {
+            const review = AppState.studyReviews.find(r => String(r.id) === String(reviewId));
+            if (!review || review.completed) return;
+            review.completed = true;
+            review.completedAt = new Date().toISOString();
+            // Log as study activity lightly
+            recordStudyActivity('lecture', {
+                id: review.lectureId,
+                courseId: review.courseId,
+                courseTitle: review.courseTitle,
+                title: `مراجعة: ${review.lectureTitle}`
+            });
+            saveStateToStorage();
+            renderProgressModule();
+            renderStudyHistory();
+        }
+
+        function deleteReview(reviewId) {
+            AppState.studyReviews = AppState.studyReviews.filter(r => String(r.id) !== String(reviewId));
+            saveStateToStorage();
+            renderProgressModule();
+        }
+
+        function addStudySession({ courseId, lectureId, minutes, note }) {
+            const course = AppState.studyCourses.find(c => String(c.id) === String(courseId));
+            if (!course || !minutes || minutes < 1) return false;
+            let lecture = null;
+            if (lectureId) {
+                lecture = (course.lectures || []).find(l => String(l.id) === String(lectureId));
+            }
+            const session = {
+                id: `sess-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                courseId: course.id,
+                courseTitle: course.title,
+                lectureId: lecture ? lecture.id : null,
+                lectureTitle: lecture ? lecture.title : null,
+                minutes: Number(minutes),
+                note: String(note || '').trim(),
+                date: createLocalDateKey(),
+                createdAt: new Date().toISOString()
+            };
+            AppState.studySessions.unshift(session);
+            // Also count toward history
+            recordStudyActivity('task', {
+                id: session.id,
+                title: (AppState.uiLang==='en'
+                ? `Session: ${course.title}${lecture ? ' — ' + lecture.title : ''} (${minutes} min)`
+                : `جلسة ${course.title}${lecture ? ' — ' + lecture.title : ''} (${minutes} د)`)
+            });
+            saveStateToStorage();
+            renderProgressModule();
+            renderStudyHistory();
+            return true;
+        }
+
+        function deleteStudySession(sessionId) {
+            AppState.studySessions = AppState.studySessions.filter(s => String(s.id) !== String(sessionId));
+            saveStateToStorage();
+            renderProgressModule();
+        }
+
+        function calcCourseExpected(grades) {
+            if (!grades) return null;
+            const parts = [
+                { score: parseFloat(grades.coursework), w: Number(grades.courseworkWeight) || 0 },
+                { score: parseFloat(grades.midterm), w: Number(grades.midtermWeight) || 0 },
+                { score: parseFloat(grades.final), w: Number(grades.finalWeight) || 0 }
+            ];
+            let totalW = 0;
+            let sum = 0;
+            let hasAny = false;
+            parts.forEach(p => {
+                if (!Number.isNaN(p.score) && p.w > 0) {
+                    sum += (p.score / 100) * p.w;
+                    totalW += p.w;
+                    hasAny = true;
+                }
+            });
+            if (!hasAny || totalW === 0) return null;
+            // Scale to 100 based on entered weights
+            return Math.round((sum / totalW) * 1000) / 10;
+        }
+
+        function scoreToGpaPoint(score) {
+            if (score == null || Number.isNaN(score)) return null;
+            if (score >= 90) return 4.0;
+            if (score >= 85) return 3.7;
+            if (score >= 80) return 3.3;
+            if (score >= 75) return 3.0;
+            if (score >= 70) return 2.7;
+            if (score >= 65) return 2.3;
+            if (score >= 60) return 2.0;
+            if (score >= 50) return 1.0;
+            return 0;
+        }
+
+        function getWeekDateKeys() {
+            const now = new Date();
+            const day = now.getDay(); // 0 Sun
+            // Week starts Saturday in Arabic locale often — use last 7 days rolling
+            const keys = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(now);
+                d.setDate(now.getDate() - i);
+                keys.push(createLocalDateKey(d));
+            }
+            return keys;
+        }
+
+        function computeStreak() {
+            const activeDates = new Set();
+            AppState.studyHistory.forEach(day => {
+                if ((day.tasks && day.tasks.length) || (day.lectures && day.lectures.length)) {
+                    activeDates.add(day.date);
+                }
+            });
+            AppState.studySessions.forEach(s => activeDates.add(s.date));
+            let streak = 0;
+            const cursor = new Date();
+            // If today has no activity, start from yesterday
+            if (!activeDates.has(createLocalDateKey(cursor))) {
+                cursor.setDate(cursor.getDate() - 1);
+            }
+            while (activeDates.has(createLocalDateKey(cursor))) {
+                streak++;
+                cursor.setDate(cursor.getDate() - 1);
+            }
+            return streak;
+        }
+
+        function populateSessionCourseSelects() {
+            const selects = [
+                document.getElementById('sessionCourseSelect'),
+                document.getElementById('quickSessionCourse')
+            ].filter(Boolean);
+            const options = AppState.studyCourses.map(c =>
+                `<option value="${escapeHTML(String(c.id))}">${escapeHTML(c.title)}</option>`
+            ).join('');
+            selects.forEach(sel => {
+                const current = sel.value;
+                const isQuick = sel.id === 'quickSessionCourse';
+                sel.innerHTML = `<option value="">${isQuick ? t('ph_pick_course') : t('ph_pick_course')}</option>` + options;
+                if ([...sel.options].some(o => o.value === current)) sel.value = current;
+            });
+        }
+
+        function populateSessionLectures(courseId) {
+            const sel = document.getElementById('sessionLectureSelect');
+            if (!sel) return;
+            const course = AppState.studyCourses.find(c => String(c.id) === String(courseId));
+            if (!course) {
+                sel.innerHTML = '<option value="" data-i18n="ph_lecture_opt">Lecture (optional)</option>';
+                return;
+            }
+            sel.innerHTML = '<option value="" data-i18n="ph_lecture_opt">Lecture (optional)</option>' +
+                (course.lectures || []).map(l =>
+                    `<option value="${escapeHTML(String(l.id))}">${escapeHTML(l.title)}</option>`
+                ).join('');
+        }
+
+        function renderProgressModule() {
+            populateSessionCourseSelects();
+
+            // Stats
+            const weekKeys = new Set(getWeekDateKeys());
+            const weekSessions = AppState.studySessions.filter(s => weekKeys.has(s.date));
+            const weekMinutes = weekSessions.reduce((a, s) => a + (Number(s.minutes) || 0), 0);
+            const due = getReviewsDueToday();
+            const streak = computeStreak();
+
+            const el = (id) => document.getElementById(id);
+            if (el('statWeekSessions')) el('statWeekSessions').textContent = String(weekSessions.length);
+            if (el('statWeekMinutes')) el('statWeekMinutes').textContent = String(weekMinutes);
+            if (el('statReviewsDue')) el('statReviewsDue').textContent = String(due.length);
+            if (el('statStreak')) el('statStreak').textContent = String(streak);
+            if (el('reviewsDueCount')) el('reviewsDueCount').textContent = String(due.length);
+
+            // Daily reviews widget
+            const dueList = el('reviewsDueList');
+            if (dueList) {
+                if (!due.length) {
+                    dueList.innerHTML = `<p class="text-[11px] text-slate-500 text-center py-3">${t('no_reviews')}</p>`;
+                } else {
+                    dueList.innerHTML = due.slice(0, 8).map(r => `
+                        <div class="flex items-center justify-between gap-2 rounded-xl bg-slate-900/60 border border-violet-500/20 px-3 py-2">
+                            <div class="min-w-0">
+                                <p class="text-xs text-slate-200 truncate">${escapeHTML(r.lectureTitle)}</p>
+                                <p class="text-[10px] text-slate-500">${escapeHTML(r.courseTitle)} · ${t('due_label')} ${escapeHTML(r.dueDate)}</p>
+                            </div>
+                            <button type="button" class="complete-review-btn text-[10px] px-2 py-1 rounded-lg bg-violet-500/20 text-violet-300 font-bold hover:bg-violet-500/30" data-id="${escapeHTML(String(r.id))}">${t('done_short')}</button>
+                        </div>
+                    `).join('');
+                    dueList.querySelectorAll('.complete-review-btn').forEach(btn => {
+                        btn.addEventListener('click', () => completeReview(btn.dataset.id));
+                    });
+                }
+            }
+
+            // All reviews
+            const allRev = el('allReviewsList');
+            if (allRev) {
+                const pending = AppState.studyReviews.filter(r => !r.completed)
+                    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+                if (!pending.length) {
+                    allRev.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">${t('no_reviews_sched')}</p>`;
+                } else {
+                    const today = createLocalDateKey();
+                    allRev.innerHTML = pending.map(r => {
+                        const overdue = r.dueDate < today;
+                        const isToday = r.dueDate === today;
+                        const badge = overdue ? t('overdue') : isToday ? t('due_today') : `${t('after_days')} ${r.intervalDays}${AppState.uiLang === 'en' ? 'd' : 'ي'}`;
+                        const badgeCls = overdue ? 'bg-rose-500/20 text-rose-300' : isToday ? 'bg-violet-500/20 text-violet-300' : 'bg-slate-700 text-slate-400';
+                        return `
+                            <div class="flex items-center justify-between gap-3 rounded-xl bg-slate-900/50 border border-slate-800 px-3 py-2.5">
+                                <div class="min-w-0">
+                                    <p class="text-sm text-slate-200 truncate">${escapeHTML(r.lectureTitle)}</p>
+                                    <p class="text-[10px] text-slate-500">${escapeHTML(r.courseTitle)} · ${escapeHTML(r.dueDate)}</p>
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <span class="text-[10px] px-2 py-0.5 rounded-md font-bold ${badgeCls}">${badge}</span>
+                                    <button type="button" class="complete-review-btn text-xs text-emerald-400 hover:text-emerald-300 p-1" data-id="${escapeHTML(String(r.id))}" title="تمت المراجعة"><i class="fa-solid fa-check"></i></button>
+                                    <button type="button" class="delete-review-btn text-xs text-slate-500 hover:text-rose-400 p-1" data-id="${escapeHTML(String(r.id))}" title="حذف"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    allRev.querySelectorAll('.complete-review-btn').forEach(btn => {
+                        btn.addEventListener('click', () => completeReview(btn.dataset.id));
+                    });
+                    allRev.querySelectorAll('.delete-review-btn').forEach(btn => {
+                        btn.addEventListener('click', () => deleteReview(btn.dataset.id));
+                    });
+                }
+            }
+
+            // Sessions list
+            const sessList = el('studySessionsList');
+            if (sessList) {
+                const recent = AppState.studySessions.slice(0, 20);
+                if (!recent.length) {
+                    sessList.innerHTML = `<p class="text-xs text-slate-500 text-center py-3">${t('no_sessions')}</p>`;
+                } else {
+                    sessList.innerHTML = recent.map(s => `
+                        <div class="flex items-center justify-between gap-3 rounded-xl bg-slate-900/50 border border-slate-800 px-3 py-2.5">
+                            <div class="min-w-0">
+                                <p class="text-sm text-slate-200 truncate">${escapeHTML(s.courseTitle)}${s.lectureTitle ? ' — ' + escapeHTML(s.lectureTitle) : ''}</p>
+                                <p class="text-[10px] text-slate-500">${escapeHTML(s.date)} · ${s.minutes} ${t('min_word')}${s.note ? ' · ' + escapeHTML(s.note) : ''}</p>
+                            </div>
+                            <button type="button" class="delete-session-btn text-xs text-slate-500 hover:text-rose-400 p-1" data-id="${escapeHTML(String(s.id))}"><i class="fa-solid fa-trash-can"></i></button>
+                        </div>
+                    `).join('');
+                    sessList.querySelectorAll('.delete-session-btn').forEach(btn => {
+                        btn.addEventListener('click', () => deleteStudySession(btn.dataset.id));
+                    });
+                }
+            }
+
+            // Grades
+            const gradesList = el('gradesList');
+            if (gradesList) {
+                if (!AppState.studyCourses.length) {
+                    gradesList.innerHTML = `<p class="text-xs text-slate-500 col-span-2 text-center py-4">${t('no_courses_yet')}</p>`;
+                } else {
+                    gradesList.innerHTML = AppState.studyCourses.map(course => {
+                        const g = course.grades || {};
+                        const expected = calcCourseExpected(g);
+                        const gpa = scoreToGpaPoint(expected);
+                        return `
+                            <article class="rounded-2xl bg-slate-900/50 border border-slate-800 p-4 space-y-3" data-course-id="${escapeHTML(String(course.id))}">
+                                <div class="flex items-center justify-between gap-2">
+                                    <h4 class="font-bold text-sm text-slate-100">${escapeHTML(course.title)}</h4>
+                                    <div class="text-left">
+                                        <p class="text-lg font-extrabold ${expected != null ? 'text-amber-300' : 'text-slate-600'}">${expected != null ? expected + '%' : '—'}</p>
+                                        <p class="text-[10px] text-slate-500">${gpa != null ? 'GPA ≈ ' + gpa.toFixed(1) : t('enter_grades')}</p>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-3 gap-2 text-[11px]">
+                                    <label class="space-y-1">
+                                        <span class="text-slate-500" data-i18n-static="coursework">Coursework</span>
+                                        <input type="number" min="0" max="100" step="0.5" class="grade-input w-full glass-input px-2 py-1.5 rounded-lg text-xs" data-field="coursework" value="${g.coursework ?? ''}" placeholder="Score" data-i18n-placeholder="ph_score">
+                                        <input type="number" min="0" max="100" class="grade-weight w-full glass-input px-2 py-1 rounded-lg text-[10px]" data-field="courseworkWeight" value="${g.courseworkWeight ?? 20}" title="الوزن %">
+                                    </label>
+                                    <label class="space-y-1">
+                                        <span class="text-slate-500" data-i18n-static="midterm">Midterm</span>
+                                        <input type="number" min="0" max="100" step="0.5" class="grade-input w-full glass-input px-2 py-1.5 rounded-lg text-xs" data-field="midterm" value="${g.midterm ?? ''}" placeholder="Score" data-i18n-placeholder="ph_score">
+                                        <input type="number" min="0" max="100" class="grade-weight w-full glass-input px-2 py-1 rounded-lg text-[10px]" data-field="midtermWeight" value="${g.midtermWeight ?? 30}" title="الوزن %">
+                                    </label>
+                                    <label class="space-y-1">
+                                        <span class="text-slate-500" data-i18n-static="final">Final</span>
+                                        <input type="number" min="0" max="100" step="0.5" class="grade-input w-full glass-input px-2 py-1.5 rounded-lg text-xs" data-field="final" value="${g.final ?? ''}" placeholder="Score" data-i18n-placeholder="ph_score">
+                                        <input type="number" min="0" max="100" class="grade-weight w-full glass-input px-2 py-1 rounded-lg text-[10px]" data-field="finalWeight" value="${g.finalWeight ?? 50}" title="الوزن %">
+                                    </label>
+                                </div>
+                            </article>
+                        `;
+                    }).join('');
+
+                    gradesList.querySelectorAll('.grade-input, .grade-weight').forEach(input => {
+                        input.addEventListener('change', () => {
+                            const card = input.closest('[data-course-id]');
+                            const course = AppState.studyCourses.find(c => String(c.id) === card.dataset.courseId);
+                            if (!course) return;
+                            if (!course.grades) course.grades = {};
+                            const field = input.dataset.field;
+                            const val = input.value === '' ? '' : Number(input.value);
+                            course.grades[field] = val;
+                            saveStateToStorage();
+                            renderProgressModule();
+                        });
+                    });
+                }
+            }
+
+            renderWeeklyInsights();
+            renderTodayBoard();
+        }
+
+        function renderWeeklyInsights() {
+            const box = document.getElementById('weeklyInsightsBox');
+            if (!box) return;
+            const weekKeys = new Set(getWeekDateKeys());
+            const weekSessions = AppState.studySessions.filter(s => weekKeys.has(s.date));
+            const minutesByCourse = {};
+            weekSessions.forEach(s => {
+                minutesByCourse[s.courseTitle] = (minutesByCourse[s.courseTitle] || 0) + (Number(s.minutes) || 0);
+            });
+            const topCourse = Object.entries(minutesByCourse).sort((a, b) => b[1] - a[1])[0];
+            const weekHistory = AppState.studyHistory.filter(d => weekKeys.has(d.date));
+            const tasksDone = weekHistory.reduce((a, d) => a + (d.tasks || []).length, 0);
+            const lecturesDone = weekHistory.reduce((a, d) => a + (d.lectures || []).length, 0);
+            const totalMin = weekSessions.reduce((a, s) => a + (Number(s.minutes) || 0), 0);
+            const activeDays = new Set([
+                ...weekSessions.map(s => s.date),
+                ...weekHistory.filter(d => (d.tasks || []).length || (d.lectures || []).length).map(d => d.date)
+            ]).size;
+            const due = getReviewsDueToday().length;
+
+            box.innerHTML = `
+                <div class="rounded-xl bg-slate-900/50 border border-slate-800 p-3">
+                    <p class="text-slate-500 text-[10px] font-bold">${t('time_study')}</p>
+                    <p class="text-base font-bold text-cyan-300 mt-1">${totalMin} ${t('min_word')}</p>
+                </div>
+                <div class="rounded-xl bg-slate-900/50 border border-slate-800 p-3">
+                    <p class="text-slate-500 text-[10px] font-bold">${t('top_course')}</p>
+                    <p class="text-base font-bold text-emerald-300 mt-1 truncate">${topCourse ? escapeHTML(topCourse[0]) + ' (' + topCourse[1] + t('minutes_short') + ')' : '—'}</p>
+                </div>
+                <div class="rounded-xl bg-slate-900/50 border border-slate-800 p-3">
+                    <p class="text-slate-500 text-[10px] font-bold">${t('week_achievements')}</p>
+                    <p class="text-base font-bold text-amber-300 mt-1">${tasksDone} ${t('tasks_word')} · ${lecturesDone} ${t('lectures_word')}</p>
+                </div>
+                <div class="rounded-xl bg-slate-900/50 border border-slate-800 p-3">
+                    <p class="text-slate-500 text-[10px] font-bold">${t('active_days')}</p>
+                    <p class="text-base font-bold text-violet-300 mt-1">${activeDays}/7 · ${due}</p>
+                </div>
+            `;
+        }
+
+        function initProgressModule() {
+            const form = document.getElementById('studySessionForm');
+            if (form) {
+                form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const courseId = document.getElementById('sessionCourseSelect').value;
+                    const lectureId = document.getElementById('sessionLectureSelect').value;
+                    const minutes = Number(document.getElementById('sessionMinutesInput').value);
+                    const note = document.getElementById('sessionNoteInput').value;
+                    if (!courseId || !minutes) return;
+                    if (addStudySession({ courseId, lectureId, minutes, note })) {
+                        document.getElementById('sessionNoteInput').value = '';
+                        document.getElementById('sessionMinutesInput').value = '25';
+                    }
+                });
+                document.getElementById('sessionCourseSelect').addEventListener('change', (e) => {
+                    populateSessionLectures(e.target.value);
+                });
+            }
+
+            const quickForm = document.getElementById('quickSessionForm');
+            if (quickForm) {
+                quickForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const courseId = document.getElementById('quickSessionCourse').value;
+                    const minutes = Number(document.getElementById('quickSessionMinutes').value);
+                    const note = document.getElementById('quickSessionNote').value;
+                    if (!courseId || !minutes) {
+                        alert(AppState.uiLang === 'en' ? 'Select a course and set the duration.' : 'اختر مادة وحدد المدة.');
+                        return;
+                    }
+                    if (addStudySession({ courseId, minutes, note })) {
+                        document.getElementById('quickSessionNote').value = '';
+                    }
+                });
+            }
+
+            renderProgressModule();
+        }
+
+
+
+        // ===== i18n · Theme · Today · Focus =====
+        var I18N = {
+            ar: {
+                nav_sections: 'أقسام اللوحة', nav_daily: 'المهام اليومية', nav_courses: 'المواد والدروس',
+                nav_history: 'سجل الإنجاز', nav_progress: 'جلسات · مراجعات · درجات', nav_weekly: 'جدول المحاضرات', nav_mistakes: 'بنك الأخطاء',
+                nav_monthly: 'خطة الشهر والامتحانات', nav_notes: 'الملاحظات السريعة', nav_files: 'الملفات المحفوظة',
+                nav_ai: 'التحدث مع مساعدك الذكي', focus_mode: 'وضع التركيز', theme_light: 'فاتح', theme_dark: 'داكن',
+                export_backup: 'تصدير النسخة', import_backup: 'استعادة البيانات', ai_settings: 'إعدادات الـ AI والمفتاح',
+                today_board: 'لوحة اليوم', today_board_sub: 'ملخص سريع لما تحتاج تعمله النهاردة',
+                start_focus: 'ابدأ تركيز', daily_goal: 'هدف دقائق اليوم', set_goal: 'تعديل الهدف:', minutes: 'دقيقة',
+                reviews_today: 'مراجعات اليوم', exit_focus: 'خروج', focus_hint: 'ركّز على مادة واحدة. الجلسة هتتسجّل تلقائيًا لما توقّف.',
+                start: 'ابدأ', pause: 'إيقاف', reset: 'إعادة', elapsed: 'المقضي:',
+                open_tasks: 'مهام مفتوحة', reviews_due: 'مراجعات مستحقة', nearest_exam: 'أقرب امتحان',
+                suggest_session: 'جلسة مقترحة', no_exam: 'لا امتحانات قريبة', no_courses: 'أضف مادة للبدء',
+                goal_done: 'أنجزت هدف اليوم 🔥', minutes_short: 'د',
+                brand_sub: 'لوحة التخطيط الجامعي | P.U.D', pomodoro: 'بوومودورو (25د)', stopwatch: 'ستوب ووتش',
+                loading_date: 'جاري تحميل التاريخ...', welcome: 'أهلاً بك،',
+                stat_courses: 'المواد المسجلة', stat_lectures: 'إجمالي المحاضرات', stat_studied: 'الدروس التي ذاكرتها',
+                stat_progress: 'التقدم في الدروس', daily_tasks_title: 'المهام اليومية',
+                daily_tasks_sub: 'نظم محاضراتك ومهامك اليومية بذكاء', completion_rate: 'نسبة الإنجاز',
+                daily_tasks_list: 'قائمة المهام اليومية', clear_completed: 'مسح المهام المكتملة',
+                quick_session: 'تسجيل جلسة مذاكرة سريعة', add: 'إضافة', add_course: 'إضافة مادة',
+                courses_title: 'المواد والدروس', courses_sub: 'أضف كل مادة، ثم سجّل محاضراتها وحدد ما ذاكرته.',
+                history_title: 'سجل الإنجاز', history_sub: 'الأيام التي أنجزت فيها مهمة أو ذاكرت درسًا فقط.',
+                week_insights: 'رؤى الأسبوع الحالي', study_progress_label: 'التقدم الدراسي',
+                history_filter_hint: 'رتّب السجل حسب السنة والشهر، ثم راجع الأسبوع واليوم.',
+                progress_title: 'التقدم: جلسات · مراجعات · درجات', progress_sub: 'سجّل وقتك، راجع بذكاء، وتابع درجاتك.',
+                stat_week_sessions: 'جلسات هذا الأسبوع', stat_week_mins: 'دقائق المذاكرة (أسبوع)',
+                stat_reviews_due: 'مراجعات مستحقة', stat_streak: 'سلسلة الأيام',
+                log_session: 'تسجيل جلسة مذاكرة', add_session: 'إضافة جلسة',
+                reviews_scheduled: 'المراجعات المستحقة والمجدولة',
+                reviews_hint: 'تُجدول تلقائيًا عند تحديد درس كمُذاكر: بعد 1 · 3 · 7 · 14 يوم',
+                grades_title: 'الدرجات والمعدل المتوقع', grades_sub: 'أدخل درجاتك وأوزانها. يُحسب المعدل تلقائيًا.',
+                weekly_title: 'جدول المحاضرات الأسبوعي', weekly_sub: 'سجّل محاضراتك وسكاشنك باليوم والساعة. يمكن للـ AI قراءة جدولك وملء هذا القسم.',
+                tt_add_slot: 'إضافة حصة', tt_day: 'اليوم', tt_start: 'من', tt_end: 'إلى', tt_title: 'المادة / العنوان',
+                tt_type: 'النوع', tt_type_lecture: 'محاضرة', tt_type_section: 'سكشن', tt_type_lab: 'لاب', tt_type_holiday: 'إجازة', tt_type_other: 'أخرى',
+                tt_location: 'القاعة (اختياري)', tt_ai_hint: 'نصيحة: الصق جدولك في محادثة الـ AI واطلب «املأ جدول المحاضرات».',
+                ph_tt_title: 'مثال: رياضيات 1', ph_tt_location: 'A-12',
+                mistakes_title: 'بنك الأخطاء', mistakes_sub: 'سجّل الأخطاء المتكررة والإجابات الصحيحة. يمكن للـ AI تحليل ملف أخطاء وملء هذا القسم.',
+                mistakes_add: 'إضافة خطأ', mistakes_course: 'المادة (اختياري)', mistakes_topic: 'الشابتر / الدرس (من محاضرات المادة)',
+                mistakes_error: 'الخطأ / السؤال', mistakes_correct: 'الإجابة الصحيحة', mistakes_explain: 'شرح مختصر (اختياري)',
+                mistakes_list: 'سجل الأخطاء', mistakes_ai_hint: 'ارفع ملف أخطاء أو الصقه في الـ AI واطلب وضعها في بنك الأخطاء.',
+                ph_mistake_topic: 'مثال: تكامل بالتجزئة', ph_mistake_error: 'وصّف الخطأ أو الصق السؤال...',
+                ph_mistake_correct: 'الإجابة الصحيحة...', ph_mistake_explain: 'ليش كانت الغلطة؟', ph_mistake_search: 'بحث...',
+                no_mistakes: 'لا توجد أخطاء مسجّلة بعد.',
+                mistakes_filter_course: 'فلترة بالمادة',
+                mistakes_filter_topic: 'فلترة بالشابتر / الدرس',
+                mistakes_filter_search: 'بحث نصي (اختياري)',
+                reminders_title: 'تذكير عند الفتح', ph_course_opt: 'المادة (اختياري)',
+                monthly_title: 'خطة الشهر والامتحانات', monthly_sub: 'سجّل الامتحانات والمشاريع والأهداف الكبيرة',
+                add_event: 'إضافة موعد', planned_goals: 'الأهداف والمواعيد المخططة',
+                notes_title: 'الملاحظات السريعة', notes_sub: 'اكتب أفكارك وروابطك وملاحظات المحاضرات',
+                new_note: 'ملاحظة جديدة', files_title: 'الملفات المحفوظة',
+                files_sub: 'احفظ معلوماتك؛ يستطيع Gemini الرجوع إليها عند السؤال.',
+                add_saved_file: 'إضافة ملف محفوظ', save_file: 'حفظ الملف', archives: 'المحفوظات',
+                ai_title: 'مساعدك الذكي لتنظيم الدراسة', ai_sub: 'يقرأ جدولك ومهامك ويستطيع تعديلها بذكاء',
+                new_chat: 'محادثة جديدة', clear_chat: 'مسح السجل', quick_prompts: 'مقترحات سريعة:',
+                ai_history: 'سجل محادثات AI', send: 'إرسال', quote: '"الاستمرارية هي سر التميز"',
+                quote_sub: 'خطوة صغيرة كل يوم تقربك من هدفك الجامعي النهائي.',
+                prio_high: 'أولوية عالية 🔥', prio_med: 'أولوية متوسطة ⚡', prio_low: 'أولوية عادية ☕',
+                ph_task: 'أضف مهمة جديدة...', ph_course: 'اسم المادة...', ph_event: 'عنوان الحدث...',
+                ph_chat: 'اكتب سؤالك أو اطلب إضافة مهام...', ph_chat_search: 'بحث في المحادثة...',
+                ph_file_search: 'ابحث في الملفات المحفوظة...', ph_note_opt: 'ملاحظة اختيارية...',
+                ph_pick_course: 'اختر المادة...', no_tasks: 'لا يوجد مهام حالية.', no_courses_yet: 'لم تضف مواد بعد.',
+                no_reviews: 'لا توجد مراجعات مستحقة اليوم ✨', no_sessions: 'لم تسجّل جلسات بعد.',
+                no_notes: 'لا توجد ملاحظات.', no_events: 'لا توجد مواعيد مضافة.',
+                no_lectures: 'لا توجد محاضرات لهذه المادة بعد.', add_item: 'إضافة بند',
+                no_items: 'لا توجد عناصر', studied: 'تمت مذاكرته', not_studied: 'لم تتم مذاكرته بعد',
+                add_lecture: 'إضافة درس', course_lectures: 'المحاضرات', edit: 'تعديل', del: 'حذف',
+                day_sat: 'السبت', day_sun: 'الأحد', day_mon: 'الإثنين', day_tue: 'الثلاثاء',
+                day_wed: 'الأربعاء', day_thu: 'الخميس', day_fri: 'الجمعة',
+                time_study: 'وقت المذاكرة', top_course: 'أكثر مادة', week_achievements: 'إنجازات الأسبوع',
+                active_days: 'أيام نشطة · مراجعات', tasks_word: 'مهام', lectures_word: 'دروس',
+                due_today: 'اليوم', overdue: 'متأخر', after_days: 'بعد', min_word: 'دقيقة',
+                save_note: 'حفظ الملاحظة', cancel: 'إلغاء', save: 'حفظ',
+                
+                ph_minutes: 'الدقائق', ph_saved_title: 'اسم اختياري أو اسم الملف',
+                ph_saved_content: 'اكتب معلومة للحفظ...', ph_name: 'أدخل اسمك...',
+                ph_note_title: 'عنوان الملاحظة...', ph_note_body: 'تفاصيل الملاحظة...',
+                ph_lecture: 'اسم المحاضرة...', ph_lecture_opt: 'الدرس (اختياري)',
+                ph_score: 'درجة', all_months: 'كل الشهور',
+                qp1: '📋 خطط يومي من الجدول والمراجعات وأضف مهام',
+                qp2: '⚡ أضف مهام للمراجعات المستحقة بأولوية عالية',
+                qp3: '📅 هذا جدولي (الصق الجدول بعد الرسالة) املأ جدول المحاضرات',
+                qp4: '📚 اعمل overview لأول مادة مسجّلة عندي',
+                qp5: '🧠 لخّص بنك الأخطاء واقترح مراجعة مركّزة',
+                qp6: '⏱ شغّل مؤقت البومودورو للمذاكرة',
+                choose_file: 'اختيار ملف أو أكثر', files_types: 'PDF، صور، أو أنواع ملفات أخرى',
+                files_note: 'تُحفظ المرفقات على هذا المتصفح. عند سؤال Gemini عن مرفق، يُرسل إليه لتحليله.',
+                save_settings: 'حفظ الإعدادات', cancel_btn: 'إلغاء',
+                confirm_done: 'تأكيد إتمام المهمة', yes_done: 'نعم، أتممتها 👍',
+                save_note_btn: 'حفظ الملاحظة', edit_name: 'تعديل اسمك في اللوحة',
+                coursework: 'أعمال سنة', midterm: 'ميدترم', final_exam: 'فاينال',
+                celeb_title: 'عاش يا بطل! أسطورة حقيقية 🚀🔥',
+                celeb_body: 'لقد أنجزت جميع مهامك اليومية بنجاح بنسبة 100%!',
+                celeb_btn: 'استمرار في الإنجاز ⚡',
+                about_label: 'عن هذا القسم',
+                not_now: 'ليس الآن', yes_start: 'نعم، ابدأ', yes_break: 'نعم، استراحة',
+                focus_confirm_title: 'بدء وضع التركيز؟', focus_confirm_body: 'جاهز تبدأ جلسة تركيز؟',
+                focus_pick_title: 'ماذا تريد التركيز عليه؟', focus_pick_hint: 'اختر مهمة أو مادة، أو ابدأ جلسة عامة.',
+                focus_pick_task: 'مهمة يومية (اختياري)', focus_pick_course: 'مادة (اختياري)',
+                focus_pick_lecture: 'محاضرة (اختياري)', focus_pick_note: 'لو ما اخترتش حاجة هتبدأ جلسة تركيز عامة.',
+                focus_pick_none: '— بدون اختيار —', focus_general: 'جلسة تركيز عامة',
+                due_label: 'مستحق', done_short: 'تم',
+                focus_today_title: 'جلسات التركيز اليوم',
+                focus_today_hint: 'جلسات متوقفة يمكنك استكمالها. تُمسح تلقائيًا في اليوم التالي.',
+                about_daily: 'نظّم مهامك اليومية، ابدأ تركيزًا من أي مهمة، وتابع نسبة الإنجاز.',
+                about_courses: 'أضف موادك ومحاضراتك، ابدأ تركيزًا من أي درس، وعلّم ما ذاكرته.',
+                about_history: 'يعرض الأيام التي أنجزت فيها مهامًا أو ذاكرت دروسًا مع ملخص الأسبوع.',
+                about_progress: 'جلسات المذاكرة، المراجعات المتباعدة، والدرجات والمعدل المتوقع.',
+                about_weekly: 'جدول محاضراتك الأسبوعي بالساعات. اربطه بالمواد ودع الـ AI يملأه من نص أو صورة الجدول.',
+                about_mistakes: 'خزّن أخطاءك المتكررة مع الإجابة والشرح، وراجعها قبل الامتحان. الـ AI يقدر يملأها من ملف.',
+                about_monthly: 'سجّل الامتحانات والمواعيد الكبيرة وأهداف الشهر.',
+                about_notes: 'ملاحظات سريعة وروابط وأفكار تحت يدك أثناء المذاكرة.',
+                about_files: 'احفظ نصوصًا أو ملفات؛ ويمكن للـ AI الرجوع إليها عند السؤال.',
+                about_ai: 'اطلب تنظيم يومك أو إضافة مهام أو نصائح مذاكرة بلغة طبيعية.',
+                resume_sessions: 'استكمال الجلسة',
+                ai_how_title: 'طريقة استخدام الـ AI',
+                ai_how_1: '• اطلب تنظيم يومك أو إضافة مهام بجملة واضحة — ينفّذ على اللوحة.',
+                ai_how_2: '• الصق جدول المحاضرات أو ارفع صورته واطلب ملء جدول الحصص.',
+                ai_how_3: '• اطلب overview لمادة، أو حلّل ملف أخطاء ليضيفها لبنك الأخطاء.',
+                footer_about: 'P.U.D — لوحة تخطيط جامعي شخصية. بياناتك تُحفظ محليًا على جهازك.',
+                rocket_hint: 'اضغط على الصاروخ لجملة جديدة 🚀',
+
+                week_n: 'الأسبوع', achievements: 'إنجاز', new_conversation: 'محادثة جديدة',
+                files_count: 'ملفات', ask_ai_file: 'اسأل AI عن هذا الملف',
+                no_files: 'لا توجد ملفات محفوظة بعد.', no_history: 'لا توجد إنجازات مسجلة في هذه الفترة.',
+                no_reviews_sched: 'لا توجد مراجعات مجدولة.', enter_grades: 'أدخل درجات',
+                prev_chat: 'محادثة سابقة',
+
+                session_hint: 'أو استخدم قسم الجلسات للتفاصيل الكاملة.',
+                
+                api_modal_title: 'إعدادات الذكاء الاصطناعي (Gemini)',
+                api_modal_sub: 'ادخل مفتاحك الخاص للبدء في استخدام المساعد',
+                api_key_label: 'مفتاح API الخاص بك:',
+                api_key_hint: 'احصل على مفتاح مجاني في ثوانٍ من',
+                api_key_required: 'مفتاح API مطلوب للتشغيل.',
+                api_key_saved: 'تم حفظ مفتاح API وتفعيله بنجاح!',
+                api_key_invalid: 'مفتاح API غير صحيح. تأكد إنك نسخته كامل من Google AI Studio.',
+
+                log_btn: 'سجّل', pick_course: 'اختر المادة...'
+            },
+            en: {
+                nav_sections: 'Sections', nav_daily: 'Daily Tasks', nav_courses: 'Courses & Lectures',
+                nav_history: 'Progress Log', nav_progress: 'Sessions · Reviews · Grades', nav_weekly: 'Timetable', nav_mistakes: 'Mistake bank',
+                nav_monthly: 'Monthly & Exams', nav_notes: 'Quick Notes', nav_files: 'Saved Files',
+                nav_ai: 'AI Study Assistant', focus_mode: 'Focus Mode', theme_light: 'Light', theme_dark: 'Dark',
+                export_backup: 'Export Backup', import_backup: 'Restore Data', ai_settings: 'AI & API Key',
+                today_board: "Today's Board", today_board_sub: 'A quick summary of what you need today',
+                start_focus: 'Start Focus', daily_goal: "Today's minute goal", set_goal: 'Edit goal:', minutes: 'min',
+                reviews_today: "Today's reviews", exit_focus: 'Exit', focus_hint: 'Focus on one course. The session is saved when you stop.',
+                start: 'Start', pause: 'Pause', reset: 'Reset', elapsed: 'Elapsed:',
+                open_tasks: 'Open tasks', reviews_due: 'Reviews due', nearest_exam: 'Nearest exam',
+                suggest_session: 'Suggested session', no_exam: 'No upcoming exams', no_courses: 'Add a course to start',
+                goal_done: 'Daily goal reached 🔥', minutes_short: 'm',
+                brand_sub: 'Personal University Dashboard | P.U.D', pomodoro: 'Pomodoro (25m)', stopwatch: 'Stopwatch',
+                loading_date: 'Loading date...', welcome: 'Welcome,',
+                stat_courses: 'Courses', stat_lectures: 'Total lectures', stat_studied: 'Lectures studied',
+                stat_progress: 'Study progress', daily_tasks_title: 'Daily Tasks',
+                daily_tasks_sub: 'Organize your lectures and daily tasks smartly', completion_rate: 'Completion',
+                daily_tasks_list: 'Daily task list', clear_completed: 'Clear completed',
+                quick_session: 'Quick study session', add: 'Add', add_course: 'Add course',
+                courses_title: 'Courses & Lectures', courses_sub: 'Add each course, log lectures, and mark what you studied.',
+                history_title: 'Progress Log', history_sub: 'Only days with completed tasks or studied lectures appear here.',
+                week_insights: 'This week insights', study_progress_label: 'Study progress',
+                history_filter_hint: 'Filter by year and month, then review week and day.',
+                progress_title: 'Progress: Sessions · Reviews · Grades', progress_sub: 'Log time, review smartly, and track your grades.',
+                stat_week_sessions: 'Sessions this week', stat_week_mins: 'Study minutes (week)',
+                stat_reviews_due: 'Reviews due', stat_streak: 'Day streak',
+                log_session: 'Log study session', add_session: 'Add session',
+                reviews_scheduled: 'Due & scheduled reviews',
+                reviews_hint: 'Auto-scheduled when you mark a lecture studied: after 1 · 3 · 7 · 14 days',
+                grades_title: 'Grades & expected score', grades_sub: 'Enter scores and weights. Expected average is calculated automatically.',
+                weekly_title: 'Weekly lecture timetable', weekly_sub: 'Log lectures and sections by day and time. AI can read your schedule and fill this section.',
+                tt_add_slot: 'Add slot', tt_day: 'Day', tt_start: 'From', tt_end: 'To', tt_title: 'Course / title',
+                tt_type: 'Type', tt_type_lecture: 'Lecture', tt_type_section: 'Section', tt_type_lab: 'Lab', tt_type_holiday: 'Day off', tt_type_other: 'Other',
+                tt_location: 'Room (optional)', tt_ai_hint: 'Tip: paste your schedule in AI chat and ask to fill the timetable.',
+                ph_tt_title: 'e.g. Calculus 1', ph_tt_location: 'A-12',
+                mistakes_title: 'Mistake bank', mistakes_sub: 'Log recurring mistakes with correct answers. AI can parse an error file into this section.',
+                mistakes_add: 'Add mistake', mistakes_course: 'Course (optional)', mistakes_topic: 'Chapter / lecture (from course lectures)',
+                mistakes_error: 'Mistake / question', mistakes_correct: 'Correct answer', mistakes_explain: 'Short explanation (optional)',
+                mistakes_list: 'Mistake log', mistakes_ai_hint: 'Upload or paste an error sheet in AI and ask to add them to the mistake bank.',
+                ph_mistake_topic: 'e.g. Integration by parts', ph_mistake_error: 'Describe the mistake or paste the question...',
+                ph_mistake_correct: 'Correct answer...', ph_mistake_explain: 'Why was it wrong?', ph_mistake_search: 'Search...',
+                no_mistakes: 'No mistakes logged yet.',
+                mistakes_filter_course: 'Filter by course',
+                mistakes_filter_topic: 'Filter by chapter / lecture',
+                mistakes_filter_search: 'Text search (optional)',
+                reminders_title: 'On-open reminders', ph_course_opt: 'Course (optional)',
+                monthly_title: 'Monthly plan & exams', monthly_sub: 'Log exams, project deadlines, and big goals',
+                add_event: 'Add event', planned_goals: 'Planned goals & dates',
+                notes_title: 'Quick notes', notes_sub: 'Write ideas, links, and lecture notes',
+                new_note: 'New note', files_title: 'Saved files',
+                files_sub: 'Save info by name; Gemini can use it when you ask.',
+                add_saved_file: 'Add saved file', save_file: 'Save file', archives: 'Archives',
+                ai_title: 'Your AI study assistant', ai_sub: 'Reads your schedule and tasks and can edit them smartly',
+                new_chat: 'New chat', clear_chat: 'Clear history', quick_prompts: 'Quick prompts:',
+                ai_history: 'AI chat history', send: 'Send', quote: '"Consistency is the secret of excellence"',
+                quote_sub: 'A small step every day brings you closer to your university goal.',
+                prio_high: 'High priority 🔥', prio_med: 'Medium priority ⚡', prio_low: 'Normal priority ☕',
+                ph_task: 'Add a new task...', ph_course: 'Course name...', ph_event: 'Event title...',
+                ph_chat: 'Ask a question or request tasks...', ph_chat_search: 'Search conversation...',
+                ph_file_search: 'Search saved files...', ph_note_opt: 'Optional note...',
+                ph_pick_course: 'Select course...', no_tasks: 'No tasks yet.', no_courses_yet: 'No courses yet.',
+                no_reviews: 'No reviews due today ✨', no_sessions: 'No sessions logged yet.',
+                no_notes: 'No notes yet.', no_events: 'No events added.',
+                no_lectures: 'No lectures for this course yet.', add_item: 'Add item',
+                no_items: 'No items', studied: 'Studied', not_studied: 'Not studied yet',
+                add_lecture: 'Add lecture', course_lectures: 'Lectures', edit: 'Edit', del: 'Delete',
+                day_sat: 'Saturday', day_sun: 'Sunday', day_mon: 'Monday', day_tue: 'Tuesday',
+                day_wed: 'Wednesday', day_thu: 'Thursday', day_fri: 'Friday',
+                time_study: 'Study time', top_course: 'Top course', week_achievements: 'Week achievements',
+                active_days: 'Active days · reviews', tasks_word: 'tasks', lectures_word: 'lectures',
+                due_today: 'Today', overdue: 'Overdue', after_days: 'in', min_word: 'min',
+                save_note: 'Save note', cancel: 'Cancel', save: 'Save',
+                
+                ph_minutes: 'Minutes', ph_saved_title: 'Optional name or file name',
+                ph_saved_content: 'Write something to save...', ph_name: 'Enter your name...',
+                ph_note_title: 'Note title...', ph_note_body: 'Note details...',
+                ph_lecture: 'Lecture name...', ph_lecture_opt: 'Lecture (optional)',
+                ph_score: 'Score', all_months: 'All months',
+                qp1: '📋 Plan my day from timetable + reviews and add tasks',
+                qp2: '⚡ Add high-priority tasks for due reviews',
+                qp3: '📅 Here is my schedule (paste after this) — fill the timetable',
+                qp4: '📚 Give an overview of my first registered course',
+                qp5: '🧠 Summarize my mistake bank and suggest focused review',
+                qp6: '⏱ Start the Pomodoro timer for studying',
+                choose_file: 'Choose file(s)', files_types: 'PDF, images, or other files',
+                files_note: 'Attachments stay in this browser. When you ask Gemini about one, it is sent for analysis.',
+                save_settings: 'Save settings', cancel_btn: 'Cancel',
+                confirm_done: 'Confirm task completion', yes_done: 'Yes, done 👍',
+                save_note_btn: 'Save note', edit_name: 'Edit your name',
+                session_hint: 'Or use Sessions · Reviews · Grades for full details.',
+
+                about_label: 'About this section',
+                not_now: 'Not now', yes_start: 'Yes, start', yes_break: 'Yes, break',
+                focus_confirm_title: 'Start Focus Mode?', focus_confirm_body: 'Ready to start a focused session?',
+                focus_pick_title: 'What do you want to focus on?', focus_pick_hint: 'Pick a task or course, or start a general session.',
+                focus_pick_task: 'Daily task (optional)', focus_pick_course: 'Course (optional)',
+                focus_pick_lecture: 'Lecture (optional)', focus_pick_note: 'If you leave everything empty, a general focus session starts.',
+                focus_pick_none: '— None —', focus_general: 'General focus session',
+                due_label: 'Due', done_short: 'Done',
+                focus_today_title: "Today's focus sessions",
+                focus_today_hint: 'Paused sessions you can resume. Cleared automatically the next day.',
+                week_n: 'Week', achievements: 'done',
+                about_daily: 'Organize your daily tasks, start Focus from any task, and track completion.',
+                about_courses: 'Add courses and lectures, start Focus from a lesson, and mark what you studied.',
+                about_history: 'Shows days with completed tasks or studied lectures, plus a weekly summary.',
+                about_progress: 'Study sessions, spaced reviews, grades, and expected average.',
+                about_weekly: 'Your weekly lecture timetable by hour. Link courses and let AI fill it from text or a photo of the schedule.',
+                about_mistakes: 'Store recurring mistakes with answers and notes; review before exams. AI can fill from a file.',
+                about_monthly: 'Log exams, big deadlines, and monthly goals.',
+                about_notes: 'Quick notes, links, and ideas while you study.',
+                about_files: 'Save text or files; the AI can use them when you ask.',
+                about_ai: 'Ask to organize your day, add tasks, or get study tips in natural language.',
+                resume_sessions: 'Resume session',
+                ai_how_title: 'How to use the AI',
+                ai_how_1: '• Ask to plan your day or add tasks — it edits the board.',
+                ai_how_2: '• Paste your schedule or upload a photo to fill the timetable.',
+                ai_how_3: '• Ask for a course overview or analyze errors into the mistake bank.',
+                footer_about: 'P.U.D — Personal University Dashboard. Your data stays locally on your device.',
+                rocket_hint: 'Tap the rocket for a new quote 🚀',
+                celeb_title: 'Legend! You crushed it 🚀🔥',
+                celeb_body: 'You completed all daily tasks at 100%!',
+                celeb_btn: 'Keep going ⚡',
+
+                
+                api_modal_title: 'AI Settings (Gemini)',
+                api_modal_sub: 'Enter your API key to start using the assistant',
+                api_key_label: 'Your API key:',
+                api_key_hint: 'Get a free key in seconds from',
+                api_key_required: 'API key is required.',
+                api_key_saved: 'API key saved and activated!',
+                api_key_invalid: 'Invalid API key. Copy the full key from Google AI Studio.',
+                new_conversation: 'New chat',
+
+                log_btn: 'Log', pick_course: 'Select course...'
+            }
+        };
+
+
+        const MOTIV_QUOTES = [
+            { ar: { q: '"الاستمرارية هي سر التميز"', s: 'خطوة صغيرة كل يوم تقربك من هدفك الجامعي النهائي.' },
+              en: { q: '"Consistency is the secret of excellence"', s: 'A small step every day brings you closer to your goal.' } },
+            { ar: { q: '"لا تؤجل عمل اليوم إلى الغد"', s: 'ابدأ الآن ولو بدقيقة واحدة من التركيز.' },
+              en: { q: '"Don\'t put off today\'s work until tomorrow"', s: 'Start now — even one focused minute counts.' } },
+            { ar: { q: '"النجاح عادة قبل أن يكون نتيجة"', s: 'ابنِ روتين مذاكرة ثابت، والنتائج تأتي لاحقًا.' },
+              en: { q: '"Success is a habit before it is a result"', s: 'Build a steady study routine; results follow.' } },
+            { ar: { q: '"ركز على التقدم لا على الكمال"', s: 'أحسن من أمس يكفي ليكون يومًا ناجحًا.' },
+              en: { q: '"Progress over perfection"', s: 'Better than yesterday is already a winning day.' } },
+            { ar: { q: '"تعب ساعة راحة أيام"', s: 'اجتهد الآن لتستمتع بالراحة بضمير مرتاح.' },
+              en: { q: '"An hour of effort buys days of ease"', s: 'Work hard now so rest feels earned.' } },
+            { ar: { q: '"العلم يُبنى طبقة فوق طبقة"', s: 'راجع ما سبق قبل أن تضيف درسًا جديدًا.' },
+              en: { q: '"Knowledge is built layer by layer"', s: 'Review what you know before adding more.' } },
+            { ar: { q: '"المشتتات عدو التركيز"', s: 'أغلق ما لا تحتاجه وافتح جلسة واحدة فقط.' },
+              en: { q: '"Distractions is the opposite of focused"', s: 'Close what you don\'t need; open one session only.' } },
+            { ar: { q: '"كل محاضرة فرصة"', s: 'حتى لو كانت صعبة، سجل نقطة واحدة مفيدة منها.' },
+              en: { q: '"Every lecture is a chance"', s: 'Even a hard one — capture one useful point.' } },
+            { ar: { q: '"الاجتهاد يتفوق على الموهبة عند الالتزام"', s: 'الانتظام اليومي أقوى من الحماس المؤقت.' },
+              en: { q: '"Discipline beats talent when talent skips practice"', s: 'Daily consistency outruns short bursts of motivation.' } },
+            { ar: { q: '"ابدأ بأصعب مهمة وأنت نشيط"', s: 'أنهِ الثقيل أولًا، واترك السهل لنهاية اليوم.' },
+              en: { q: '"Do the hard task while you\'re fresh"', s: 'Finish the heavy work first; leave easy tasks for later.' } },
+            { ar: { q: '"الامتحان يحترم من راجعه مبكرًا"', s: 'وزّع المراجعة على أيام، لا تتركها لليلة الأخيرة.' },
+              en: { q: '"Exams favor early reviewers"', s: 'Spread revision across days — not the last night.' } },
+            { ar: { q: '"الراحة جزء من الإنتاجية"', s: 'خذ استراحة قصيرة ثم عد بذهن أوضح.' },
+              en: { q: '"Rest is part of productivity"', s: 'Take a short break, then return with a clearer mind.' } },
+            { ar: { q: '"اكتب هدف اليوم بجملة واحدة"', s: 'وضوح الهدف يختصر نصف التشتت.' },
+              en: { q: '"Write today\'s goal in one sentence"', s: 'A clear goal cuts half the distraction.' } },
+            { ar: { q: '"الفشل محاولة لم تكتمل بعد"', s: 'أعد المحاولة بطريقة أفضل، لا تتوقف.' },
+              en: { q: '"Failure is an unfinished attempt"', s: 'Try again with a better method — don\'t stop.' } },
+            { ar: { q: '"التنظيم يوفر وقت المذاكرة"', s: 'رتب مهامك أولًا، ثم ابدأ التنفيذ بهدوء.' },
+              en: { q: '"Organization saves study time"', s: 'Plan first, then execute calmly.' } },
+            { ar: { q: '"جلسة قصيرة أفضل من لا شيء"', s: '٢٥ دقيقة بومودورو تغيّر مسار يومك.' },
+              en: { q: '"A short session beats nothing"', s: 'A 25-minute Pomodoro can change your day.' } },
+            { ar: { q: '"اسأل حين لا تفهم"', s: 'السؤال مبكرًا أوفر من الحيرة قبل الامتحان.' },
+              en: { q: '"Ask when you don\'t understand"', s: 'An early question costs less than exam-week confusion.' } },
+            { ar: { q: '"أنت أقرب مما تظن"', s: 'كل درس تنهيه يقربك من خط النهاية.' },
+              en: { q: '"You\'re closer than you think"', s: 'Every finished lecture moves you toward the finish line.' } },
+            { ar: { q: '"قارن نفسك بنفسك أمس"', s: 'التطور الحقيقي داخلي، لا على حساب الآخرين.' },
+              en: { q: '"Compare yourself to yesterday\'s you"', s: 'Real growth is internal, not against others.' } },
+            { ar: { q: '"الانضباط يبني الثقة"', s: 'كل وعد تفيه لنفسك يقوي إرادتك.' },
+              en: { q: '"Discipline builds confidence"', s: 'Every promise you keep to yourself strengthens your will.' } },
+            { ar: { q: '"الليلة للراحة والعقل للغد"', s: 'نم جيدًا؛ المذاكرة على تعب قليلة الفائدة.' },
+              en: { q: '"Tonight is for rest; tomorrow for the mind"', s: 'Sleep well — tired studying gives little return.' } },
+            { ar: { q: '"اجعل المذاكرة عادة لا مزاجًا"', s: 'الثبات في الموعد أهم من طول الجلسة.' },
+              en: { q: '"Make studying a habit, not a mood"', s: 'Showing up on time matters more than session length.' } },
+        ];
+
+        function pickMotivationalQuote(forceNew) {
+            let idx = parseInt(sessionStorage.getItem('pud_quote_idx') || '-1', 10);
+            if (forceNew || idx < 0 || idx >= MOTIV_QUOTES.length) {
+                const prev = idx;
+                // avoid same quote when shuffling
+                if (MOTIV_QUOTES.length > 1) {
+                    do {
+                        idx = Math.floor(Math.random() * MOTIV_QUOTES.length);
+                    } while (idx === prev);
+                } else {
+                    idx = 0;
+                }
+                sessionStorage.setItem('pud_quote_idx', String(idx));
+            }
+            const pack = MOTIV_QUOTES[idx];
+            const lang = AppState.uiLang === 'en' ? 'en' : 'ar';
+            const qEl = document.getElementById('motivQuote');
+            const sEl = document.getElementById('motivQuoteSub');
+            if (qEl) qEl.textContent = pack[lang].q;
+            if (sEl) sEl.textContent = pack[lang].s;
+            return idx;
+        }
+
+        function launchMotivRocket() {
+            const rocket = document.getElementById('motivRocketBtn');
+            const stage = document.getElementById('motivRocketStage');
+            const qEl = document.getElementById('motivQuote');
+            const sEl = document.getElementById('motivQuoteSub');
+            if (!rocket || !qEl || rocket.classList.contains('flying')) return;
+
+            rocket.classList.add('flying');
+            if (stage) stage.classList.add('launching');
+            qEl.classList.add('quote-out');
+            if (sEl) sEl.classList.add('quote-out');
+
+            setTimeout(() => {
+                pickMotivationalQuote(true);
+                qEl.classList.remove('quote-out');
+                if (sEl) sEl.classList.remove('quote-out');
+                qEl.classList.add('quote-in');
+                if (sEl) sEl.classList.add('quote-in');
+
+                rocket.classList.remove('flying');
+                if (stage) stage.classList.remove('launching');
+                // Come back from bottom-left, still facing right-up (-45deg)
+                rocket.style.transition = 'none';
+                rocket.style.transform = 'rotate(-45deg) translate(-18px, 12px) scale(0.9)';
+                rocket.style.opacity = '0';
+                requestAnimationFrame(() => {
+                    rocket.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.4s ease';
+                    rocket.style.transform = 'rotate(-45deg)';
+                    rocket.style.opacity = '1';
+                    setTimeout(() => {
+                        rocket.style.transition = '';
+                        rocket.style.transform = '';
+                        rocket.style.opacity = '';
+                        qEl.classList.remove('quote-in');
+                        if (sEl) sEl.classList.remove('quote-in');
+                    }, 420);
+                });
+            }, 480);
+        }
+
+
+        function autoResizeChatInput() {
+            const el = document.getElementById('chatTextInput');
+            if (!el) return;
+            el.style.height = 'auto';
+            const next = Math.min(el.scrollHeight, 128); // ~8rem
+            el.style.height = next + 'px';
+        }
+
+        function initChatInputBehavior() {
+            const el = document.getElementById('chatTextInput');
+            if (!el || el.dataset.boundResize) return;
+            el.dataset.boundResize = '1';
+            el.addEventListener('input', autoResizeChatInput);
+            // Enter = send, Shift+Enter = new line
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    const form = document.getElementById('chatForm');
+                    if (form) form.requestSubmit();
+                }
+            });
+            autoResizeChatInput();
+        }
+
+        function initMotivRocket() {
+            const card = document.getElementById('motivRocketCard');
+            if (!card || card.dataset.bound) return;
+            card.dataset.bound = '1';
+            card.addEventListener('click', launchMotivRocket);
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    launchMotivRocket();
+                }
+            });
+            pickMotivationalQuote(false);
+        }
+
+
+        function getUiLocale() {
+            return (AppState.uiLang === 'en') ? 'en-US' : 'ar-EG';
+        }
+
+        function formatUiDate(date, options) {
+            const locale = getUiLocale();
+            try {
+                return new Intl.DateTimeFormat(locale, options).format(date);
+            } catch (e) {
+                return new Intl.DateTimeFormat('en-US', options).format(date);
+            }
+        }
+
+        function t(key) {
+            if (!I18N) return key;
+            const lang = (typeof AppState !== 'undefined' && AppState.uiLang === 'en') ? 'en' : 'ar';
+            const dict = I18N[lang] || I18N.ar || {};
+            return (dict[key] != null ? dict[key] : (I18N.ar && I18N.ar[key] != null ? I18N.ar[key] : key));
+        }
+
+        function applyLanguage() {
+            const lang = AppState.uiLang === 'en' ? 'en' : 'ar';
+            document.documentElement.lang = lang;
+            document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (!key) return;
+                const val = t(key);
+                if (val && val !== key) el.textContent = val;
+            });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => {
+                const key = el.getAttribute('data-i18n-title');
+                if (key && I18N[lang][key] != null) el.title = I18N[lang][key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (key && I18N[lang][key] != null) el.placeholder = I18N[lang][key];
+            });
+
+            // Welcome: update text only — single pen stays in HTML (no duplicates)
+            const welcomeLabel = document.querySelector('header h1 [data-i18n="welcome"]');
+            if (welcomeLabel) welcomeLabel.textContent = t('welcome');
+            const nameSpan = document.getElementById('displayUserName');
+            if (nameSpan) nameSpan.textContent = AppState.userName || nameSpan.textContent;
+            const editBtn = document.getElementById('editNameBtn');
+            if (editBtn) editBtn.title = t('edit');
+
+            const langBtn = document.getElementById('langToggleLabel');
+            if (langBtn) langBtn.textContent = lang === 'ar' ? 'EN' : 'ع';
+
+            // Mode buttons
+            const pomo = document.getElementById('modePomoBtn');
+            const sw = document.getElementById('modeStopwatchBtn');
+            if (pomo) pomo.innerHTML = t('pomodoro');
+            if (sw) sw.innerHTML = t('stopwatch');
+
+            // Re-render dynamic UIs so strings refresh
+            try { renderDailyTasks(); } catch (e) {}
+            try { renderCourses(); } catch (e) {}
+            try { renderWeeklyPlanner(); } catch (e) {}
+            try { renderMistakes(); } catch (e) {}
+            try { populateSavedFileCourseSelect(); } catch (e) {}
+            try { populateMistakeCourseSelect(); } catch (e) {}
+            try { renderOpenReminders(); } catch (e) {}
+            try { renderStudyHistory(); } catch (e) {}
+            try { renderMonthlyPlanner(); } catch (e) {}
+            try { renderQuickNotes(); } catch (e) {}
+            try { renderProgressModule(); } catch (e) {}
+            try { renderTodayBoard(); } catch (e) {}
+            try { updateStudyDashboardStats(); } catch (e) {}
+            updateThemeLabel();
+            setCurrentDateText();
+
+            pickMotivationalQuote(false);
+            try { renderResumeSessions(); } catch (e) {}
+            try { if (typeof FocusMode !== "undefined") FocusMode.updateActionLabels(); } catch (e) {}
+
+            // Quick prompts
+            document.querySelectorAll('.quick-prompt-btn').forEach((btn) => {
+                const key = btn.getAttribute('data-qp');
+                if (key) btn.textContent = t(key);
+            });
+
+            // Saved files helper labels
+            document.querySelectorAll('[data-i18n-static]').forEach(el => {
+                const k = el.getAttribute('data-i18n-static');
+                if (!k) return;
+                const dict = I18N[lang] || I18N.ar;
+                if (dict[k] != null) el.textContent = dict[k];
+                else if (I18N.ar[k] != null && lang === 'ar') el.textContent = I18N.ar[k];
+            });
+        }
+
+        function applyTheme() {
+            const theme = AppState.uiTheme === 'light' ? 'light' : 'dark';
+            if (theme === 'dark') document.documentElement.classList.add('dark');
+            else document.documentElement.classList.remove('dark');
+            updateThemeLabel();
+        }
+
+        function updateThemeLabel() {
+            const icon = document.getElementById('themeToggleIcon');
+            const label = document.getElementById('themeToggleLabel');
+            if (!icon || !label) return;
+            if (AppState.uiTheme === 'light') {
+                icon.className = 'fa-solid fa-moon';
+                label.textContent = t('theme_dark');
+            } else {
+                icon.className = 'fa-solid fa-sun';
+                label.textContent = t('theme_light');
+            }
+        }
+
+        function getTodayMinutes() {
+            const today = createLocalDateKey();
+            return AppState.studySessions
+                .filter(s => s.date === today)
+                .reduce((a, s) => a + (Number(s.minutes) || 0), 0);
+        }
+
+        function updateDailyGoalUI() {
+            const goal = Number(AppState.dailyMinutesGoal) || 90;
+            const done = getTodayMinutes();
+            const pct = Math.min(100, Math.round((done / goal) * 100));
+            const textEl = document.getElementById('dailyGoalText');
+            const fill = document.getElementById('dailyGoalFill');
+            const input = document.getElementById('dailyGoalInput');
+            if (textEl) textEl.textContent = `${done} / ${goal}` + (pct >= 100 ? ' ✓' : '');
+            if (fill) fill.style.width = pct + '%';
+            if (input && document.activeElement !== input) input.value = goal;
+        }
+
+        function getNearestExam() {
+            const today = createLocalDateKey();
+            const upcoming = (AppState.monthlyGoals || [])
+                .filter(g => g.date && g.date >= today)
+                .sort((a, b) => a.date.localeCompare(b.date));
+            return upcoming[0] || null;
+        }
+
+        function getSuggestedCourse() {
+            if (!AppState.studyCourses.length) return null;
+            const weekKeys = new Set(getWeekDateKeys());
+            const minutes = {};
+            AppState.studyCourses.forEach(c => { minutes[c.id] = 0; });
+            AppState.studySessions.filter(s => weekKeys.has(s.date)).forEach(s => {
+                if (minutes[s.courseId] != null) minutes[s.courseId] += Number(s.minutes) || 0;
+            });
+            // least studied course this week
+            let best = AppState.studyCourses[0];
+            let bestMin = minutes[best.id] ?? 0;
+            AppState.studyCourses.forEach(c => {
+                const m = minutes[c.id] ?? 0;
+                if (m < bestMin) { best = c; bestMin = m; }
+            });
+            return best;
+        }
+
+        function renderTodayBoard() {
+            updateDailyGoalUI();
+            const box = document.getElementById('todayBoardContent');
+            if (!box) return;
+            const openTasks = AppState.dailyTasks.filter(t => !t.completed).length;
+            const due = getReviewsDueToday().length;
+            const exam = getNearestExam();
+            const suggest = getSuggestedCourse();
+            let examLabel = t('no_exam');
+            if (exam) {
+                const today = new Date();
+                const [y, m, d] = exam.date.split('-').map(Number);
+                const diff = Math.ceil((new Date(y, m - 1, d, 12) - today) / 86400000);
+                examLabel = `${exam.title} · ${diff}d`;
+            }
+            box.innerHTML = `
+                <div class="rounded-xl bg-slate-900/50 border border-slate-800 p-3">
+                    <p class="text-slate-500 text-[10px] font-bold">${t('open_tasks')}</p>
+                    <p class="text-lg font-extrabold text-cyan-300 mt-1">${openTasks}</p>
+                </div>
+                <div class="rounded-xl bg-slate-900/50 border border-slate-800 p-3">
+                    <p class="text-slate-500 text-[10px] font-bold">${t('reviews_due')}</p>
+                    <p class="text-lg font-extrabold text-violet-300 mt-1">${due}</p>
+                </div>
+                <div class="rounded-xl bg-slate-900/50 border border-slate-800 p-3">
+                    <p class="text-slate-500 text-[10px] font-bold">${t('nearest_exam')}</p>
+                    <p class="text-sm font-bold text-amber-300 mt-1 truncate" title="${exam ? escapeHTML(exam.title) : ''}">${escapeHTML(examLabel)}</p>
+                </div>
+                <div class="rounded-xl bg-slate-900/50 border border-slate-800 p-3">
+                    <p class="text-slate-500 text-[10px] font-bold">${t('suggest_session')}</p>
+                    <p class="text-sm font-bold text-emerald-300 mt-1 truncate">${suggest ? escapeHTML(suggest.title) : t('no_courses')}</p>
+                </div>
+            `;
+        }
+
+
+        function todayKey() {
+            const d = new Date();
+            return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        }
+
+        function loadFocusSessions() {
+            try {
+                const raw = localStorage.getItem('pud_focus_sessions_today');
+                const data = raw ? JSON.parse(raw) : { day: todayKey(), sessions: [] };
+                if (data.day !== todayKey()) {
+                    AppState.focusSessionsToday = [];
+                    saveFocusSessions();
+                } else {
+                    AppState.focusSessionsToday = Array.isArray(data.sessions) ? data.sessions : [];
+                }
+            } catch (e) {
+                AppState.focusSessionsToday = [];
+            }
+        }
+
+        function saveFocusSessions() {
+            try {
+                localStorage.setItem('pud_focus_sessions_today', JSON.stringify({
+                    day: todayKey(),
+                    sessions: AppState.focusSessionsToday || []
+                }));
+            } catch (e) {}
+        }
+
+        function isTaskInFocusSession(taskId) {
+            return (AppState.focusSessionsToday || []).some(s => s.status === 'paused' && s.taskId != null && Number(s.taskId) === Number(taskId));
+        }
+
+        function isLectureInFocusSession(courseId, lectureId) {
+            return (AppState.focusSessionsToday || []).some(s =>
+                s.status === 'paused' &&
+                String(s.courseId) === String(courseId) &&
+                String(s.lectureId) === String(lectureId)
+            );
+        }
+
+        function renderResumeSessions() {
+            const wrap = document.getElementById('resumeSessionsWrap');
+            const list = document.getElementById('resumeSessionsList');
+            if (!wrap || !list) return;
+            const items = (AppState.focusSessionsToday || []).filter(s => s.status === 'paused');
+            if (!items.length) {
+                wrap.classList.add('hidden');
+                list.innerHTML = '';
+                return;
+            }
+            wrap.classList.remove('hidden');
+            list.innerHTML = items.map(s => {
+                const mins = Math.floor((s.elapsedSec || 0) / 60);
+                const secs = (s.elapsedSec || 0) % 60;
+                const timeStr = mins + ':' + String(secs).padStart(2, '0');
+                return `
+                <div class="flex items-center justify-between gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-3 py-2.5">
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-emerald-200 truncate">${escapeHTML(s.label || 'Focus')}</p>
+                        <p class="text-[10px] text-slate-500">${AppState.uiLang === 'en' ? 'Paused at' : 'متوقف عند'} ${timeStr}</p>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button type="button" class="resume-focus-btn px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 text-[11px] font-bold" data-id="${escapeHTML(String(s.id))}">${AppState.uiLang === 'en' ? 'Resume' : 'استكمال'}</button>
+                        <button type="button" class="dismiss-focus-btn px-2 py-1.5 rounded-lg text-slate-500 hover:text-rose-400 text-xs" data-id="${escapeHTML(String(s.id))}" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>`;
+            }).join('');
+            list.querySelectorAll('.resume-focus-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const s = (AppState.focusSessionsToday || []).find(x => String(x.id) === String(btn.getAttribute('data-id')));
+                    if (s) FocusMode.resumeSession(s);
+                });
+            });
+            list.querySelectorAll('.dismiss-focus-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    AppState.focusSessionsToday = (AppState.focusSessionsToday || []).filter(x => String(x.id) !== String(id));
+                    saveFocusSessions();
+                    renderResumeSessions();
+                    try { renderDailyTasks(); } catch (e) {}
+                    try { renderCourses(); } catch (e) {}
+                });
+            });
+        }
+
+        const FocusMode = {
+            running: false,
+            elapsedSec: 0,
+            interval: null,
+            courseId: null,
+            lectureId: null,
+            taskId: null,
+            pending: null,
+            nudgeShown: false,
+            sessionId: null,
+
+            init() {
+                loadFocusSessions();
+                document.getElementById('focusModeBtn')?.addEventListener('click', () => this.requestOpen());
+                document.getElementById('openFocusFromTodayBtn')?.addEventListener('click', () => this.requestOpen());
+                document.getElementById('closeFocusModeBtn')?.addEventListener('click', () => this.pauseAndExit());
+                document.getElementById('focusToggleBtn')?.addEventListener('click', () => this.toggle());
+                document.getElementById('focusResetBtn')?.addEventListener('click', () => this.reset());
+                document.getElementById('focusFinishBtn')?.addEventListener('click', () => this.finish());
+                document.getElementById('focusPauseLaterBtn')?.addEventListener('click', () => this.pauseAndExit());
+                document.getElementById('confirmFocusYes')?.addEventListener('click', () => this.acceptConfirm());
+                document.getElementById('confirmFocusNo')?.addEventListener('click', () => this.cancelConfirm());
+                document.getElementById('focusPickCancel')?.addEventListener('click', () => this.cancelPick());
+                document.getElementById('focusPickStart')?.addEventListener('click', () => this.acceptPick());
+                document.getElementById('focusPickCourse')?.addEventListener('change', (e) => {
+                    this.fillPickLectures(e.target.value);
+                    if (e.target.value) {
+                        const taskSel = document.getElementById('focusPickTask');
+                        if (taskSel) taskSel.value = '';
+                    }
+                });
+                document.getElementById('focusPickTask')?.addEventListener('change', () => {
+                    const taskSel = document.getElementById('focusPickTask');
+                    if (taskSel && taskSel.value) {
+                        const courseSel = document.getElementById('focusPickCourse');
+                        if (courseSel) courseSel.value = '';
+                        this.fillPickLectures('');
+                    }
+                });
+                document.getElementById('focusNudgeYes')?.addEventListener('click', () => {
+                    this.hideNudge();
+                    if (this.running) this.toggle(); // pause for break
+                });
+                document.getElementById('focusNudgeNo')?.addEventListener('click', () => this.hideNudge());
+                this.updateActionLabels();
+                renderResumeSessions();
+            },
+
+            updateActionLabels() {
+                const fin = document.getElementById('focusFinishLabel');
+                const pau = document.getElementById('focusPauseLaterLabel');
+                if (fin) fin.textContent = AppState.uiLang === 'en' ? 'Finish' : 'انتهيت';
+                if (pau) pau.textContent = AppState.uiLang === 'en' ? 'Continue later' : 'أكمل لاحقًا';
+            },
+
+            labelForContext() {
+                if (this.taskId != null) {
+                    const task = AppState.dailyTasks.find(t => t.id === this.taskId);
+                    return task ? ((AppState.uiLang === 'en' ? 'Task: ' : 'مهمة: ') + task.title) : '—';
+                }
+                if (this.lectureId != null && this.courseId) {
+                    const course = AppState.studyCourses.find(c => String(c.id) === String(this.courseId));
+                    const lecture = course && (course.lectures || []).find(l => String(l.id) === String(this.lectureId));
+                    if (course && lecture) return course.title + ' — ' + lecture.title;
+                }
+                if (this.courseId) {
+                    const course = AppState.studyCourses.find(c => String(c.id) === String(this.courseId));
+                    if (course) return course.title;
+                }
+                return AppState.uiLang === 'en' ? 'Focus session' : 'جلسة تركيز';
+            },
+
+            updateSubjectLabel() {
+                const el = document.getElementById('focusModeSubject');
+                if (el) el.textContent = this.labelForContext();
+            },
+
+            requestOpen(ctx) {
+                this.pending = ctx || {};
+                // If task already has paused session → resume it
+                if (ctx && ctx.taskId != null) {
+                    const existing = (AppState.focusSessionsToday || []).find(s =>
+                        s.status === 'paused' && Number(s.taskId) === Number(ctx.taskId)
+                    );
+                    if (existing) {
+                        this.resumeSession(existing);
+                        return;
+                    }
+                }
+                if (ctx && ctx.lectureId) {
+                    const existing = (AppState.focusSessionsToday || []).find(s =>
+                        s.status === 'paused' &&
+                        String(s.courseId) === String(ctx.courseId) &&
+                        String(s.lectureId) === String(ctx.lectureId)
+                    );
+                    if (existing) {
+                        this.resumeSession(existing);
+                        return;
+                    }
+                }
+                const title = document.getElementById('confirmFocusTitle');
+                const body = document.getElementById('confirmFocusText');
+                if (title) title.textContent = t('focus_confirm_title');
+                let desc = t('focus_confirm_body');
+                if (ctx && ctx.taskId != null) {
+                    const task = AppState.dailyTasks.find(t => t.id === ctx.taskId);
+                    if (task) desc = (AppState.uiLang === 'en' ? 'Focus on task: ' : 'التركيز على المهمة: ') + '"' + task.title + '"';
+                } else if (ctx && ctx.lectureId) {
+                    const course = AppState.studyCourses.find(c => String(c.id) === String(ctx.courseId));
+                    const lecture = course && (course.lectures || []).find(l => String(l.id) === String(ctx.lectureId));
+                    if (course && lecture) desc = (AppState.uiLang === 'en' ? 'Study: ' : 'مذاكرة: ') + course.title + ' — ' + lecture.title;
+                }
+                if (body) body.textContent = desc;
+                const noBtn = document.getElementById('confirmFocusNo');
+                const yesBtn = document.getElementById('confirmFocusYes');
+                if (noBtn) noBtn.textContent = t('not_now');
+                if (yesBtn) yesBtn.textContent = t('yes_start');
+                openModal('confirmFocusModal');
+            },
+
+            isGenericPending() {
+                const ctx = this.pending || {};
+                return ctx.taskId == null && !ctx.lectureId && !ctx.courseId;
+            },
+
+            acceptConfirm() {
+                closeModal('confirmFocusModal');
+                const ctx = this.pending || {};
+                // Generic entry (header / today board) → show picker
+                if (this.isGenericPending()) {
+                    this.openPickModal();
+                    return;
+                }
+                this.startWithContext(ctx);
+            },
+
+            cancelConfirm() {
+                this.pending = null;
+                closeModal('confirmFocusModal');
+            },
+
+            fillPickLectures(courseId) {
+                const sel = document.getElementById('focusPickLecture');
+                if (!sel) return;
+                const none = t('focus_pick_none');
+                if (!courseId) {
+                    sel.innerHTML = `<option value="">${none}</option>`;
+                    return;
+                }
+                const course = AppState.studyCourses.find(c => String(c.id) === String(courseId));
+                const lectures = (course && course.lectures) ? course.lectures : [];
+                sel.innerHTML = `<option value="">${none}</option>` + lectures.map(l =>
+                    `<option value="${escapeHTML(String(l.id))}">${escapeHTML(l.title)}${l.studied ? ' ✓' : ''}</option>`
+                ).join('');
+            },
+
+            openPickModal() {
+                const taskSel = document.getElementById('focusPickTask');
+                const courseSel = document.getElementById('focusPickCourse');
+                const none = t('focus_pick_none');
+                if (taskSel) {
+                    const openTasks = (AppState.dailyTasks || []).filter(tk => !tk.completed);
+                    taskSel.innerHTML = `<option value="">${none}</option>` + openTasks.map(tk =>
+                        `<option value="${escapeHTML(String(tk.id))}">${escapeHTML(tk.title)}</option>`
+                    ).join('');
+                }
+                if (courseSel) {
+                    courseSel.innerHTML = `<option value="">${none}</option>` + (AppState.studyCourses || []).map(c =>
+                        `<option value="${escapeHTML(String(c.id))}">${escapeHTML(c.title)}</option>`
+                    ).join('');
+                }
+                this.fillPickLectures('');
+                const title = document.getElementById('focusPickTitle');
+                const hint = document.getElementById('focusPickHint');
+                if (title) title.textContent = t('focus_pick_title');
+                if (hint) hint.textContent = t('focus_pick_hint');
+                document.querySelectorAll('#focusPickModal [data-i18n]').forEach(el => {
+                    const key = el.getAttribute('data-i18n');
+                    if (key && typeof t === 'function') el.textContent = t(key);
+                });
+                openModal('focusPickModal');
+            },
+
+            acceptPick() {
+                const taskVal = document.getElementById('focusPickTask')?.value || '';
+                const courseVal = document.getElementById('focusPickCourse')?.value || '';
+                const lectureVal = document.getElementById('focusPickLecture')?.value || '';
+                closeModal('focusPickModal');
+                const ctx = {};
+                if (taskVal) {
+                    ctx.taskId = Number(taskVal) || taskVal;
+                } else if (courseVal) {
+                    ctx.courseId = courseVal;
+                    if (lectureVal) ctx.lectureId = lectureVal;
+                }
+                this.pending = null;
+                this.startWithContext(ctx);
+            },
+
+            cancelPick() {
+                this.pending = null;
+                closeModal('focusPickModal');
+            },
+
+            startWithContext(ctx) {
+                ctx = ctx || {};
+                this.taskId = ctx.taskId != null ? ctx.taskId : null;
+                this.courseId = ctx.courseId != null ? String(ctx.courseId) : null;
+                this.lectureId = ctx.lectureId != null ? String(ctx.lectureId) : null;
+                this.elapsedSec = 0;
+                this.nudgeShown = false;
+                this.sessionId = 'f_' + Date.now();
+                this.hideNudge();
+                this.syncDisplay();
+                this.showOverlay();
+                this.updateActionLabels();
+            },
+
+            openForTask(taskId) { this.requestOpen({ taskId }); },
+            openForLecture(courseId, lectureId) { this.requestOpen({ courseId, lectureId }); },
+            open() { this.requestOpen({}); },
+
+            resumeSession(s) {
+                if (!s) return;
+                this.taskId = s.taskId != null ? s.taskId : null;
+                this.courseId = s.courseId != null ? String(s.courseId) : null;
+                this.lectureId = s.lectureId != null ? String(s.lectureId) : null;
+                this.elapsedSec = s.elapsedSec || 0;
+                this.sessionId = s.id;
+                this.nudgeShown = !!s.nudgeShown;
+                this.hideNudge();
+                // keep in list as paused until finish; while overlay open still "paused" until running
+                this.syncDisplay();
+                this.showOverlay();
+                this.updateActionLabels();
+            },
+
+            showOverlay() {
+                document.getElementById('focusModeOverlay')?.classList.add('active');
+                document.getElementById('focusModeOverlay')?.setAttribute('aria-hidden', 'false');
+            },
+
+            hideOverlay() {
+                document.getElementById('focusModeOverlay')?.classList.remove('active');
+                document.getElementById('focusModeOverlay')?.setAttribute('aria-hidden', 'true');
+            },
+
+            upsertPausedSession() {
+                if (this.elapsedSec < 5 && !this.taskId && !this.lectureId) return; // ignore tiny empty
+                const id = this.sessionId || ('f_' + Date.now());
+                this.sessionId = id;
+                const entry = {
+                    id,
+                    label: this.labelForContext(),
+                    elapsedSec: this.elapsedSec,
+                    taskId: this.taskId,
+                    courseId: this.courseId,
+                    lectureId: this.lectureId,
+                    status: 'paused',
+                    day: todayKey(),
+                    nudgeShown: this.nudgeShown,
+                    updatedAt: Date.now()
+                };
+                AppState.focusSessionsToday = (AppState.focusSessionsToday || []).filter(x => String(x.id) !== String(id));
+                // also one session per task
+                if (this.taskId != null) {
+                    AppState.focusSessionsToday = AppState.focusSessionsToday.filter(x =>
+                        !(x.status === 'paused' && Number(x.taskId) === Number(this.taskId) && String(x.id) !== String(id))
+                    );
+                }
+                AppState.focusSessionsToday.unshift(entry);
+                AppState.focusSessionsToday = AppState.focusSessionsToday.slice(0, 12);
+                saveFocusSessions();
+            },
+
+            removeSession(id) {
+                AppState.focusSessionsToday = (AppState.focusSessionsToday || []).filter(x => String(x.id) !== String(id));
+                saveFocusSessions();
+            },
+
+            toggle() {
+                if (this.running) {
+                    this.running = false;
+                    clearInterval(this.interval);
+                    const btn = document.getElementById('focusToggleBtn');
+                    if (btn) btn.innerHTML = `<i class="fa-solid fa-play ml-1"></i><span>${t('start')}</span>`;
+                } else {
+                    this.start();
+                }
+            },
+
+            start() {
+                this.running = true;
+                const btn = document.getElementById('focusToggleBtn');
+                if (btn) btn.innerHTML = `<i class="fa-solid fa-pause ml-1"></i><span>${t('pause')}</span>`;
+                clearInterval(this.interval);
+                this.interval = setInterval(() => {
+                    this.elapsedSec++;
+                    this.syncDisplay();
+                    if (!this.nudgeShown && this.elapsedSec >= 600) {
+                        this.nudgeShown = true;
+                        this.showNudge();
+                    }
+                }, 1000);
+            },
+
+            /** Pause timer, save session for today, exit overlay — does NOT complete task */
+            pauseAndExit() {
+                if (this.running) {
+                    this.running = false;
+                    clearInterval(this.interval);
+                    const btn = document.getElementById('focusToggleBtn');
+                    if (btn) btn.innerHTML = `<i class="fa-solid fa-play ml-1"></i><span>${t('start')}</span>`;
+                }
+                if (this.elapsedSec >= 5 || this.taskId != null || this.lectureId != null) {
+                    this.upsertPausedSession();
+                }
+                this.hideOverlay();
+                this.hideNudge();
+                renderResumeSessions();
+                try { renderDailyTasks(); } catch (e) {}
+                try { renderCourses(); } catch (e) {}
+            },
+
+            /** Finish: log time, complete linked task/lecture, remove from paused */
+            finish() {
+                if (this.running) {
+                    this.running = false;
+                    clearInterval(this.interval);
+                }
+                const minutes = Math.max(1, Math.round(this.elapsedSec / 60) || (this.elapsedSec > 0 ? 1 : 0));
+                if (this.elapsedSec >= 30 && this.courseId && typeof addStudySession === 'function') {
+                    try {
+                        addStudySession({
+                            courseId: this.courseId,
+                            lectureId: this.lectureId || null,
+                            minutes: Math.max(1, minutes),
+                            note: AppState.uiLang === 'en' ? 'Focus session' : 'جلسة تركيز'
+                        });
+                    } catch (e) {}
+                }
+                // complete linked items
+                if (this.taskId != null) {
+                    const task = AppState.dailyTasks.find(t => t.id === this.taskId);
+                    if (task && !task.completed) {
+                        task.completed = true;
+                        try {
+                            if (typeof recordStudyActivity === 'function') {
+                                recordStudyActivity('task', { id: task.id, title: task.title });
+                            }
+                        } catch (e) {}
+                    }
+                }
+                if (this.lectureId != null && this.courseId) {
+                    const course = AppState.studyCourses.find(c => String(c.id) === String(this.courseId));
+                    const lecture = course && (course.lectures || []).find(l => String(l.id) === String(this.lectureId));
+                    if (lecture && !lecture.studied) {
+                        lecture.studied = true;
+                        try {
+                            if (typeof scheduleReviewsForLecture === 'function') scheduleReviewsForLecture(course, lecture);
+                        } catch (e) {}
+                        try {
+                            if (typeof recordStudyActivity === 'function') {
+                                recordStudyActivity('lecture', {
+                                    id: lecture.id, courseId: course.id, courseTitle: course.title, title: lecture.title
+                                });
+                            }
+                        } catch (e) {}
+                    }
+                }
+                if (this.sessionId) this.removeSession(this.sessionId);
+                // also clear any paused for same task
+                if (this.taskId != null) {
+                    AppState.focusSessionsToday = (AppState.focusSessionsToday || []).filter(x =>
+                        !(Number(x.taskId) === Number(this.taskId))
+                    );
+                    saveFocusSessions();
+                }
+                this.elapsedSec = 0;
+                this.taskId = null;
+                this.lectureId = null;
+                this.courseId = null;
+                this.sessionId = null;
+                saveStateToStorage();
+                this.hideOverlay();
+                this.hideNudge();
+                const btn = document.getElementById('focusToggleBtn');
+                if (btn) btn.innerHTML = `<i class="fa-solid fa-play ml-1"></i><span>${t('start')}</span>`;
+                try { renderDailyTasks(); } catch (e) {}
+                try { renderCourses(); } catch (e) {}
+                try { renderTodayBoard(); } catch (e) {}
+                try { renderProgressModule(); } catch (e) {}
+                try { renderStudyHistory(); } catch (e) {}
+                try { updateStudyDashboardStats(); } catch (e) {}
+                try { checkAllTasksCompleted(); } catch (e) {}
+                renderResumeSessions();
+            },
+
+            reset() {
+                if (this.running) {
+                    this.running = false;
+                    clearInterval(this.interval);
+                }
+                this.elapsedSec = 0;
+                this.nudgeShown = false;
+                this.hideNudge();
+                const btn = document.getElementById('focusToggleBtn');
+                if (btn) btn.innerHTML = `<i class="fa-solid fa-play ml-1"></i><span>${t('start')}</span>`;
+                this.syncDisplay();
+            },
+
+            showNudge() {
+                const box = document.getElementById('focusNudgeBox');
+                const tx = document.getElementById('focusNudgeText');
+                if (tx) tx.textContent = AppState.uiLang === 'en'
+                    ? 'Good time for a short break?'
+                    : 'وقت مناسب لاستراحة قصيرة؟';
+                const yes = document.getElementById('focusNudgeYes');
+                const no = document.getElementById('focusNudgeNo');
+                if (yes) yes.textContent = t('yes_break');
+                if (no) no.textContent = t('not_now');
+                if (box) box.classList.remove('hidden');
+            },
+
+            hideNudge() {
+                document.getElementById('focusNudgeBox')?.classList.add('hidden');
+            },
+
+            syncDisplay() {
+                const timer = document.getElementById('focusModeTimer');
+                const m = Math.floor(this.elapsedSec / 60);
+                const s = this.elapsedSec % 60;
+                if (timer) timer.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+                const el = document.getElementById('focusElapsed');
+                if (el) el.textContent = String(Math.floor(this.elapsedSec / 60));
+                this.updateSubjectLabel();
+            }
+        };
+
+        function initThemeLangToday() {
+            applyTheme();
+            applyLanguage();
+
+            document.getElementById('themeToggleBtn')?.addEventListener('click', () => {
+                AppState.uiTheme = AppState.uiTheme === 'light' ? 'dark' : 'light';
+                saveStateToStorage();
+                applyTheme();
+            });
+
+            document.getElementById('langToggleBtn')?.addEventListener('click', () => {
+                AppState.uiLang = AppState.uiLang === 'ar' ? 'en' : 'ar';
+                saveStateToStorage();
+                applyLanguage();
+            });
+
+            const goalInput = document.getElementById('dailyGoalInput');
+            if (goalInput) {
+                goalInput.value = AppState.dailyMinutesGoal || 90;
+                goalInput.addEventListener('change', () => {
+                    const v = Math.min(600, Math.max(15, Number(goalInput.value) || 90));
+                    AppState.dailyMinutesGoal = v;
+                    goalInput.value = v;
+                    saveStateToStorage();
+                    updateDailyGoalUI();
+                });
+            }
+
+            FocusMode.init();
+            renderTodayBoard();
+        }
+
+
+        window.onload = function() {
+            setCurrentDateText();
+            TimerModule.init();
+            initNavigation();
+            initNameEditor();
+            initApiKeyModal();
+            initBackupSystem();
+            initDailyTasks();
+            initStudyModules();
+            initProgressModule();
+            initThemeLangToday();
+            initMotivRocket();
+            initChatInputBehavior();
+            initWeeklyPlanner();
+            initMistakesModule();
+            initOpenReminders();
+            initMonthlyPlanner();
+            initQuickNotes();
+            initSavedFilesModule();
+            initAiChatModule();
+        };
