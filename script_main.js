@@ -2257,14 +2257,61 @@
                 let silenceTimer = null;
                 let restartTimer = null;
                 let maxTimer = null;
+                let activeVoiceLang = 'ar-EG'; // current SpeechRecognition language
+                let switchingLang = false;
+                let lastLangSwitchAt = 0;
+
+                const countScript = (s) => {
+                    const str = String(s || '');
+                    let ar = 0, la = 0;
+                    for (const ch of str) {
+                        if (/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/.test(ch)) ar++;
+                        else if (/[A-Za-z]/.test(ch)) la++;
+                    }
+                    return { ar, la };
+                };
+
+                /** Prefer language of spoken/typed content — not UI language alone */
+                const detectVoiceLang = (sample) => {
+                    const { ar, la } = countScript(sample);
+                    if (ar === 0 && la === 0) {
+                        // no text yet: start from UI as soft default only
+                        return AppState.uiLang === 'en' ? 'en-US' : 'ar-EG';
+                    }
+                    // clear majority wins; ties lean English if any Latin present
+                    if (la > ar) return 'en-US';
+                    if (ar > la) return 'ar-EG';
+                    return la > 0 ? 'en-US' : 'ar-EG';
+                };
+
+                const applyVoiceLang = (lang) => {
+                    activeVoiceLang = lang === 'en-US' ? 'en-US' : 'ar-EG';
+                    recognition.lang = activeVoiceLang;
+                };
+
+                const restartWithLang = (lang) => {
+                    if (!isRecording) return;
+                    const now = Date.now();
+                    if (now - lastLangSwitchAt < 900) return; // debounce
+                    if (activeVoiceLang === lang) return;
+                    lastLangSwitchAt = now;
+                    switchingLang = true;
+                    applyVoiceLang(lang);
+                    try { recognition.stop(); } catch (e) {}
+                    // onend will restart while isRecording is true
+                };
 
                 const updateVoiceButton = () => {
                     if (!voiceBtn) return;
                     voiceBtn.classList.toggle('voice-recording', isRecording);
                     voiceBtn.classList.toggle('recording-pulse', isRecording);
                     voiceBtn.title = isRecording
-                        ? (AppState.uiLang === 'en' ? 'Recording… tap to stop' : 'جاري التسجيل… اضغط للإيقاف')
-                        : (AppState.uiLang === 'en' ? 'Voice input' : 'التحدث بالصوت');
+                        ? (AppState.uiLang === 'en'
+                            ? `Recording (${activeVoiceLang.startsWith('en') ? 'EN' : 'AR'})… tap to stop`
+                            : `جاري التسجيل (${activeVoiceLang.startsWith('en') ? 'EN' : 'عربي'})… اضغط للإيقاف`)
+                        : (AppState.uiLang === 'en'
+                            ? 'Voice input (Arabic & English)'
+                            : 'التحدث بالصوت (عربي وإنجليزي)');
                     voiceBtn.setAttribute('aria-label', voiceBtn.title);
                     voiceBtn.setAttribute('aria-pressed', isRecording ? 'true' : 'false');
                     voiceBtn.innerHTML = isRecording
@@ -2281,6 +2328,7 @@
 
                 const stopVoiceRecording = () => {
                     isRecording = false;
+                    switchingLang = false;
                     clearTimeout(silenceTimer);
                     clearTimeout(restartTimer);
                     clearTimeout(maxTimer);
@@ -2296,15 +2344,16 @@
                     voiceBaseText = (chatInput.value || '').trim();
                     voiceFinalText = '';
                     isRecording = true;
-                    recognition.lang = (AppState.uiLang === 'en') ? 'en-US' : 'ar-EG';
+                    switchingLang = false;
+                    // seed language from existing input if any, else soft UI default
+                    applyVoiceLang(detectVoiceLang(voiceBaseText));
                     updateVoiceButton();
                     armSilenceTimer();
                     clearTimeout(maxTimer);
-                    maxTimer = setTimeout(() => { if (isRecording) stopVoiceRecording(); }, 600000); // 10 min max
+                    maxTimer = setTimeout(() => { if (isRecording) stopVoiceRecording(); }, 600000);
                     try {
                         recognition.start();
                     } catch (err) {
-                        // already started — ignore
                         try { recognition.stop(); } catch (e2) {}
                         setTimeout(() => {
                             if (!isRecording) return;
@@ -2315,7 +2364,10 @@
                         }, 300);
                     }
                 });
-                recognition.onstart = () => { updateVoiceButton(); };
+                recognition.onstart = () => {
+                    switchingLang = false;
+                    updateVoiceButton();
+                };
                 recognition.onend = () => {
                     if (!isRecording) {
                         updateVoiceButton();
@@ -2325,27 +2377,49 @@
                     restartTimer = setTimeout(() => {
                         if (!isRecording) return;
                         try {
-                            recognition.lang = (AppState.uiLang === 'en') ? 'en-US' : 'ar-EG';
+                            recognition.lang = activeVoiceLang;
                             recognition.start();
                         } catch (err) {}
-                    }, 200);
+                    }, switchingLang ? 120 : 200);
                 };
                 recognition.onresult = (e) => {
                     let interimText = '';
                     let receivedSpeech = false;
+                    let finalChunk = '';
                     for (let i = e.resultIndex; i < e.results.length; i++) {
                         const segment = (e.results[i][0].transcript || '').trim();
                         if (!segment) continue;
                         receivedSpeech = true;
-                        if (e.results[i].isFinal) voiceFinalText += segment + ' ';
-                        else interimText += segment + ' ';
+                        if (e.results[i].isFinal) {
+                            voiceFinalText += segment + ' ';
+                            finalChunk += segment + ' ';
+                        } else {
+                            interimText += segment + ' ';
+                        }
                     }
                     const recognizedText = (voiceFinalText + interimText).trim();
                     chatInput.value = [voiceBaseText, recognizedText].filter(Boolean).join(' ');
+                    try { autoResizeChatInput(); } catch (err) {}
                     if (receivedSpeech) armSilenceTimer();
+
+                    // If spoken script clearly differs from active recognition language → switch
+                    // so English spoken under ar-EG (or Arabic under en-US) gets correct orthography
+                    const probe = (finalChunk || interimText || '').trim();
+                    if (probe.length >= 2) {
+                        const { ar, la } = countScript(probe);
+                        if (la >= 3 && la > ar * 1.2 && activeVoiceLang !== 'en-US') {
+                            // commit current finals into base before switch so we don't lose text
+                            voiceBaseText = [voiceBaseText, voiceFinalText.trim()].filter(Boolean).join(' ');
+                            voiceFinalText = '';
+                            restartWithLang('en-US');
+                        } else if (ar >= 2 && ar > la * 1.2 && activeVoiceLang !== 'ar-EG') {
+                            voiceBaseText = [voiceBaseText, voiceFinalText.trim()].filter(Boolean).join(' ');
+                            voiceFinalText = '';
+                            restartWithLang('ar-EG');
+                        }
+                    }
                 };
                 recognition.onerror = (e) => {
-                    // ignore benign errors so recording keeps going
                     if (e.error === 'no-speech' || e.error === 'aborted' || e.error === 'network') return;
                     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
                         stopVoiceRecording();
