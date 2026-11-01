@@ -530,7 +530,7 @@
 
                 <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-4">
                     <h3 class="text-sm font-bold text-amber-300 flex items-center gap-2"><i class="fa-solid fa-graduation-cap"></i><span data-i18n="grades_title">الدرجات والمعدل المتوقع</span></h3>
-                    <p class="text-[11px] text-slate-500"><span data-i18n="grades_sub">أدخل درجاتك وأوزانها. يُحسب المعدل تلقائيًا.</span></p>
+                    <p class="text-[11px] text-slate-500"><span data-i18n="grades_sub">ميدترم وفاينال أساسيان — درجتك ومن أصل كل مكوّن. النسبة تُحسب تلقائيًا.</span></p>
                     <div id="gradesList" class="grid grid-cols-1 xl:grid-cols-2 gap-4"></div>
                 </div>
             
@@ -741,8 +741,8 @@
                     <span id="savedFilesCount" class="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-xs font-bold">0 ملفات</span>
                 </div>
 
-                <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-4">
-                    <h3 class="text-sm font-bold text-slate-200"><span data-i18n="add_saved_file">إضافة ملف محفوظ</span></h3>
+                <div class="glass-panel rounded-2xl p-5 border border-emerald-500/15 space-y-4">
+                    <h3 class="text-sm font-bold text-emerald-300 flex items-center gap-2"><i class="fa-solid fa-plus"></i><span data-i18n="add_saved_file">إضافة ملف محفوظ</span></h3>
                     <form id="savedFileForm" class="space-y-3">
                         <input type="text" id="savedFileTitleInput" placeholder="Optional name — or the uploaded file name is used" data-i18n-placeholder="ph_saved_title" class="w-full glass-input px-4 py-2.5 rounded-xl text-sm" maxlength="120">
                         <select id="savedFileCourseSelect" class="w-full glass-input px-3 py-2.5 rounded-xl text-xs bg-slate-900">
@@ -781,7 +781,7 @@
                 </div>
 </section>
 
-            <section id="tab-ai-chat" class="tab-content space-y-4 hidden">
+            <section id="tab-ai-chat" class="tab-content space-y-3 hidden">
                 <div class="glass-panel rounded-2xl p-4 border border-slate-800 flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-400 to-indigo-500 flex items-center justify-center text-slate-950 font-bold shadow-lg shadow-cyan-500/20">
@@ -796,7 +796,15 @@
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <div class="flex items-center gap-2 w-full sm:w-auto flex-wrap justify-end">
+                        <div class="flex p-0.5 rounded-xl bg-slate-900/80 border border-slate-700/60 text-[11px] font-bold shrink-0">
+                            <button type="button" id="aiModeAssistantBtn" class="ai-mode-btn px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 transition-all" data-mode="assistant">
+                                <i class="fa-solid fa-robot ml-1"></i><span data-i18n-static="mode_assistant">مساعد</span>
+                            </button>
+                            <button type="button" id="aiModeTranslateBtn" class="ai-mode-btn px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition-all" data-mode="translate">
+                                <i class="fa-solid fa-language ml-1"></i><span data-i18n-static="mode_translate">مترجم</span>
+                            </button>
+                        </div>
                         <div class="relative flex-1 sm:w-48">
                             <input type="text" id="chatSearchInput" placeholder="Search conversation..." data-i18n-placeholder="ph_chat_search" class="w-full glass-input pr-8 pl-3 py-1.5 rounded-xl text-xs">
                             <i class="fa-solid fa-magnifying-glass absolute right-2.5 top-2.5 text-slate-400 text-xs"></i>
@@ -814,13 +822,6 @@
                     </div>
                 </div>
 
-                
-                        <div class="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3 space-y-1.5 mb-2">
-                            <p class="text-[11px] font-bold text-cyan-300" data-i18n-static="ai_how_title">طريقة استخدام الـ AI</p>
-                            <p class="text-[11px] text-slate-400" data-i18n-static="ai_how_1">• اطلب تنظيم يومك أو إضافة مهام بجملة واضحة — ينفّذ على اللوحة.</p>
-                            <p class="text-[11px] text-slate-400" data-i18n-static="ai_how_2">• الصق جدول المحاضرات أو ارفع صورته واطلب ملء جدول الحصص.</p>
-                            <p class="text-[11px] text-slate-400" data-i18n-static="ai_how_3">• اطلب overview لمادة، أو حلّل ملف أخطاء ليضيفها لبنك الأخطاء.</p>
-                        </div>
 <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
                     <span class="text-slate-400 text-[11px] font-bold shrink-0"><span data-i18n="quick_prompts">مقترحات سريعة:</span></span>
                     
@@ -833,19 +834,19 @@
 
                 </div>
 
-                <div class="glass-panel rounded-2xl p-3 border border-slate-800">
-                    <div class="flex items-center justify-between gap-2 mb-2 px-1">
-                        <h3 class="text-xs font-bold text-slate-300 flex items-center gap-2">
-                            <i class="fa-solid fa-clock-rotate-left text-cyan-400"></i>
+                <div class="glass-panel rounded-xl px-3 py-2 border border-slate-800">
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <h3 class="text-[11px] font-bold text-slate-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-clock-rotate-left text-cyan-400 text-[10px]"></i>
                             <span data-i18n="ai_history">سجل محادثات AI</span>
                         </h3>
                         <span id="aiConversationCount" class="text-[10px] text-slate-500"></span>
                     </div>
-                    <div id="aiConversationList" class="flex items-stretch gap-2 overflow-x-auto pb-1"></div>
+                    <div id="aiConversationList" class="flex items-stretch gap-1.5 overflow-x-auto max-h-12"></div>
                 </div>
 
-                <div class="glass-panel rounded-2xl p-4 border border-slate-800 h-[480px] flex flex-col justify-between">
-                    <div id="chatMessagesContainer" class="flex-1 overflow-y-auto space-y-4 pr-1"></div>
+                <div class="glass-panel rounded-2xl p-4 border border-slate-800 flex flex-col justify-between min-h-[620px] h-[min(78vh,820px)]">
+                    <div id="chatMessagesContainer" class="flex-1 overflow-y-auto space-y-4 pr-1 min-h-[380px]"></div>
 
                     <div id="imagePreviewContainer" class="hidden pt-2 border-t border-slate-800/80 flex items-center gap-2">
                         <div class="relative w-14 h-14 rounded-lg overflow-hidden border border-cyan-500/40">
@@ -858,16 +859,32 @@
                     </div>
 
                     <form id="chatForm" class="pt-3 border-t border-slate-800 flex items-end gap-2">
-                        <input type="file" id="chatImageInput" accept="image/*" class="hidden">
-                        <button type="button" id="triggerImageBtn" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-cyan-400 transition-all border border-slate-700/60" title="إرفاق صورة">
-                            <i class="fa-solid fa-paperclip text-sm"></i>
-                        </button>
+                        <input type="file" id="chatImageInput" accept="image/*,.pdf,.txt,.md,.doc,.docx" class="hidden">
+                        <div class="relative shrink-0">
+                            <button type="button" id="chatAttachMenuBtn" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-cyan-400 transition-all border border-slate-700/60" title="إرفاق" aria-haspopup="true" aria-expanded="false">
+                                <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                            </button>
+                            <div id="chatAttachMenu" class="hidden absolute bottom-full mb-2 start-0 z-40 w-56 rounded-xl border border-slate-700 bg-slate-900/95 backdrop-blur-md shadow-xl shadow-black/40 p-1.5 space-y-0.5">
+                                <button type="button" id="chatUploadFileBtn" class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-bold text-slate-200 hover:bg-cyan-500/15 hover:text-cyan-300 transition-all text-start">
+                                    <i class="fa-solid fa-upload text-cyan-400 w-4 text-center"></i>
+                                    <span data-i18n-static="attach_upload">رفع ملف / صورة</span>
+                                </button>
+                                <button type="button" id="chatPickSavedBtn" class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-bold text-slate-200 hover:bg-emerald-500/15 hover:text-emerald-300 transition-all text-start">
+                                    <i class="fa-solid fa-box-archive text-emerald-400 w-4 text-center"></i>
+                                    <span data-i18n-static="attach_saved">من الملفات المحفوظة</span>
+                                </button>
+                            </div>
+                            <div id="chatSavedPicker" class="hidden absolute bottom-full mb-2 start-0 z-40 w-72 max-h-56 overflow-y-auto rounded-xl border border-slate-700 bg-slate-900/95 backdrop-blur-md shadow-xl shadow-black/40 p-2">
+                                <p class="text-[10px] font-bold text-slate-400 px-2 py-1" data-i18n-static="pick_saved_title">اختر ملفًا محفوظًا</p>
+                                <div id="chatSavedPickerList" class="space-y-1"></div>
+                            </div>
+                        </div>
 
-                        <button type="button" id="voiceRecordBtn" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-cyan-400 transition-all border border-slate-700/60" title="التحدث بالصوت">
+                        <button type="button" id="voiceRecordBtn" class="voice-mic-btn p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-cyan-400 transition-all border border-slate-700/60 relative overflow-hidden" title="التحدث بالصوت" aria-pressed="false">
                             <i class="fa-solid fa-microphone text-sm"></i>
                         </button>
 
-                        <textarea id="chatTextInput" rows="1" placeholder="Ask a question or request tasks..." data-i18n-placeholder="ph_chat" class="flex-1 glass-input px-4 py-2.5 rounded-xl text-sm resize-none overflow-y-auto" autocomplete="off" style="max-height: 8rem; min-height: 2.5rem; line-height: 1.4;"></textarea>
+                        <textarea id="chatTextInput" rows="1" placeholder="Ask a question or request tasks..." data-i18n-placeholder="ph_chat" class="flex-1 glass-input px-4 py-2.5 rounded-xl text-sm resize-none overflow-y-auto" autocomplete="off" style="max-height: 8.75rem; min-height: 2.5rem; line-height: 1.45;"></textarea>
 
                         <button type="submit" id="sendChatBtn" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-cyan-500/20">
                             <span class="sub-ai">إرسال</span>
@@ -876,6 +893,18 @@
                     </form>
                 </div>
             
+                <details class="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 mt-1 group">
+                    <summary class="text-[11px] font-bold text-cyan-300 cursor-pointer select-none list-none flex items-center gap-2">
+                        <i class="fa-solid fa-circle-info text-[10px]"></i>
+                        <span data-i18n-static="ai_how_title">طريقة استخدام الـ AI</span>
+                        <i class="fa-solid fa-chevron-down text-[9px] text-slate-500 mr-auto transition-transform group-open:rotate-180"></i>
+                    </summary>
+                    <div class="mt-2 space-y-1.5">
+                        <p class="text-[11px] text-slate-400" data-i18n-static="ai_how_1">• اطلب تنظيم يومك أو إضافة مهام بجملة واضحة — ينفّذ على اللوحة.</p>
+                        <p class="text-[11px] text-slate-400" data-i18n-static="ai_how_2">• الصق جدول المحاضرات أو ارفع صورته واطلب ملء جدول الحصص.</p>
+                        <p class="text-[11px] text-slate-400" data-i18n-static="ai_how_3">• اطلب overview لمادة، أو حلّل ملف أخطاء ليضيفها لبنك الأخطاء.</p>
+                    </div>
+                </details>
                 <div class="rounded-xl border border-slate-600/60 bg-slate-900/55 px-4 py-3.5 mt-3">
                     <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1" data-i18n-static="about_label">About</p>
                     <p class="text-sm text-slate-200 leading-relaxed" data-i18n-static="about_ai">عن هذا القسم: اطلب تنظيم يومك أو إضافة مهام أو نصائح مذاكرة بلغة طبيعية.</p>

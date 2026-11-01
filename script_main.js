@@ -40,6 +40,7 @@
             activeNoteColor: 'cyan',
             attachedImageData: null,
             pendingSavedFileIds: [],
+            aiChatMode: 'assistant',
             studySessions: JSON.parse(localStorage.getItem('pud_study_sessions')) || [],
             studyReviews: JSON.parse(localStorage.getItem('pud_study_reviews')) || [],
             dailyMinutesGoal: Number(localStorage.getItem('pud_daily_minutes_goal')) || 90,
@@ -51,10 +52,7 @@
             ? AppState.studyCourses.map(course => ({
                 ...course,
                 lectures: Array.isArray(course.lectures) ? course.lectures : [],
-                grades: course.grades && typeof course.grades === 'object' ? course.grades : {
-                    coursework: '', midterm: '', final: '',
-                    courseworkWeight: 20, midtermWeight: 30, finalWeight: 50
-                },
+                grades: normalizeGrades(course.grades),
                 resources: Array.isArray(course.resources) ? course.resources : []
             }))
             : [];
@@ -66,6 +64,50 @@
         function createTimetableId() {
             return `tt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         }
+
+        function createGradeComponentId() {
+            return 'gc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+        }
+        function defaultGradeComponents() {
+            return [
+                { id: 'midterm', nameAr: 'ميدترم', nameEn: 'Midterm', score: '', max: 100, locked: true },
+                { id: 'final', nameAr: 'فاينال', nameEn: 'Final', score: '', max: 100, locked: true }
+            ];
+        }
+        function normalizeGrades(raw) {
+            if (!raw || typeof raw !== 'object') return { components: defaultGradeComponents() };
+            if (Array.isArray(raw.components) && raw.components.length) {
+                return {
+                    components: raw.components.map((c, idx) => ({
+                        id: c.id || createGradeComponentId() + '-' + idx,
+                        nameAr: String(c.nameAr || c.name || c.label || '').trim() || (c.nameEn || 'Component'),
+                        nameEn: String(c.nameEn || c.name || c.label || '').trim() || (c.nameAr || 'Component'),
+                        score: c.score === 0 || c.score ? c.score : '',
+                        max: Number(c.max) > 0 ? Number(c.max) : 100,
+                        weight: Number(c.weight) >= 0 ? Number(c.weight) : 0,
+                        locked: !!c.locked
+                    }))
+                };
+            }
+            const comps = [];
+            const legacy = [
+                { key: 'coursework', wKey: 'courseworkWeight', nameAr: 'أعمال سنة', nameEn: 'Coursework', defW: 20 },
+                { key: 'midterm', wKey: 'midtermWeight', nameAr: 'ميدترم', nameEn: 'Midterm', defW: 30, locked: true },
+                { key: 'final', wKey: 'finalWeight', nameAr: 'فاينال', nameEn: 'Final', defW: 50, locked: true }
+            ];
+            legacy.forEach(L => {
+                const score = raw[L.key], weight = raw[L.wKey];
+                const hasScore = score !== undefined && score !== null && score !== '';
+                const hasWeight = weight !== undefined && weight !== null && weight !== '';
+                if (L.key === 'coursework' && !hasScore && !hasWeight) return;
+                comps.push({ id: L.key, nameAr: L.nameAr, nameEn: L.nameEn, score: hasScore ? score : '', max: 100, weight: hasWeight ? Number(weight) : L.defW, locked: !!L.locked });
+            });
+            if (!comps.length) return { components: defaultGradeComponents() };
+            if (!comps.some(c => c.id === 'midterm')) comps.unshift({ id: 'midterm', nameAr: 'ميدترم', nameEn: 'Midterm', score: '', max: 100, weight: 30, locked: true });
+            if (!comps.some(c => c.id === 'final')) comps.push({ id: 'final', nameAr: 'فاينال', nameEn: 'Final', score: '', max: 100, weight: 50, locked: true });
+            return { components: comps };
+        }
+
         function normalizeWeeklyPlanner(raw) {
             const out = {};
             WEEK_DAYS.forEach(day => {
@@ -783,7 +825,7 @@
                 const input = document.getElementById('courseTitleInput');
                 const title = input.value.trim();
                 if (!title) return;
-                AppState.studyCourses.push({ id: createStudyId(), title, lectures: [] });
+                AppState.studyCourses.push({ id: createStudyId(), title, lectures: [], grades: normalizeGrades(null), resources: [] });
                 saveStateToStorage();
                 renderCourses();
                 updateStudyDashboardStats();
@@ -1890,7 +1932,7 @@
                 const dateLabel = date && !Number.isNaN(date.getTime())
                     ? date.toLocaleDateString(getUiLocale(), { year: 'numeric', month: 'short', day: 'numeric' })
                     : '';
-                card.className = 'glass-panel rounded-2xl p-4 border border-emerald-500/20 flex flex-col gap-3';
+                card.className = 'glass-panel rounded-2xl p-4 border border-emerald-500/25 hover:border-emerald-400/40 transition-all flex flex-col gap-3 shadow-sm shadow-emerald-500/5';
                 card.innerHTML = `
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
@@ -2088,12 +2130,110 @@
             const chatForm = document.getElementById('chatForm');
             const chatInput = document.getElementById('chatTextInput');
             const chatImageInput = document.getElementById('chatImageInput');
-            const triggerImageBtn = document.getElementById('triggerImageBtn');
             const voiceBtn = document.getElementById('voiceRecordBtn');
+            const attachMenuBtn = document.getElementById('chatAttachMenuBtn');
+            const attachMenu = document.getElementById('chatAttachMenu');
+            const savedPicker = document.getElementById('chatSavedPicker');
+            const savedPickerList = document.getElementById('chatSavedPickerList');
 
-            triggerImageBtn.addEventListener('click', () => chatImageInput.click());
-            chatImageInput.addEventListener('change', handleImageSelection);
-            document.getElementById('removeImageBtn').addEventListener('click', clearAttachedImage);
+            const closeAttachUi = () => {
+                attachMenu?.classList.add('hidden');
+                savedPicker?.classList.add('hidden');
+                if (attachMenuBtn) attachMenuBtn.setAttribute('aria-expanded', 'false');
+            };
+            const openAttachMenu = () => {
+                savedPicker?.classList.add('hidden');
+                attachMenu?.classList.toggle('hidden');
+                if (attachMenuBtn) attachMenuBtn.setAttribute('aria-expanded', attachMenu && !attachMenu.classList.contains('hidden') ? 'true' : 'false');
+            };
+            const fillSavedPicker = () => {
+                if (!savedPickerList) return;
+                const files = (AppState.savedFiles || []).slice(0, 40);
+                if (!files.length) {
+                    savedPickerList.innerHTML = `<p class="text-[11px] text-slate-500 px-2 py-3 text-center">${AppState.uiLang === 'en' ? 'No saved files yet.' : 'لا توجد ملفات محفوظة بعد.'}</p>`;
+                    return;
+                }
+                savedPickerList.innerHTML = files.map(f => `
+                    <button type="button" class="chat-pick-saved w-full text-start px-2.5 py-2 rounded-lg hover:bg-emerald-500/10 transition-all" data-id="${escapeHTML(String(f.id))}">
+                        <p class="text-xs font-bold text-slate-100 truncate">${escapeHTML(f.title || f.attachment?.name || '—')}</p>
+                        <p class="text-[10px] text-slate-500 truncate">${escapeHTML(f.courseTitle || f.attachment?.name || '')}</p>
+                    </button>
+                `).join('');
+                savedPickerList.querySelectorAll('.chat-pick-saved').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.dataset.id;
+                        AppState.pendingSavedFileIds = [id];
+                        const file = (AppState.savedFiles || []).find(x => String(x.id) === String(id));
+                        const label = file ? (file.title || file.attachment?.name || 'file') : id;
+                        // show hint in image preview area textually
+                        const prev = document.getElementById('imagePreviewContainer');
+                        if (prev) {
+                            prev.classList.remove('hidden');
+                            const img = document.getElementById('imagePreview');
+                            if (img) { img.removeAttribute('src'); img.alt = label; }
+                            const p = prev.querySelector('p');
+                            if (p) p.textContent = (AppState.uiLang === 'en' ? 'Saved file selected: ' : 'ملف محفوظ مختار: ') + label;
+                        }
+                        closeAttachUi();
+                    });
+                });
+            };
+
+            attachMenuBtn?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openAttachMenu();
+            });
+            document.getElementById('chatUploadFileBtn')?.addEventListener('click', () => {
+                closeAttachUi();
+                chatImageInput?.click();
+            });
+            document.getElementById('chatPickSavedBtn')?.addEventListener('click', () => {
+                attachMenu?.classList.add('hidden');
+                fillSavedPicker();
+                savedPicker?.classList.remove('hidden');
+            });
+            document.addEventListener('click', (e) => {
+                const wrap = attachMenuBtn?.parentElement;
+                if (wrap && !wrap.contains(e.target)) closeAttachUi();
+            });
+
+            chatImageInput?.addEventListener('change', handleImageSelection);
+            document.getElementById('removeImageBtn')?.addEventListener('click', () => {
+                clearAttachedImage();
+                AppState.pendingSavedFileIds = [];
+            });
+
+            // Assistant / Translator mode
+            const syncAiModeUi = () => {
+                const mode = AppState.aiChatMode === 'translate' ? 'translate' : 'assistant';
+                AppState.aiChatMode = mode;
+                document.querySelectorAll('.ai-mode-btn').forEach(btn => {
+                    const on = btn.dataset.mode === mode;
+                    btn.classList.toggle('bg-cyan-500', on && mode === 'assistant');
+                    btn.classList.toggle('bg-indigo-500', on && mode === 'translate');
+                    btn.classList.toggle('text-slate-950', on);
+                    btn.classList.toggle('text-slate-400', !on);
+                });
+                const ph = document.getElementById('chatTextInput');
+                if (ph) {
+                    if (mode === 'translate') {
+                        ph.placeholder = AppState.uiLang === 'en'
+                            ? 'Paste text to translate (auto-detect language)…'
+                            : 'الصق نصًا للترجمة (يكتشف اللغة تلقائيًا)…';
+                    } else if (typeof t === 'function') {
+                        ph.placeholder = t('ph_chat') || ph.placeholder;
+                    }
+                }
+            };
+            document.getElementById('aiModeAssistantBtn')?.addEventListener('click', () => {
+                AppState.aiChatMode = 'assistant';
+                syncAiModeUi();
+            });
+            document.getElementById('aiModeTranslateBtn')?.addEventListener('click', () => {
+                AppState.aiChatMode = 'translate';
+                syncAiModeUi();
+            });
+            syncAiModeUi();
 
             document.querySelectorAll('.quick-prompt-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -2120,20 +2260,23 @@
 
                 const updateVoiceButton = () => {
                     if (!voiceBtn) return;
+                    voiceBtn.classList.toggle('voice-recording', isRecording);
                     voiceBtn.classList.toggle('recording-pulse', isRecording);
                     voiceBtn.title = isRecording
                         ? (AppState.uiLang === 'en' ? 'Recording… tap to stop' : 'جاري التسجيل… اضغط للإيقاف')
                         : (AppState.uiLang === 'en' ? 'Voice input' : 'التحدث بالصوت');
                     voiceBtn.setAttribute('aria-label', voiceBtn.title);
-                    voiceBtn.innerHTML = `<i class="fa-solid ${isRecording ? 'fa-microphone-slash' : 'fa-microphone'} text-sm"></i>`;
+                    voiceBtn.setAttribute('aria-pressed', isRecording ? 'true' : 'false');
+                    voiceBtn.innerHTML = isRecording
+                        ? `<span class="voice-rec-dot" aria-hidden="true"></span><i class="fa-solid fa-stop text-sm"></i>`
+                        : `<i class="fa-solid fa-microphone text-sm"></i>`;
                 };
 
                 const armSilenceTimer = () => {
                     clearTimeout(silenceTimer);
-                    // stop after 12s silence only (not mid-sentence pauses)
                     silenceTimer = setTimeout(() => {
                         if (isRecording) stopVoiceRecording();
-                    }, 12000);
+                    }, 180000);
                 };
 
                 const stopVoiceRecording = () => {
@@ -2157,7 +2300,7 @@
                     updateVoiceButton();
                     armSilenceTimer();
                     clearTimeout(maxTimer);
-                    maxTimer = setTimeout(() => { if (isRecording) stopVoiceRecording(); }, 180000); // 3 min max
+                    maxTimer = setTimeout(() => { if (isRecording) stopVoiceRecording(); }, 600000); // 10 min max
                     try {
                         recognition.start();
                     } catch (err) {
@@ -2223,25 +2366,32 @@
             chatForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const text = chatInput.value.trim();
-                if (!text && !AppState.attachedImageData) return;
+                if (!text && !AppState.attachedImageData && !(AppState.pendingSavedFileIds || []).length) return;
 
                 const submittedConversationId = AppState.activeAiConversationId;
                 const selectedSavedFiles = savedAttachmentsForPrompt(text, AppState.pendingSavedFileIds);
                 AppState.pendingSavedFileIds = [];
-                AppState.chatHistory.push({ sender: 'user', text, image: AppState.attachedImageData?.previewUrl });
+                const isTranslate = AppState.aiChatMode === 'translate';
+                const userDisplay = isTranslate
+                    ? ((AppState.uiLang === 'en' ? '🔤 Translate:\n' : '🔤 ترجمة:\n') + text)
+                    : text;
+                AppState.chatHistory.push({ sender: 'user', text: userDisplay, image: AppState.attachedImageData?.previewUrl });
                 renderChatMessages();
                 syncActiveAiConversation();
                 chatInput.value = '';
                 try { autoResizeChatInput(); } catch (e) {}
+                try { if (voiceBtn && voiceBtn.classList.contains('voice-recording')) voiceBtn.click(); } catch (e) {}
                 const imagePayload = AppState.attachedImageData;
                 clearAttachedImage();
 
                 showAiTypingIndicator();
 
                 try {
-                    const aiReply = await callGeminiApi(text, imagePayload, selectedSavedFiles);
+                    const aiReply = isTranslate
+                        ? await callGeminiTranslate(text)
+                        : await callGeminiApi(text, imagePayload, selectedSavedFiles);
                     removeAiTypingIndicator();
-                    const processedText = handleAiActionExecution(aiReply);
+                    const processedText = isTranslate ? String(aiReply || '').trim() : handleAiActionExecution(aiReply);
                     appendMessageToAiConversation(submittedConversationId, { sender: 'ai', text: processedText });
                 } catch (err) {
                     removeAiTypingIndicator();
@@ -2362,7 +2512,66 @@
             return msg || 'خطأ غير معروف في الاتصال بخدمة جوجل.';
         }
 
-        async function callGeminiApi(userPrompt, imagePayload, savedAttachmentsToSend = []) {
+        
+        async function callGeminiTranslate(userText) {
+            let apiKey = AppState.geminiApiKey;
+            if (!apiKey || apiKey.trim() === '') {
+                apiKey = prompt(AppState.uiLang === 'en' ? 'Enter Google Gemini API key:' : 'أدخل مفتاح Google Gemini API:');
+                if (apiKey && apiKey.trim() !== '') {
+                    AppState.geminiApiKey = apiKey.trim();
+                    saveStateToStorage();
+                } else {
+                    throw new Error(t('api_key_required'));
+                }
+            }
+            apiKey = apiKey.trim();
+            const prompt = `You are a precise bilingual translator (Arabic ↔ English and other languages).
+Task: Translate the user's text.
+Rules:
+- Auto-detect source language.
+- If the text is mainly Arabic, translate to clear natural English.
+- If the text is mainly English (or another non-Arabic language), translate to clear simple Arabic.
+- Output ONLY the translation — no explanations, no quotes, no labels.
+- Keep meaning, tone, and line breaks.
+
+Text:
+"""
+${userText}
+"""`;
+            const body = {
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                generationConfig: { temperature: 0.2, topP: 0.9, maxOutputTokens: 2048 }
+            };
+            const tried = new Set();
+            const cached = localStorage.getItem('pud_gemini_working_model');
+            let queue = [...(cached ? [cached] : []), ...(typeof GEMINI_MODEL_CANDIDATES !== 'undefined' ? GEMINI_MODEL_CANDIDATES : ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'])];
+            let lastError = 'Translate failed';
+            while (queue.length) {
+                const model = queue.shift();
+                if (tried.has(model)) continue;
+                tried.add(model);
+                try {
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                        lastError = data?.error?.message || res.statusText || 'API error';
+                        continue;
+                    }
+                    localStorage.setItem('pud_gemini_working_model', model);
+                    const parts = data?.candidates?.[0]?.content?.parts || [];
+                    return parts.map(p => p.text || '').join('').trim() || (AppState.uiLang === 'en' ? '(empty translation)' : '(ترجمة فارغة)');
+                } catch (err) {
+                    lastError = err.message || String(err);
+                }
+            }
+            throw new Error(lastError);
+        }
+
+async function callGeminiApi(userPrompt, imagePayload, savedAttachmentsToSend = []) {
             let apiKey = AppState.geminiApiKey;
             if (!apiKey || apiKey.trim() === '') {
                 apiKey = prompt("أدخل مفتاح Google Gemini API:");
@@ -2423,65 +2632,106 @@
             const reviewsContext = JSON.stringify((AppState.studyReviews || []).filter(r => !r.completed).slice(0, 12).map(r => ({
                 id: r.id, lectureTitle: r.lectureTitle, dueDate: r.dueDate
             })));
-            const recentChat = (AppState.chatHistory || []).slice(-4).map(m => ({
+            const recentChat = (AppState.chatHistory || []).slice(-6).map(m => ({
                 role: m.sender === 'user' ? 'user' : 'assistant',
-                text: String(m.text || '').slice(0, 280)
+                text: String(m.text || '').slice(0, 400)
             }));
 
+            const weekDaysOrder = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+            const todayIdx = weekDaysOrder.indexOf(todayWeekday);
+            const remainingWeekDays = todayIdx >= 0 ? weekDaysOrder.slice(todayIdx) : weekDaysOrder;
+            const weekAheadSlots = {};
+            remainingWeekDays.forEach(d => {
+                const slots = (AppState.weeklyPlanner && AppState.weeklyPlanner[d]) ? AppState.weeklyPlanner[d] : [];
+                if (slots.length) weekAheadSlots[d] = slots.map(s => ({ start: s.start, end: s.end, title: s.title, type: s.type }));
+            });
+            const incompleteLectures = (AppState.studyCourses || []).map(c => {
+                const pending = (c.lectures || []).filter(l => !l.studied).map(l => l.title);
+                if (!pending.length) return null;
+                return { course: c.title, pendingCount: pending.length, pending: pending.slice(0, 8) };
+            }).filter(Boolean);
+            const upcomingExams = (AppState.monthlyGoals || [])
+                .filter(g => g && g.date && String(g.date) >= todayKey)
+                .slice().sort((a, b) => String(a.date).localeCompare(String(b.date))).slice(0, 6)
+                .map(g => {
+                    const daysLeft = Math.round((new Date(g.date + 'T12:00:00') - new Date(todayKey + 'T12:00:00')) / 86400000);
+                    return { title: g.title, date: g.date, daysLeft };
+                });
+            const completedTodayTasks = (AppState.dailyTasks || []).filter(tk => tk.completed).map(tk => tk.title);
+
             const langInstruction = isEn
-                ? 'Respond in clear, encouraging English. Keep answers concise unless the user asks for detail.'
-                : 'رد بالعربية الفصحى المبسطة بأسلوب مشجع وواضح ومختصر. استخدم الإنجليزية فقط إذا كتب المستخدم بالإنجليزية أو طلب ذلك.';
+                ? 'Respond in the same language as the user (English). Be warm, clear, teacher-like. Prefer accurate useful answers. For study questions explain step by step.'
+                : 'رد بنفس لغة المستخدم. تكلّم كمعلم هادئ دقيق بدون ضغط. للأسئلة العلمية اشرح خطوة بخطوة.';
 
-            const contextPrompt = `LANGUAGE RULE: Always reply in the same language the user is writing in (if they write English, reply in English; if Arabic, reply in Arabic; same for any other language).
+            const contextPrompt = `LANGUAGE RULE: Reply in the SAME language the user writes (Arabic↔Arabic, English↔English).
 
-أنت P.U.D AI — مساعد الدراسة الجامعية داخل لوحة Personal University Dashboard.
-اختصر الرد: جمل قليلة واضحة، بدون حشو. نفّذ الأوامر بسرعة ودقة.
+أنت «معلم P.U.D» — مساعد دراسة جامعي خبير داخل Personal University Dashboard.
+شخصيتك: معلم هادئ، ذكي، منظم، مشجع. تتكلم مع الطالب كأنك قاعد جنبه — مش روبوت أوامر.
+هدفك: مذاكرة ثابتة ومريحة بدون ضغط، مع نتائج حقيقية.
+
 ${langInstruction}
-أنت تنفّذ أوامر حقيقية على بيانات اللوحة (مهام، مواد، جدول محاضرات، أخطاء، مراجعات…). لست مجرد شات.
 
-طلب المستخدم الآن:
+=== صلاحياتك (Full access) ===
+ترى كل بيانات الطالب أدناه وتنفّذ أوامر حقيقية على اللوحة (JSON في نهاية الرد عند الحاجة).
+
+طلب الطالب الآن:
 """
 ${userPrompt}
 """
 
-=== لقطة سريعة لليوم (${todayKey}) ===
-- يوم الأسبوع في الجدول: ${todayWeekday || '—'}
+=== لقطة اليوم (${todayKey}) ===
+- يوم الجدول: ${todayWeekday || '—'}
 - حصص اليوم: ${JSON.stringify(todaySlots)}
-- مراجعات مستحقة الآن: ${dueReviews.length} → ${JSON.stringify(dueReviews.slice(0, 8).map(r => r.lectureTitle))}
-- مهام يومية مفتوحة: ${openTasks.length}
-- دقائق المذاكرة اليوم: ${todayMins} / هدف ${goal}
-- سلسلة الأيام النشطة: ${streak}
+- مراجعات مستحقة: ${dueReviews.length} → ${JSON.stringify(dueReviews.slice(0, 10).map(r => ({ title: r.lectureTitle, due: r.dueDate })))}
+- مهام مفتوحة: ${openTasks.length} → ${JSON.stringify(openTasks.map(t => ({ id: t.id, title: t.title, priority: t.priority })))}
+- مهام مكتملة اليوم: ${JSON.stringify(completedTodayTasks)}
+- دقائق مذاكرة اليوم: ${todayMins} / هدف ${goal}
+- سلسلة الأيام: ${streak}
+- محاضرات غير مذاكرة: ${JSON.stringify(incompleteLectures)}
+- امتحانات قادمة: ${JSON.stringify(upcomingExams)}
+- باقي حصص الأسبوع من اليوم: ${JSON.stringify(weekAheadSlots)}
 
 === بيانات اللوحة ===
 - الاسم: ${AppState.userName}
 - المهام اليومية: ${JSON.stringify(AppState.dailyTasks || [])}
-- المواد والمحاضرات: ${coursesContext}
-- جدول المحاضرات الأسبوعي (مفاتيح الأيام عربية ثابتة: السبت، الأحد، الإثنين، الثلاثاء، الأربعاء، الخميس، الجمعة؛ الوقت 24 ساعة HH:MM): ${JSON.stringify(AppState.weeklyPlanner || {})}
+- المواد والمحاضرات + الدرجات: ${coursesContext}
+- جدول الأسبوع (أيام: السبت…الجمعة؛ وقت HH:MM): ${JSON.stringify(AppState.weeklyPlanner || {})}
 - بنك الأخطاء: ${mistakesContext}
-- مواعيد/امتحانات الشهر: ${monthlyContext}
-- ملاحظات سريعة: ${notesContext}
+- امتحانات/أهداف الشهر: ${monthlyContext}
+- ملاحظات: ${notesContext}
 - ملفات محفوظة: ${savedFilesContext}
-- جلسات مذاكرة أخيرة: ${sessionsContext}
+- جلسات أخيرة: ${sessionsContext}
 - مراجعات غير مكتملة: ${reviewsContext}
 
-=== آخر رسائل المحادثة (للسياق فقط) ===
+=== سياق المحادثة ===
 ${JSON.stringify(recentChat)}
 
-=== كيفية التنفيذ ===
-عندما يحتاج الطلب تعديلاً على اللوحة، أضف في **نهاية** ردك كتلة JSON أو أكثر بهذا الشكل فقط:
+=== سلوك الخبير ===
+1) اعتمد على اللقطة فوق؛ لا تخترع مواد غير موجودة.
+2) تخطيط اليوم/من الجدول: 3–6 مهام واقعية فقط من الحصص + المراجعات + الناقص + الامتحانات. أولوية عالية للمراجعات المتأخرة والامتحان القريب. نفّذ ADD_DAILY_TASK بعد شرح لطيف مختصر.
+3) تنظيم الأسبوع: وزّع برفق (يوم تقيل/أخف). أضف مهام اليوم (أو اليوم+غدًا) إلا لو طلب صراحة أكثر.
+4) أسئلة علمية: شرح واضح خطوة بخطوة (تعريف → فكرة → مثال → ملخص). الدقة أهم من القصر.
+5) overview لمادة: نسبة المذاكرة + جلسات + درجات + أخطاء + أقرب امتحان.
+6) جدول من نص/صورة: SET_TIMETABLE_DAY لكل يوم بدقة.
+7) ملف أخطاء: كل خطأ ADD_MISTAKE منفصل.
+8) لا تضغط ولا تلوم؛ اقترح أصغر خطوة ممكنة.
+9) لو ناقص معلومة اسأل سؤال واحد مختصر.
 
+=== التنفيذ ===
+عدّل البيانات بكتل في نهاية الرد فقط:
 \`\`\`json
 {"action":"ACTION_NAME","data":{...}}
 \`\`\`
+ابدأ برد بشري ثم JSON إن لزم. لا JSON لأسئلة نظرية فقط.
 
-أوامر متاحة:
+الأوامر:
 1) ADD_DAILY_TASK — {"title":"...","priority":"عالي|متوسط|عادي"}
 2) COMPLETE_DAILY_TASK — {"id":n} أو {"title":"جزء"}
 3) DELETE_DAILY_TASK — {"id":n} أو {"title":"جزء"}
 4) CLEAR_COMPLETED_TASKS — {}
 5) ADD_COURSE — {"title":"..."}
 6) DELETE_COURSE — {"id":"..."} أو {"title":"..."}
-7) ADD_LECTURE — {"courseTitle":"...","title":"..."} أو courseId
+7) ADD_LECTURE — {"courseTitle":"...","title":"..."}
 8) MARK_LECTURE_STUDIED — {"courseTitle":"...","lectureTitle":"...","studied":true}
 9) DELETE_LECTURE — {"courseTitle":"...","lectureTitle":"..."}
 10) ADD_TIMETABLE_SLOT — {"day":"السبت","start":"08:00","end":"09:30","title":"...","type":"lecture|section|lab|holiday|other","location":""}
@@ -2503,22 +2753,12 @@ ${JSON.stringify(recentChat)}
 26) NEW_AI_CHAT — {}
 27) ADD_STUDY_SESSION — {"courseTitle":"...","lectureTitle":"اختياري","minutes":25,"note":""}
 28) COMPLETE_REVIEW — {"id":"..."} أو {"lectureTitle":"جزء"}
-29) SET_COURSE_GRADES — {"courseTitle":"...","coursework":0,"midterm":0,"final":0,"courseworkWeight":20,"midtermWeight":30,"finalWeight":50}
-30) BUILD_EXAM_PLAN — {"courseTitle":"...","examDate":"YYYY-MM-DD","days":7} ثم أضف مهام يومية بـ ADD_DAILY_TASK موزعة
-31) PLAN_TODAY — {} خطّط لليوم من الحصص + المراجعات المستحقة + المهام المفتوحة؛ أضف مهام يومية عملية بـ ADD_DAILY_TASK (3–7 مهام واضحة)
+29) SET_COURSE_GRADES — {"courseTitle":"...","midterm":0,"final":0,"midtermWeight":30,"finalWeight":50} أو {"courseTitle":"...","components":[{"name":"Partial","score":15,"max":20,"weight":10}]}
+30) BUILD_EXAM_PLAN — {"courseTitle":"...","examDate":"YYYY-MM-DD","days":7}
+31) PLAN_TODAY — {} خطّط من الحصص+المراجعات+الناقص؛ 3–6 مهام عملية فقط
 
-قواعد سلوك ذكية:
-- ابدأ دائماً برد نصي مفهوم يشرح ما ستفعله أو الإجابة، ثم JSON في النهاية إن لزم.
-- لا تخترع بيانات غير موجودة في اللوحة؛ إن نقص شيء اطلبه باختصار.
-- جدول من نص/صورة: استخرج كل حصة بدقة (يوم عربي صحيح، وقت 24 ساعة) واستخدم SET_TIMETABLE_DAY لكل يوم أفضل من عشرات ADD المنفصلة.
-- ملف أخطاء: كل خطأ = ADD_MISTAKE منفصل مع correctAnswer وشرح مختصر إن وُجد.
-- «overview / ملخص مادة»: لخّص من المحاضرات (نسبة المذاكرة) + الجلسات + الدرجات + أخطاء المادة + أقرب امتحان إن وُجد. لا تحتاج JSON إلا لو طلب المستخدم تحديث شيء.
-- «خطة اليوم / نظم يومي»: استخدم PLAN_TODAY + مهام حقيقية مرتبطة بالمراجعات والحصص.
-- «خطة امتحان»: BUILD_EXAM_PLAN + مهام موزعة بأيام، أولوية عالية للمراجعة.
-- إن سأل عن ملف محفوظ بالاسم، اعتمد محتواه؛ إن وُجد مرفق مُرسل هنا حلّله.
-- أولوية المهام: عالي للمراجعات المتأخرة والامتحانات القريبة، متوسط للمذاكرة العادية، عادي للتنظيم.
-- لا تخرج JSON لأسئلة نظرية أو نصائح فقط.
-- أيام الجدول يجب أن تكون بالضبط: السبت، الأحد، الإثنين، الثلاثاء، الأربعاء، الخميس، الجمعة (حتى لو الواجهة إنجليزي).`;
+أيام الجدول: السبت، الأحد، الإثنين، الثلاثاء، الأربعاء، الخميس، الجمعة.`;
+
 
             const parts = [{ text: contextPrompt }];
             if (imagePayload) {
@@ -2564,9 +2804,9 @@ ${JSON.stringify(recentChat)}
             const body = {
                 contents: [{ role: 'user', parts }],
                 generationConfig: {
-                    temperature: 0.4,
-                    topP: 0.85,
-                    maxOutputTokens: 2048
+                    temperature: 0.35,
+                    topP: 0.9,
+                    maxOutputTokens: 4096
                 }
             };
 
@@ -2749,7 +2989,9 @@ ${JSON.stringify(recentChat)}
                         AppState.studyCourses.push({
                             id: createStudyId(),
                             title: String(data.title).trim(),
-                            lectures: []
+                            lectures: [],
+                            grades: normalizeGrades(null),
+                            resources: []
                         });
                         saveStateToStorage();
                         renderCourses();
@@ -3057,10 +3299,24 @@ ${JSON.stringify(recentChat)}
                         if (data.courseId) course = AppState.studyCourses.find(c => String(c.id) === String(data.courseId));
                         if (!course && data.courseTitle) course = findByIdOrTitle(AppState.studyCourses, { title: data.courseTitle });
                         if (course) {
-                            if (!course.grades) course.grades = { coursework: '', midterm: '', final: '', courseworkWeight: 20, midtermWeight: 30, finalWeight: 50 };
-                            ['coursework', 'midterm', 'final', 'courseworkWeight', 'midtermWeight', 'finalWeight'].forEach(k => {
-                                if (data[k] !== undefined && data[k] !== null && data[k] !== '') course.grades[k] = Number(data[k]);
-                            });
+                            course.grades = normalizeGrades(course.grades);
+                            const setComp = (id, nameAr, nameEn, score, weight, maxVal, locked) => {
+                                let comp = course.grades.components.find(c => String(c.id) === String(id));
+                                if (!comp) {
+                                    comp = { id, nameAr, nameEn, score: '', max: 100, weight: 0, locked: !!locked };
+                                    course.grades.components.push(comp);
+                                }
+                                if (score !== undefined && score !== null && score !== '') comp.score = Number(score);
+                                if (weight !== undefined && weight !== null && weight !== '') comp.weight = Number(weight);
+                                if (maxVal !== undefined && maxVal !== null && maxVal !== '') comp.max = Number(maxVal) || 100;
+                            };
+                            if (Array.isArray(data.components)) {
+                                data.components.forEach(c => setComp(c.id || createGradeComponentId(), c.nameAr || c.name || 'مكوّن', c.nameEn || c.name || 'Component', c.score, c.weight, c.max, false));
+                            } else {
+                                if (data.coursework !== undefined || data.courseworkWeight !== undefined) setComp('coursework', 'أعمال سنة', 'Coursework', data.coursework, data.courseworkWeight, data.courseworkMax, false);
+                                if (data.midterm !== undefined || data.midtermWeight !== undefined) setComp('midterm', 'ميدترم', 'Midterm', data.midterm, data.midtermWeight, data.midtermMax, true);
+                                if (data.final !== undefined || data.finalWeight !== undefined) setComp('final', 'فاينال', 'Final', data.final, data.finalWeight, data.finalMax, true);
+                            }
                             saveStateToStorage();
                             renderProgressModule();
                             done = true;
@@ -3254,24 +3510,19 @@ ${JSON.stringify(recentChat)}
 
         function calcCourseExpected(grades) {
             if (!grades) return null;
-            const parts = [
-                { score: parseFloat(grades.coursework), w: Number(grades.courseworkWeight) || 0 },
-                { score: parseFloat(grades.midterm), w: Number(grades.midtermWeight) || 0 },
-                { score: parseFloat(grades.final), w: Number(grades.finalWeight) || 0 }
-            ];
-            let totalW = 0;
-            let sum = 0;
-            let hasAny = false;
-            parts.forEach(p => {
-                if (!Number.isNaN(p.score) && p.w > 0) {
-                    sum += (p.score / 100) * p.w;
-                    totalW += p.w;
+            const g = normalizeGrades(grades);
+            let totalScore = 0, totalMax = 0, hasAny = false;
+            (g.components || []).forEach(c => {
+                const score = parseFloat(c.score);
+                const max = Number(c.max) > 0 ? Number(c.max) : 100;
+                if (!Number.isNaN(score)) {
+                    totalScore += Math.max(0, score);
+                    totalMax += max;
                     hasAny = true;
                 }
             });
-            if (!hasAny || totalW === 0) return null;
-            // Scale to 100 based on entered weights
-            return Math.round((sum / totalW) * 1000) / 10;
+            if (!hasAny || totalMax <= 0) return null;
+            return Math.round((totalScore / totalMax) * 1000) / 10;
         }
 
         function scoreToGpaPoint(score) {
@@ -3448,16 +3699,34 @@ ${JSON.stringify(recentChat)}
                 }
             }
 
-            // Grades
+            // Grades (flexible components)
             const gradesList = el('gradesList');
             if (gradesList) {
                 if (!AppState.studyCourses.length) {
                     gradesList.innerHTML = `<p class="text-xs text-slate-500 col-span-2 text-center py-4">${t('no_courses_yet')}</p>`;
                 } else {
+                    const nameOf = (c) => (AppState.uiLang === 'en' ? (c.nameEn || c.nameAr) : (c.nameAr || c.nameEn));
                     gradesList.innerHTML = AppState.studyCourses.map(course => {
-                        const g = course.grades || {};
+                        course.grades = normalizeGrades(course.grades);
+                        const g = course.grades;
                         const expected = calcCourseExpected(g);
                         const gpa = scoreToGpaPoint(expected);
+                        const compsHtml = (g.components || []).map(comp => {
+                            const canDelete = !comp.locked;
+                            return `
+                                <div class="grade-comp-row rounded-xl border border-slate-800/80 bg-slate-950/40 p-2.5 space-y-1.5" data-comp-id="${escapeHTML(String(comp.id))}">
+                                    <div class="flex items-center gap-2">
+                                        <input type="text" class="grade-comp-name flex-1 glass-input px-2 py-1 rounded-lg text-[11px] font-bold" value="${escapeHTML(nameOf(comp))}" placeholder="${AppState.uiLang === 'en' ? 'Name' : 'الاسم'}" ${comp.locked ? 'readonly' : ''}>
+                                        ${canDelete ? `<button type="button" class="grade-comp-del shrink-0 w-7 h-7 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10" title="${AppState.uiLang === 'en' ? 'Remove' : 'حذف'}"><i class="fa-solid fa-trash-can text-[10px]"></i></button>` : ''}
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <label class="space-y-0.5"><span class="text-[9px] text-slate-500 font-bold">${AppState.uiLang === 'en' ? 'Score' : 'درجتك'}</span>
+                                            <input type="number" min="0" step="0.5" class="grade-comp-score w-full glass-input px-2 py-1.5 rounded-lg text-xs" value="${comp.score === 0 || comp.score ? escapeHTML(String(comp.score)) : ''}" placeholder="0"></label>
+                                        <label class="space-y-0.5"><span class="text-[9px] text-slate-500 font-bold">${AppState.uiLang === 'en' ? 'Out of (Max)' : 'من أصل (الحد الأقصى)'}</span>
+                                            <input type="number" min="1" step="1" class="grade-comp-max w-full glass-input px-2 py-1.5 rounded-lg text-xs" value="${escapeHTML(String(comp.max || 100))}"></label>
+                                    </div>
+                                </div>`;
+                        }).join('');
                         return `
                             <article class="rounded-2xl bg-slate-900/50 border border-slate-800 p-4 space-y-3" data-course-id="${escapeHTML(String(course.id))}">
                                 <div class="flex items-center justify-between gap-2">
@@ -3467,36 +3736,64 @@ ${JSON.stringify(recentChat)}
                                         <p class="text-[10px] text-slate-500">${gpa != null ? 'GPA ≈ ' + gpa.toFixed(1) : t('enter_grades')}</p>
                                     </div>
                                 </div>
-                                <div class="grid grid-cols-3 gap-2 text-[11px]">
-                                    <label class="space-y-1">
-                                        <span class="text-slate-500" data-i18n-static="coursework">Coursework</span>
-                                        <input type="number" min="0" max="100" step="0.5" class="grade-input w-full glass-input px-2 py-1.5 rounded-lg text-xs" data-field="coursework" value="${g.coursework ?? ''}" placeholder="Score" data-i18n-placeholder="ph_score">
-                                        <input type="number" min="0" max="100" class="grade-weight w-full glass-input px-2 py-1 rounded-lg text-[10px]" data-field="courseworkWeight" value="${g.courseworkWeight ?? 20}" title="الوزن %">
-                                    </label>
-                                    <label class="space-y-1">
-                                        <span class="text-slate-500" data-i18n-static="midterm">Midterm</span>
-                                        <input type="number" min="0" max="100" step="0.5" class="grade-input w-full glass-input px-2 py-1.5 rounded-lg text-xs" data-field="midterm" value="${g.midterm ?? ''}" placeholder="Score" data-i18n-placeholder="ph_score">
-                                        <input type="number" min="0" max="100" class="grade-weight w-full glass-input px-2 py-1 rounded-lg text-[10px]" data-field="midtermWeight" value="${g.midtermWeight ?? 30}" title="الوزن %">
-                                    </label>
-                                    <label class="space-y-1">
-                                        <span class="text-slate-500" data-i18n-static="final">Final</span>
-                                        <input type="number" min="0" max="100" step="0.5" class="grade-input w-full glass-input px-2 py-1.5 rounded-lg text-xs" data-field="final" value="${g.final ?? ''}" placeholder="Score" data-i18n-placeholder="ph_score">
-                                        <input type="number" min="0" max="100" class="grade-weight w-full glass-input px-2 py-1 rounded-lg text-[10px]" data-field="finalWeight" value="${g.finalWeight ?? 50}" title="الوزن %">
-                                    </label>
-                                </div>
-                            </article>
-                        `;
+                                <div class="space-y-2 grade-comps-wrap">${compsHtml}</div>
+                                <button type="button" class="add-grade-comp-btn w-full py-2 rounded-xl border border-dashed border-cyan-500/40 text-cyan-400 text-xs font-bold hover:bg-cyan-500/10 flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-plus"></i><span>${AppState.uiLang === 'en' ? 'Add grade component' : 'إضافة مكوّن درجة'}</span>
+                                </button>
+                            </article>`;
                     }).join('');
-
-                    gradesList.querySelectorAll('.grade-input, .grade-weight').forEach(input => {
+                    const persistCourseGrades = (card) => {
+                        const course = AppState.studyCourses.find(c => String(c.id) === card.dataset.courseId);
+                        if (!course) return;
+                        course.grades = normalizeGrades(course.grades);
+                        const components = [];
+                        card.querySelectorAll('.grade-comp-row').forEach(row => {
+                            const id = row.dataset.compId;
+                            const existing = (course.grades.components || []).find(x => String(x.id) === String(id)) || {};
+                            const nameVal = (row.querySelector('.grade-comp-name')?.value || '').trim();
+                            const scoreVal = row.querySelector('.grade-comp-score')?.value;
+                            const maxVal = row.querySelector('.grade-comp-max')?.value;
+                            components.push({
+                                id,
+                                nameAr: existing.locked ? (existing.nameAr || nameVal) : nameVal,
+                                nameEn: existing.locked ? (existing.nameEn || nameVal) : nameVal,
+                                score: scoreVal === '' ? '' : Number(scoreVal),
+                                max: Number(maxVal) > 0 ? Number(maxVal) : 100,
+                                locked: !!existing.locked
+                            });
+                        });
+                        course.grades.components = components;
+                        saveStateToStorage();
+                    };
+                    gradesList.querySelectorAll('.grade-comp-score, .grade-comp-max, .grade-comp-name').forEach(input => {
                         input.addEventListener('change', () => {
                             const card = input.closest('[data-course-id]');
+                            if (!card) return;
+                            persistCourseGrades(card);
+                            renderProgressModule();
+                        });
+                    });
+                    gradesList.querySelectorAll('.add-grade-comp-btn').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const card = btn.closest('[data-course-id]');
                             const course = AppState.studyCourses.find(c => String(c.id) === card.dataset.courseId);
                             if (!course) return;
-                            if (!course.grades) course.grades = {};
-                            const field = input.dataset.field;
-                            const val = input.value === '' ? '' : Number(input.value);
-                            course.grades[field] = val;
+                            course.grades = normalizeGrades(course.grades);
+                            const label = AppState.uiLang === 'en' ? 'Partial' : 'بارتيال';
+                            course.grades.components.push({ id: createGradeComponentId(), nameAr: label, nameEn: 'Partial', score: '', max: 100, weight: 10, locked: false });
+                            saveStateToStorage();
+                            renderProgressModule();
+                        });
+                    });
+                    gradesList.querySelectorAll('.grade-comp-del').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const row = btn.closest('.grade-comp-row');
+                            const card = btn.closest('[data-course-id]');
+                            const course = AppState.studyCourses.find(c => String(c.id) === card.dataset.courseId);
+                            if (!course || !row) return;
+                            course.grades = normalizeGrades(course.grades);
+                            const id = row.dataset.compId;
+                            course.grades.components = course.grades.components.filter(c => String(c.id) !== String(id) || c.locked);
                             saveStateToStorage();
                             renderProgressModule();
                         });
@@ -3622,7 +3919,7 @@ ${JSON.stringify(recentChat)}
                 log_session: 'تسجيل جلسة مذاكرة', add_session: 'إضافة جلسة',
                 reviews_scheduled: 'المراجعات المستحقة والمجدولة',
                 reviews_hint: 'تُجدول تلقائيًا عند تحديد درس كمُذاكر: بعد 1 · 3 · 7 · 14 يوم',
-                grades_title: 'الدرجات والمعدل المتوقع', grades_sub: 'أدخل درجاتك وأوزانها. يُحسب المعدل تلقائيًا.',
+                grades_title: 'الدرجات والمعدل المتوقع', grades_sub: 'ميدترم وفاينال أساسيان — أضف مكوّنات (درجتك / من أصل). النسبة تُحسب تلقائيًا.',
                 weekly_title: 'جدول المحاضرات الأسبوعي', weekly_sub: 'سجّل محاضراتك وسكاشنك باليوم والساعة. يمكن للـ AI قراءة جدولك وملء هذا القسم.',
                 tt_add_slot: 'إضافة حصة', tt_day: 'اليوم', tt_start: 'من', tt_end: 'إلى', tt_title: 'المادة / العنوان',
                 tt_type: 'النوع', tt_type_lecture: 'محاضرة', tt_type_section: 'سكشن', tt_type_lab: 'لاب', tt_type_holiday: 'إجازة', tt_type_other: 'أخرى',
@@ -3682,7 +3979,7 @@ ${JSON.stringify(recentChat)}
                 save_settings: 'حفظ الإعدادات', cancel_btn: 'إلغاء',
                 confirm_done: 'تأكيد إتمام المهمة', yes_done: 'نعم، أتممتها 👍',
                 save_note_btn: 'حفظ الملاحظة', edit_name: 'تعديل اسمك في اللوحة',
-                coursework: 'أعمال سنة', midterm: 'ميدترم', final_exam: 'فاينال',
+                coursework: 'أعمال سنة', midterm: 'ميدترم', final_exam: 'فاينال', mode_assistant: 'مساعد', mode_translate: 'مترجم', attach_upload: 'رفع ملف / صورة', attach_saved: 'من الملفات المحفوظة', pick_saved_title: 'اختر ملفًا محفوظًا',
                 celeb_title: 'عاش يا بطل! أسطورة حقيقية 🚀🔥',
                 celeb_body: 'لقد أنجزت جميع مهامك اليومية بنجاح بنسبة 100%!',
                 celeb_btn: 'استمرار في الإنجاز ⚡',
@@ -3762,7 +4059,7 @@ ${JSON.stringify(recentChat)}
                 log_session: 'Log study session', add_session: 'Add session',
                 reviews_scheduled: 'Due & scheduled reviews',
                 reviews_hint: 'Auto-scheduled when you mark a lecture studied: after 1 · 3 · 7 · 14 days',
-                grades_title: 'Grades & expected score', grades_sub: 'Enter scores and weights. Expected average is calculated automatically.',
+                grades_title: 'Grades & expected score', grades_sub: 'Midterm and Final by default — add components (your score / out of). Percentage is calculated automatically.',
                 weekly_title: 'Weekly lecture timetable', weekly_sub: 'Log lectures and sections by day and time. AI can read your schedule and fill this section.',
                 tt_add_slot: 'Add slot', tt_day: 'Day', tt_start: 'From', tt_end: 'To', tt_title: 'Course / title',
                 tt_type: 'Type', tt_type_lecture: 'Lecture', tt_type_section: 'Section', tt_type_lab: 'Lab', tt_type_holiday: 'Day off', tt_type_other: 'Other',
@@ -3985,9 +4282,12 @@ ${JSON.stringify(recentChat)}
         function autoResizeChatInput() {
             const el = document.getElementById('chatTextInput');
             if (!el) return;
+            const maxPx = 140; // ~5 lines
+            const minPx = 40;
             el.style.height = 'auto';
-            const next = Math.min(el.scrollHeight, 128); // ~8rem
+            const next = Math.max(minPx, Math.min(el.scrollHeight, maxPx));
             el.style.height = next + 'px';
+            el.style.overflowY = el.scrollHeight > maxPx ? 'auto' : 'hidden';
         }
 
         function initChatInputBehavior() {
